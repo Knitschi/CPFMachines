@@ -1,1 +1,0 @@
-This project is currently not suited for public use. No documentation is provided.
