@@ -1,0 +1,118 @@
+
+# The docker image file for the jenkins slave nodes.
+# 
+# It is a debian container that has the necessary tools installed to execute the CppCodeBase build-pipeline.
+
+FROM debian:8.9
+
+
+# ----------------------- ADD USER JENKINS -------------------------------
+# Set user jenkins to the image 
+RUN useradd -m -d /home/jenkins -s /bin/sh jenkins &&\
+    echo "jenkins:jenkins" | chpasswd
+
+    
+# ----------------------- BASIC TOOLS -------------------------------
+# install basic tools
+# - wget to download packages
+# - openssh-server needed to allow the build master to access the slave
+# - vim for manual editing files
+# - netcat can be used to manuall examine the network when debugging the container
+# - tree is used when running the pipeline for debug purposes
+# - git for downloading the code-base
+# - python is used to implement the build-pipeline.
+RUN apt-get -q update && apt-get -q -y install \
+wget \
+openssh-server \
+vim \
+netcat \
+tree \
+unzip \
+python3 \
+xvfb \
+graphviz \
+valgrind \
+ninja-build \
+abi-compliance-checker
+
+
+# ------------------- CLANG TOOLS ---------------------
+COPY installClangTools.sh installClangTools.sh
+RUN /bin/bash installClangTools.sh
+    
+    
+# ------------------- GCC --------------------
+COPY installGcc.sh installGcc.sh
+RUN /bin/bash installGcc.sh
+    
+    
+# ----------------- QT ---------------
+# Compile and install qt manually for linux for now
+COPY buildQt.sh buildQt.sh
+RUN /bin/bash buildQt.sh
+
+# Create symlink to uic because environment variables did not work.
+# This is needed for the static conde analysis job.
+RUN cd /usr/local/bin &&\
+    ln -s /usr/local/Qt-5.5.1/bin/uic uic
+
+    
+# ----------------- Git ---------------
+# Make sure we get a more modern version then the one included in debian 8
+COPY buildGit.sh buildGit.sh
+RUN /bin/bash buildGit.sh
+
+USER jenkins
+RUN git config --global user.email "not@valid.com" &&\
+    git config --global user.name "jenkins"
+
+USER root
+    
+# ----------------- CMAKE ---------------
+# cmake needs to be build and installed by hand because the debian version is too old.
+COPY buildCMake.sh buildCMake.sh
+RUN /bin/bash buildCMake.sh
+
+
+# --------------- DOXYGEN ---------------    
+# we use the same doxygen version as the DocumentationServer
+COPY buildDoxygen.sh buildDoxygen.sh
+RUN /bin/bash buildDoxygen.sh
+
+# --------------- ctags --------------
+COPY installCTags.sh installCTags.sh
+RUN /bin/bash installCTags.sh
+
+# --------------- abi-compliance-checker ---------------
+COPY installAbiComplianceChecker.sh installAbiComplianceChecker.sh
+RUN /bin/bash installAbiComplianceChecker.sh
+
+
+# --------------- PREPARE SSH DEAMON ---------------     
+# prepare running sshd
+RUN sed -i 's|session required pam_loginuid.so|session optional pam_loginuid.so|g' /etc/pam.d/sshd &&\
+    mkdir -p /var/run/sshd
+    
+COPY ssh_config /etc/ssh/sshd_config
+
+# -------------- Create some directories and copy some files -----------
+RUN mkdir /home/jenkins/.ssh &&\
+mkdir /home/jenkins/bin &&\
+mkdir -p /home/jenkins/.ssh &&\
+chown -R jenkins:jenkins /home/jenkins/.ssh
+
+ # This file is run by the jenkins-master to start the slave
+COPY slave.jar /home/jenkins/bin/slave.jar         
+RUN chown -R jenkins:jenkins /home/jenkins/bin
+ 
+  
+# ----------------- JAVA ----------------------
+# Install JDK 8 (latest edition) 
+RUN echo "deb http://debian.netcologne.de/debian jessie-backports main" | tee --append /etc/apt/sources.list &&\
+      apt-get update &&\
+      apt-get install -y -t jessie-backports openjdk-8-jdk
+  
+    
+# Run the sshd server as command to keep the container alive.
+CMD ["/usr/sbin/sshd", "-D"]
+
