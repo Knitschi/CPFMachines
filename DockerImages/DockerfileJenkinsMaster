@@ -1,0 +1,66 @@
+# A Docker Image for the jenkins master server that runs the build-pipeline of the CppCodeBase project.
+
+# Note that you need to login as admin and with the password in /home/jenkinsmastercontainer/secrets/initialAdminPassword
+# after the first start of the jenkins server. Then change the admin account under "Manage Jenkins" -> "Manage Users"
+
+# Get the basic jenkins container
+FROM jenkins:2.60.2
+
+# Install initial plugins
+RUN install-plugins.sh \
+workflow-aggregator \
+blueocean \
+junit \
+git \
+greenballs \
+xvfb
+
+USER root
+
+# Install tools that are needed for the build pipeline
+RUN apt-get update && apt-get -y -q install \
+netcat \
+tree
+
+
+# ------------------- GCC --------------------
+COPY installGcc.sh installGcc.sh
+RUN /bin/bash installGcc.sh
+
+
+# ----------------- Git ---------------
+# Make sure we get a more modern version then the one included in debian 8
+COPY buildGit.sh buildGit.sh
+RUN /bin/bash buildGit.sh
+
+
+# ----------------- CMAKE ---------------
+# cmake needs to be build and installed by hand because the debian version is too old.
+COPY buildCMake.sh buildCMake.sh
+RUN /bin/bash buildCMake.sh
+
+
+EXPOSE 22
+    
+# Add user groups
+# add root to jenkinsRoot group
+#RUN groupadd jenkinsRoot &&\ 
+#    usermod -a -G jenkinsRoot root
+    
+# add jenkins to jenkinsShare group
+#RUN groupadd jenkinsShare &&\ 
+#    usermod -a -G jenkinsShare jenkins
+    
+
+# Make sure the container is run with the jenkins user rights
+USER jenkins
+
+# create share and home directories
+RUN mkdir -p /var/jenkins_home/html
+
+RUN git config --global user.email "not@valid.com" &&\
+    git config --global user.name "jenkins"
+
+
+
+    
