@@ -33,4 +33,3 @@ curl $jenkinsUrl/job/$packageName/build \
 --data-urlencode json='{"parameter": [{"name":"branchOrTag", "value":"'$branch'"}]}'
 
 fi
-
