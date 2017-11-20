@@ -13,5 +13,3 @@ while read oldrev newrev refname
 do
     bash $scriptDir/triggerJenkinsJob.sh $refname # pass all arguments except the first on to the triggerJenkinsJob.sh script 
 done
-
-

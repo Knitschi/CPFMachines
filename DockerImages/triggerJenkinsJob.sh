@@ -4,7 +4,6 @@
 # Argument 1: The name of the reference that belongs to the pushed branch. This looks something like refs/heads/Knitschi-int-master
 #
 
-
 refname=$1
 
 # The base url of the jenkins server on which a job is triggered
