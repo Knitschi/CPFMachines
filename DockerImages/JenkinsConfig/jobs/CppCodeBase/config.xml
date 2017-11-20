@@ -3,11 +3,11 @@
   <actions>
     <io.jenkins.blueocean.service.embedded.BlueOceanUrlAction plugin="blueocean-rest-impl@1.1.5">
       <blueOceanUrlObject class="io.jenkins.blueocean.service.embedded.BlueOceanUrlObjectImpl">
-        <mappedUrl>blue/organizations/jenkins/CppCodeBase</mappedUrl>
+        <mappedUrl>blue/organizations/jenkins/BuildCppCodeBaseAssistant</mappedUrl>
       </blueOceanUrlObject>
     </io.jenkins.blueocean.service.embedded.BlueOceanUrlAction>
   </actions>
-  <description>Builds the pipeline target of a CppCodeBase project.</description>
+  <description>Builds the pipeline target of a BuildCppCodeBaseAssistant project.</description>
   <keepDependencies>false</keepDependencies>
   <properties>
     <jenkins.model.BuildDiscarderProperty>
@@ -64,7 +64,7 @@ Create a release version with incremented patch version number.</description>
       <configVersion>2</configVersion>
       <userRemoteConfigs>
         <hudson.plugins.git.UserRemoteConfig>
-          <url>ssh://admin@datenbunker/share/GitRepositories/CppCodeBase</url>
+          <url>ssh://admin@datenbunker/share/GitRepositories/BuildCppCodeBaseAssistant.git</url>
         </hudson.plugins.git.UserRemoteConfig>
       </userRemoteConfigs>
       <branches>
@@ -76,7 +76,7 @@ Create a release version with incremented patch version number.</description>
       <submoduleCfg class="list"/>
       <extensions/>
     </scm>
-    <scriptPath>Infrastructure/JenkinsPipelineScript.groovy</scriptPath>
+    <scriptPath>Sources/CppCodeBaseJenkinsfile/JenkinsPipelineScript.groovy</scriptPath>
     <lightweight>false</lightweight>
   </definition>
   <triggers/>
