@@ -58,9 +58,6 @@ USER jenkins
 # create share and home directories
 RUN mkdir -p /var/jenkins_home/html
 
-RUN git config --global user.email "not@valid.com" &&\
-    git config --global user.name "jenkins"
-
-
-
+RUN git config --global user.email not@valid.com &&\
+    git config --global user.name jenkins
     
