@@ -91,6 +91,7 @@ buildAndStartJenkinsMaster()
         --name $JENKINS_MASTER_CONTAINER \
         $JENKINS_MASTER_CONTAINER-image
 
+    # add global gitconfig after mounting the workspace volume, otherwise is gets deleted. 
     docker exec $JENKINS_MASTER_CONTAINER git config --global user.email not@valid.org
     docker exec $JENKINS_MASTER_CONTAINER git config --global user.name jenkins
   
