@@ -30,7 +30,7 @@ echo "Trigger jenkins job" $packageName "for branch" $branch
 # Trigger the parameterized build-job and pass it the branch name as argument.
 curl $jenkinsUrl/job/$packageName/build \
 --user $jenkinsUser:$jenkinsPassword \
---data-urlencode json='{"parameter": [{"name":"branch", "value":"'$branch'"}], ["name":"task", "value":"'integration'"]}'
+--data-urlencode json='{"parameter": [{"name":"branchOrTag", "value":"'$branch'"}]}'
 
 fi
 
