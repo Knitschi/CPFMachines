@@ -13,7 +13,9 @@ jenkinsUser="CaptainGitHook"
 jenkinsPassword="1234temp"
 
 # Get the name of the buildjob by assuming that the repository base directory and the build job both have the name of the build package
-packageName="${$(basename "$PWD")::-4}" # remove the .git extension from the repo directory
+dirName=$(basename "$PWD")
+# remove the .git extension from the repo directory
+packageName=${dirName/.git/} 
 
 # Get the branch name from the refname argument
 branch=$(git rev-parse --symbolic --abbrev-ref $refname)
@@ -28,7 +30,6 @@ echo "Trigger jenkins job" $packageName "for branch" $branch
 # Trigger the parameterized build-job and pass it the branch name as argument.
 curl $jenkinsUrl/job/$packageName/build \
 --user $jenkinsUser:$jenkinsPassword \
---data-urlencode json='{"parameter": [{"name":"branch", "value":"'$branch'"}]}'
+--data-urlencode json='{"parameter": [{"name":"branch", "value":"'$branch'"}], ["name":"task", "value":"'integration'"]}'
 
 fi
-
