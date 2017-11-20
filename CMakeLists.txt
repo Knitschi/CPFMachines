@@ -8,7 +8,7 @@ ccbInitPackageProject(
 	${PACKAGE_NAMESPACE}
 )
 
-set( 
+set( sources
     BuildHostLinux/shutdownVms
     BuildHostLinux/shutdownVms.service
     DockerImages/JenkinsConfig/jobs/CMakeProjectBuildJob/config.xml
