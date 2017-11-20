@@ -90,6 +90,10 @@ buildAndStartJenkinsMaster()
         --ip $JENKINS_MASTER_IP \
         --name $JENKINS_MASTER_CONTAINER \
         $JENKINS_MASTER_CONTAINER-image
+
+    docker exec $JENKINS_MASTER_CONTAINER git config --global user.email not@valid.org
+    docker exec $JENKINS_MASTER_CONTAINER git config --global user.name jenkins
+  
 }
 
 buildAndStartDocumentationServer()
