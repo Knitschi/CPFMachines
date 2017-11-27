@@ -18,7 +18,7 @@ addLine()
 
 # clear the nodes directory
 rm -rf $nodeDir
-mkdir $nodeDir
+mkdir -p $nodeDir
 
 
 addLine "<?xml version='1.0' encoding='UTF-8'?>"
