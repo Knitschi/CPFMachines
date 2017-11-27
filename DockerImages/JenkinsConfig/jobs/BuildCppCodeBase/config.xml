@@ -64,7 +64,7 @@ Create a release version with incremented patch version number.</description>
       <configVersion>2</configVersion>
       <userRemoteConfigs>
         <hudson.plugins.git.UserRemoteConfig>
-          <url>ssh://admin@datenbunker/share/GitRepositories/BuildCppCodeBaseAssistant.git</url>
+          <url>ssh://admin@datenbunker/share/GitRepositories/BuildCppCodeBase.git</url>
         </hudson.plugins.git.UserRemoteConfig>
       </userRemoteConfigs>
       <branches>
