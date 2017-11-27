@@ -25,11 +25,11 @@
           <description>Determines the git reference that will be build. This can be a branch or a tag.
 
 Branch:
-origin/Knitschi-int-buildscriptDev
+origin/Knitschi-int-master
 Tag:
 0.1.3
 </description>
-          <defaultValue>origin/Knitschi-int-buildscriptDev</defaultValue>
+          <defaultValue>origin/Knitschi-int-master</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>task</name>
@@ -64,7 +64,7 @@ Create a release version with incremented patch version number.</description>
       <configVersion>2</configVersion>
       <userRemoteConfigs>
         <hudson.plugins.git.UserRemoteConfig>
-          <url>ssh://admin@datenbunker/share/GitRepositories/BuildCppCodeBaseAssistant.git</url>
+          <url>ssh://admin@datenbunker/share/GitRepositories/CppCodeBaseJenkinsfile.git</url>
         </hudson.plugins.git.UserRemoteConfig>
       </userRemoteConfigs>
       <branches>
@@ -76,7 +76,7 @@ Create a release version with incremented patch version number.</description>
       <submoduleCfg class="list"/>
       <extensions/>
     </scm>
-    <scriptPath>Sources/CppCodeBaseJenkinsfile/JenkinsPipelineScript.groovy</scriptPath>
+    <scriptPath>JenkinsPipelineScript.groovy</scriptPath>
     <lightweight>false</lightweight>
   </definition>
   <triggers/>
