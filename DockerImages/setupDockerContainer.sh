@@ -11,7 +11,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # Arg1: The name of the container
 removeContainer()
 {
-    RUNNING_CONTAINER="$(docker ps -a)"
+    RUNNING_CONTAINER="$(docker ps)"
     if [[ $RUNNING_CONTAINER == *"$1"* ]]; then
         docker stop $1
     fi
