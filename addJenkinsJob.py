@@ -2,6 +2,7 @@
 
 import shutil
 import os
+import io
 
 # locations
 _scriptDir = os.path.dirname(os.path.realpath(__file__))
@@ -9,7 +10,6 @@ _templateFile = _scriptDir + '/config.xml.in'
 
 _jenkinsfileVersion='0.0.0'     # todo: get version from repo.
 
-_placeholderStrings = [ '$JOB_NAME', , ]
 
 def addCppCodeBaseJob( jobName, repositoryAddress, jenkinsDirectory):
     """
@@ -34,14 +34,15 @@ def addCustomJob( jobName, configFile, jenkinsDirectory):
     _cleanDir(jobDir)
 
     # copy the config file
-    shutil.copyfile( configFile, jobDir + 'config.xml')
+    shutil.copyfile( configFile, jobDir + '/config.xml')
 
 
-def _getJobDir( jenkinsDirectory, jobName)
+def _getJobDir( jenkinsDirectory, jobName):
     return jenkinsDirectory + '/jobs/' + jobName
 
-def _cleanDir( dir)
-    shutil.rmtree(dir)
+def _cleanDir( dir):
+    if(os.path.isdir(dir)):
+        shutil.rmtree(dir)
     os.makedirs(dir)
 
 def _configureJobConifgFile( destDir, jobName, repositoryAddress ):
