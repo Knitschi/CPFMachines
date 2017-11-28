@@ -17,13 +17,32 @@ def addCppCodeBaseJob( jobName, repositoryAddress, jenkinsDirectory):
     that used jenkinsDirectory as working directory. If the job already exists, it will be overwritten.
     """
     # remove the existing job
-    jobDir = jenkinsDirectory + '/jobs/' + jobName
-    shutil.rmtree(jobDir)
-    os.makedirs(jobDir)
+    jobDir = _getJobDir(jenkinsDirectory, jobName)
+    _cleanDir(jobDir)
 
     # add a new config.xml file
     _configureJobConifgFile(jobDir, jobName, repositoryAddress)
 
+
+def addCustomJob( jobName, configFile, jenkinsDirectory):
+    """
+    This function adds a build job with the given name and the given config.xml file
+    to a jenkins instance.
+    """
+    # remove the existing job
+    jobDir = _getJobDir(jenkinsDirectory, jobName)
+    _cleanDir(jobDir)
+
+    # copy the config file
+    shutil.copyfile( configFile, jobDir + 'config.xml')
+
+
+def _getJobDir( jenkinsDirectory, jobName)
+    return jenkinsDirectory + '/jobs/' + jobName
+
+def _cleanDir( dir)
+    shutil.rmtree(dir)
+    os.makedirs(dir)
 
 def _configureJobConifgFile( destDir, jobName, repositoryAddress ):
     """
@@ -41,6 +60,7 @@ def _configureJobConifgFile( destDir, jobName, repositoryAddress ):
 
     # Close target file
     configFile.close()
+
 
 
 
