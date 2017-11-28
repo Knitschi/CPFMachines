@@ -6,6 +6,7 @@ set( sources
     config.xml.in
     README.md
     instantiateJob.cmake
+    triggerJenkinsjob.sh
 )
 
 add_custom_target( 
