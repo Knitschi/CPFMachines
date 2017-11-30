@@ -4,6 +4,8 @@ import shutil
 import os
 import io
 
+import CppCodeBaseMachines.setupDockerContainer
+
 # locations
 _scriptDir = os.path.dirname(os.path.realpath(__file__))
 _templateFile = _scriptDir + '/config.xml.in'
@@ -18,7 +20,7 @@ def addCppCodeBaseJob( jobName, repositoryAddress, jenkinsDirectory):
     """
     # remove the existing job
     jobDir = _getJobDir(jenkinsDirectory, jobName)
-    _cleanDir(jobDir)
+    setupDockerContainer.clearDirectory(jobDir)
 
     # add a new config.xml file
     _configureJobConifgFile(jobDir, jobName, repositoryAddress)
@@ -31,7 +33,7 @@ def addCustomJob( jobName, configFile, jenkinsDirectory):
     """
     # remove the existing job
     jobDir = _getJobDir(jenkinsDirectory, jobName)
-    _cleanDir(jobDir)
+    setupDockerContainer.clearDirectory(jobDir)
 
     # copy the config file
     shutil.copyfile( configFile, jobDir + '/config.xml')
@@ -40,10 +42,6 @@ def addCustomJob( jobName, configFile, jenkinsDirectory):
 def _getJobDir( jenkinsDirectory, jobName):
     return jenkinsDirectory + '/jobs/' + jobName
 
-def _cleanDir( dir):
-    if(os.path.isdir(dir)):
-        shutil.rmtree(dir)
-    os.makedirs(dir)
 
 def _configureJobConifgFile( destDir, jobName, repositoryAddress ):
     """
