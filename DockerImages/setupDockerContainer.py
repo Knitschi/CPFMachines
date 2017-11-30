@@ -8,327 +8,405 @@
 
 import os
 import sys
-
+import socket
 
 _scriptDir = os.path.dirname(os.path.realpath(__file__))
 
 # Directories and Variables
-# In the future there may be multiple slaves so the script provides the LINUX_SLAVE_INDEX to destinguish between them.
-LINUX_SLAVE_INDEX=0
-WINDOWS_SLAVE_INDEX=0
-#CPP_CODE_BASE_JOB_NAME=CppCodeBase
+# In the future there may be multiple slaves so the script provides the _linuxSlaveIndex to destinguish between them.
+_linuxSlaveIndex = 0
+_windowsSlaveIndex = 0
 
 # docker entities names
 # container
-DOCUMENTS_SERVER_CONTAINER=ccb-web-server
-JENKINS_MASTER_CONTAINER=jenkins-master
-LINUX_SLAVE_BASE_NAME=jenkins-slave-linux
-FULL_LINUX_SLAVE_CONTAINER_NAME=$LINUX_SLAVE_BASE_NAME-$LINUX_SLAVE_INDEX
-FULL_WINDOWS_SLAVE_CONTAINER_NAME=jenkins-slave-windows-$WINDOWS_SLAVE_INDEX
+_webserverContainer = 'ccb-web-server'
+_jenkinsMasterContainer = 'jenkins-master'
+_linuxSlaveBaseName = 'jenkins-slave-linux'
+_fullLinuxJenkinsSlaveName = _linuxSlaveBaseName + '-' _linuxSlaveIndex
+_fullWindowsJenkinsSlaveName = 'jenkins-slave-windows-' _windowsSlaveIndex
 # networks
-NETWORK_NAME=CppCodeBaseNetwork
+_dockerNetworkName = 'CppCodeBaseNetwork'
 
 # container ips
-DOCUMENTS_SERVER_IP='172.19.0.2'
-JENKINS_MASTER_IP='172.19.0.3'
-JENKINS_LINUX_SLAVE_IP='172.19.0.4'
+_webserverContainerIP = '172.19.0.2'
+_jenkinsMasterContainerIP = '172.19.0.3'
+_jenkinsLinuxSlaveContainerIP = '172.19.0.4'
 
 # other machines and users
-DATENBUNKER=datenbunker
-DATENBUNKER_IP="$(dig +short $DATENBUNKER.fritz.box)" # This will get the current ip address of the datenbunker machine.
-JENKINS_SLAVE_WINDOWS=buildknechtwin
-JENKINS_SLAVE_WINDOWS_USER=Knitschi
+_repositoryMachine = 'datenbunker'                              # The name of the machine that holds the repositories.
+_repositoryMachineIP = socket.gethostbyname(_repositoryMachine) # This will get the current ip address of the repository machine.
+_repositoryMachineRootUser = 'admin'                            # A user with administrative rights on the repository machine.
 
+_jenkinsSlaveMachineWindows = 'buildknechtwin'                  # The name of the machine that runs the windows build slave.
+_jenkinsSlaveMachineWindowsUser = 'Knitschi'                    # A user on the _jenkinsSlaveMachineWindows that can be used for ssh access.
+_jenkinsSlaveMachineWindowsPassword = '3utterBro+'
 
 # Files
-PUBLIC_KEY_FILE_POSTFIX=_ssh_key.rsa.pub
-CREATE_KEY_PAIR_SCRIPT=createSSHKeyFilePair.sh
-ADD_KNOWN_HOST_SCRIPT=addKnownSSHHost.sh
+_publicKeyFilePostfix = '_ssh_key.rsa.pub'
+_createKeyPairScript = 'createSSHKeyFilePair.sh'
+_addKnownHostScript = 'addKnownSSHHost.sh'
+_addAuthorizedKeysBitwiseSSHScript = 'addAuthorizedBitwiseSSHKey.bat'
 
 # shared directories on host
-JENKINS_WORKSPACE_HOST=~/CppCodeBaseMachines/jenkins-master-workspace
-HTML_SHARE_HOST=~/CppCodeBaseMachines/html
+_jenkinsWorkspaceHost = '~/CppCodeBaseMachines/jenkins-master-workspace'
+_htmlShareHost = '~/CppCodeBaseMachines/html'
 
 # directories on jenkins-master
-JENKINS_WORKSPACE_JENKINS_MASTER=/var/jenkins_home                  # This is the location of the jenkins configuration files on the jenkins-master. 
-HTML_SHARE_JENKINS_MASTER=$JENKINS_WORKSPACE_JENKINS_MASTER/html    # This is the location of the html-share volume on the jenkins master.
+_jenkinsWorkspaceJenkinsMaster = '/var/jenkins_home'                    # This is the location of the jenkins configuration files on the jenkins-master. 
+_htmlShareJenkinsMaster = _jenkinsWorkspaceJenkinsMaster + '/html'        # This is the location of the html-share volume on the jenkins master.
 
 # directories on jenkins-slave
-JENKINS_HOME_JENKINS_SLAVE=/home/jenkins
+_jenkinsHomeJenkinsSlave = '/home/jenkins'
 
 # directories on documentation-server
-HTML_SHARE_WEB_SERVER=/var/www/html
+_htmlShareWebServer = '/var/www/html'
+
+# directories on repository machine
+_repositoryMachinePublicKeyDir = '/etc/config/ssh'
 
 
 
-subprocess.check_call('bash ' + _pathSetupMachineScript, shell=True)
+def clearDirectory(directory):
+    """
+    This functions deletes the given directory and all its content and recreates it.
+    """
+    if(os.path.isdir(directory)):
+        shutil.rmtree(directory)
+    os.makedirs(directory)
+
 
 def main():
     # prepare environment
-    clearDocker
-    clearHostShareDirectories
-    createDockerNetwork
-    createJenkinsConfigFiles
+    _clearDocker()
+    clearDirectory(_jenkinsWorkspaceHost)
+    _guaranteeDirectoryExists(_htmlShareHost)   # we do not clear this to preserve the accumulated web content.
+    _createDockerNetwork(_dockerNetworkName)
+    _createJenkinsConfigFiles()
 
     # build container
-    buildAndStartJenkinsMaster
-    buildAndStartDocumentationServer
-    buildAndStartJenkinsLinuxSlave
+    _buildAndStartJenkinsMaster()
+    # The document server must be started before the jenkins slave is started because mounting the shared volume here sets the
+    # owner of the share to root an only the jenkins container can set it to jenkins.
+    _buildAndStartWebServer()
+    _buildAndStartJenkinsLinuxSlave()
 
     # setup ssh accesses used by jenkins-master
-    createRSAKeyFilePairOnContainer $JENKINS_MASTER_CONTAINER $JENKINS_WORKSPACE_JENKINS_MASTER
-    grantContainerSSHAccessToDatenbunker $JENKINS_MASTER_CONTAINER $JENKINS_WORKSPACE_JENKINS_MASTER
-    grantJenkinsMasterSSHAccessToJenkinsLinuxSlave
-    grantJenkinsMasterSSHAccessToJenkinsWindowsSlave
-    grantJenkinsMasterSSHAccessToWebServer
-
+    _createRSAKeyFilePairOnContainer( _jenkinsMasterContainer, _jenkinsWorkspaceJenkinsMaster)
+    _grantContainerSSHAccessToRepository( _jenkinsMasterContainer, _jenkinsWorkspaceJenkinsMaster)
+    _grantJenkinsMasterSSHAccessToJenkinsLinuxSlave()
+    _grantJenkinsMasterSSHAccessToJenkinsWindowsSlave()
+    _grantJenkinsMasterSSHAccessToWebServer()
     # setup ssh accesses used by jenkins-slave-linux
-    createRSAKeyFilePairOnContainer $FULL_LINUX_SLAVE_CONTAINER_NAME $JENKINS_HOME_JENKINS_SLAVE
-    grantContainerSSHAccessToDatenbunker $FULL_LINUX_SLAVE_CONTAINER_NAME $JENKINS_HOME_JENKINS_SLAVE
+    _createRSAKeyFilePairOnContainer( _fullLinuxJenkinsSlaveName, _jenkinsHomeJenkinsSlave)
+    _grantContainerSSHAccessToRepository( _fullLinuxJenkinsSlaveName, _jenkinsHomeJenkinsSlave)
 
-    configureJenkinsMaster
+    _configureJenkinsMaster()
 
-    echo "Successfully startet jenkins master, build slaves and the documentation server."
-
-
-
-
-
-
-
-
-# Removes a running docker container
-# Arg1: The name of the container
-def _removeContainer():
-    RUNNING_CONTAINER="$(docker ps)"
-    if [[ $RUNNING_CONTAINER == *"$1"* ]]; then
-        docker stop $1
-    fi
-    
-    ALL_CONTAINER="$(docker ps -a)"
-    if [[ $ALL_CONTAINER == *"$1"* ]]; then
-        docker rm -f $1
-    fi
+    print('Successfully startet jenkins master, build slaves and the documentation server.')
 
 
 def _clearDocker():
-    removeContainer $DOCUMENTS_SERVER_CONTAINER
-    removeContainer $JENKINS_MASTER_CONTAINER
-    removeContainer $FULL_LINUX_SLAVE_CONTAINER_NAME
+    _stubbornlyRemoveContainer(_webserverContainer)
+    _stubbornlyRemoveContainer(_jenkinsMasterContainer)
+    _stubbornlyRemoveContainer(_fullLinuxJenkinsSlaveName)
     
-    DOCKER_NETWORKS="$(docker network ls)"
-    if [[ $DOCKER_NETWORKS == *"$NETWORK_NAME"* ]]; then
-        docker network rm $NETWORK_NAME
-    fi
+    _removeDockerNetwork(_dockerNetworkName)
 
 
-def _clearHostShareDirectories():
-    clearDirectory $JENKINS_WORKSPACE_HOST
+def _stubbornlyRemoveContainer(container):
+    """
+    Removes a given docker container even if it is running.
+    If the container does not exist, the function does nothing.
+    """
+    runningContainer = _getRunningDockerContainer()
+    if container in runningContainer:
+        _stopDockerContainer(container)
     
-    # Create the directory for the html share on the host if it does not exist
-    # We do not clear this directory because it contains persistent data like results
-    # of previous builds.
-    if [ ! -e "$HTML_SHARE_HOST" ]; then
-        mkdir -p $HTML_SHARE_HOST
-    fi
+    allContainer = _getAllDockerContainer()
+    if container in allContainer:
+        _removeContainer(container)
 
 
-def _clearDirectory():
+def _getRunningDockerContainer():
+    return _runCommandToGetList('docker ps')
+
+
+def _runCommandToGetList(command):
     """
-    This functions deletes the given directory and all its content and recreates it.
-    Arg1: The path to the directory
+    The function assumes that the ouput of comand is a list with one element per line.
+    It returns that list as a python list.
     """
-    echo "Cleaning directory $1"
-    rm -rf $1
-    mkdir -p $1
+    output = _runCommand(command)
+    return output.splitlines()
 
 
-def _createDockerNetwork():
-    # create the network
-    docker network create --subnet=172.19.0.0/16 $NETWORK_NAME
+def _runCommand(command, printOutput = False):
+    """
+    Runs the given command and returns its standard output.
+    The function throws if the command fails. In this case the output is always printed.
+    """
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=workingDir)
+    # wait for process to finish and get output
+    out, err = process[0].communicate()
+    
+    output = self._getPrintedCommand(process[1])
+    output += out.decode("utf-8")
+    errOutput = err.decode("utf-8")
+    retCode = process[0].returncode
+
+    if printOutput:
+        print(output)
+        print(errOutput)
+    else if retCode != 0:
+        print(output)
+        print(errOutput)
+        raise Exception('Command "' + command +'" executed in directory "' + workingDir + '" failed.')
+
+    return output
+
+
+def _stopDockerContainer( container ):
+    _runCommand('docker stop ' + container)
+
+
+def _getAllDockerContainer():
+    return _runCommandToGetList('docker ps -a')
+
+
+def _removeContainer(container):
+    """
+    This removes a given docker container and will fail if the container is running.
+    """
+    _runCommand('docker rm -f ' + container)
+
+
+def _removeDockerNetwork(network):
+    existingNetworks = _runCommandToGetList('docker network ls')
+    if network in existingNetworks:
+        _runCommand('docker network rm ' * _dockerNetworkName)
+
+
+def _guaranteeDirectoryExists(directory):
+    if not os.isdir(directory):
+        os.makedirs(directory)
+
+
+def _createDockerNetwork(network):
+    _runCommand('docker network create --subnet=172.19.0.0/16 ' + network)
 
 
 def _createJenkinsConfigFiles():
-    rm -rf JenkinsConfig/nodes
-    mkdir -p JenkinsConfig/nodes
-    
-    bash $SCRIPT_DIR/createLinuxNodeConfigFile.sh $FULL_LINUX_SLAVE_CONTAINER_NAME $JENKINS_LINUX_SLAVE_IP
-    bash $SCRIPT_DIR/createWindowsNodeConfigFile.sh $FULL_WINDOWS_SLAVE_CONTAINER_NAME
+    clearDirectory( _scriptDir + '/JenkinsConfig/nodes')
+    _runCommand('bash ' + _scriptDir + '/createLinuxNodeConfigFile.sh ' + _fullLinuxJenkinsSlaveName + ' ' + _jenkinsLinuxSlaveContainerIP )
+    _runCommand('bash ' + _scriptDir + '/createWindowsNodeConfigFile.sh ' + _fullWindowsJenkinsSlaveName )
 
 
-def buildAndStartJenkinsMaster():
-    echo "----- Build and start the docker MASTER container $JENKINS_MASTER_CONTAINER"
+def _buildAndStartJenkinsMaster():
+    print( "----- Build and start the docker MASTER container " + _jenkinsMasterContainer )
 
-    docker build -t $JENKINS_MASTER_CONTAINER-image -f $SCRIPT_DIR/DockerfileJenkinsMaster $SCRIPT_DIR
+    # Create the container image
+    containerImage = _jenkinsMasterContainer + '-image'
+    _buildDockerImage( containerImage, _scriptDir + '/DockerFileJenkinsMaster' , _scriptDir )
 
-    # --env JAVA_OPTS="-Djenkins.install.runSetupWizard=false" is supposed to prevent the plugin install wizard on the first startup.
-    # The jenkins master and its slaves comunicate over the bridge network. 
+    # Start the container
+    # --env JAVA_OPTS="-Djenkins.install.runSetupWizard=false" 
+    # The jenkins master and its slaves communicate over the bridge network. 
     # This means the master and the slaves must be on the same host. This should later be upgraded to a swarm.
-    docker run \
-        --detach \
-        --volume $JENKINS_WORKSPACE_HOST:$JENKINS_WORKSPACE_JENKINS_MASTER \
-        --env JAVA_OPTS="-Djenkins.install.runSetupWizard=false" \
-        --publish 8080:8080 \
-        --publish 50000:50000 \
-        --net $NETWORK_NAME \
-        --ip $JENKINS_MASTER_IP \
-        --name $JENKINS_MASTER_CONTAINER \
-        $JENKINS_MASTER_CONTAINER-image
+    command = ( 
+        'docker run '
+        '--detach '
+        '--volume ' + _jenkinsWorkspaceHost + ':' + _jenkinsWorkspaceJenkinsMaster + ' ' # This makes the jenkins home directory accessible on the host. This eases debugging. 
+        '--env JAVA_OPTS="-Djenkins.install.runSetupWizard=false" '                      # This prevents the plugin install wizard from popping up on the first startup.
+        '--publish 8080:8080 '                                                           # The jenkins webinterface is available under this port.
+        '--publish 50000:50000 '                                                         # Who uses this?
+        '--name ' + _jenkinsMasterContainer + ' '
+        '--net ' + _dockerNetworkName + ' '
+        '--ip ' + _jenkinsMasterContainerIP + ' '
+        + containerImage
+    )
+    _runCommand( command, True)
 
-    # add global gitconfig after mounting the workspace volume, otherwise is gets deleted. 
-    docker exec $JENKINS_MASTER_CONTAINER git config --global user.email not@valid.org
-    docker exec $JENKINS_MASTER_CONTAINER git config --global user.name jenkins
+    # add global gitconfig after mounting the workspace volume, otherwise is gets deleted.
+    _runCommandInContainer(_jenkinsMasterContainer, 'git config --global user.email not@valid.org')
+    _runCommandInContainer(_jenkinsMasterContainer, 'git config --global user.name jenkins')
 
 
-def _buildAndStartDocumentationServer():
-    # The document server must be started before the jenkins slave is started because mounting the shared volume here sets the
-    # owner of the share to root an only the jenkins container can set it to jenkins.
+def _buildDockerImage( imageName, dockerFile, buildContextDirectory):
+    command = 'docker build -t ' + imageName + ' -f ' + dockerFile + ' ' + buildContextDirectory
+    _runCommand( command, True)
+
+def _runCommandInContainer(container, command, user=None)
+    userOption = ''
+    if user:
+        userOption = '--user ' + user + ':' + user + ' '
+    command = 'docker exec ' + userOption + container + ' ' + command
+    return _runCommand(command)
+
+
+def _buildAndStartWebServer():
+    print( "----- Build and start the web-server container " + _webserverContainer
     
-    # We set the --restart option for this container because it does not restart automatically like the others.
-    # It would be cleaner to have a systemd script on the host for stopping and starting the containers.
-    
-    echo "----- Build and start the documents web-server container $CONTAINER_NAME"
+    containerImage = _webserverContainer + '-image'
+    _buildDockerImage( containerImage, _scriptDir + '/DockerfileCcbWebServer', _scriptDir )
 
-    docker build -t $DOCUMENTS_SERVER_CONTAINER-image -f $SCRIPT_DIR/DockerfileCcbWebServer $SCRIPT_DIR
-    docker run \
-        --detach \
-        --publish 80:80 \
-        --volume $HTML_SHARE_HOST:$HTML_SHARE_WEB_SERVER \
-        --name $DOCUMENTS_SERVER_CONTAINER \
-        --net $NETWORK_NAME \
-        --ip $DOCUMENTS_SERVER_IP \
-        $DOCUMENTS_SERVER_CONTAINER-image
+    command = (
+        'docker run '
+        '--detach '
+        '--publish 80:80 '      # The web-page is reached under port 80
+        '--volume ' + _htmlShareHost + ':' + _htmlShareWebServer + ' '
+        '--name ' + _webserverContainer + ' '
+        '--net ' + _dockerNetworkName + ' '
+        '--ip ' + _webserverContainerIP + ' '
+        + containerImage
+    )
+    _runCommand( command, True)
 
     # copy the doxyserach.cgi to the html share
-    docker exec --user root:root $DOCUMENTS_SERVER_CONTAINER rm -fr $HTML_SHARE_WEB_SERVER/cgi-bin
-    docker exec --user root:root $DOCUMENTS_SERVER_CONTAINER mkdir $HTML_SHARE_WEB_SERVER/cgi-bin
-    docker exec --user root:root $DOCUMENTS_SERVER_CONTAINER mkdir $HTML_SHARE_WEB_SERVER/cgi-bin/doxysearch.db
-    docker exec --user root:root $DOCUMENTS_SERVER_CONTAINER cp -r -f /usr/local/bin/doxysearch.cgi $HTML_SHARE_WEB_SERVER/cgi-bin
-
-    # set cgi-bin ownership on the host
-    #sudo chown -R $USER:$USER $JENKINS_WORKSPACE_HOST/html
-    # set cgi-bin ownership on the jenkins master
-    #docker exec --user root:root $JENKINS_MASTER_CONTAINER chown -R jenkins:jenkins $HTML_SHARE_JENKINS_MASTER
+    _runCommandInContainer( _webserverContainer, 'rm -fr ' + _htmlShareWebServer + '/cgi-bin', 'root')
+    _runCommandInContainer( _webserverContainer, 'mkdir ' + _htmlShareWebServer + '/cgi-bin', 'root')
+    _runCommandInContainer( _webserverContainer, 'mkdir ' + _htmlShareWebServer + '/cgi-bin/doxysearch.db', 'root')
+    _runCommandInContainer( _webserverContainer, 'cp -r -f /usr/local/bin/doxysearch.cgi ' + _htmlShareWebServer + '/cgi-bin', 'root')
 
 
 def _buildAndStartJenkinsLinuxSlave():
     # Start the container.
-    echo "----- Build and start the docker SLAVE container $CONTAINER_NAME"
+    print("----- Build and start the docker SLAVE container " + _fullLinuxJenkinsSlaveName)
 
-    docker build -t $LINUX_SLAVE_BASE_NAME-image -f $SCRIPT_DIR/DockerfileJenkinsSlaveLinux $SCRIPT_DIR
-    docker run \
-        --net $NETWORK_NAME \
-        --ip $JENKINS_LINUX_SLAVE_IP \
-        --name $FULL_LINUX_SLAVE_CONTAINER_NAME \
-        --detach $LINUX_SLAVE_BASE_NAME-image
+    containerImage = _linuxSlaveBaseName + '-image'
+    _buildDockerImage( containerImage, _scriptDir + '/DockerfileJenkinsSlaveLinux', _scriptDir )
+
+    command = (
+        'docker run '
+        '--detach '
+        '--name' + _fullLinuxJenkinsSlaveName + ' '
+        '--net' + _dockerNetworkName + ' '
+        '--ip' + _jenkinsLinuxSlaveContainerIP + ' '
+        + containerImage
+    )
+    _runCommand( command, True)
 
 
-# ARG1 container-name 
-# ARG2 container-home-directory
-def _createRSAKeyFilePairOnContainer():
-    echo "----- Enable ssh key file connection between $1 and datenbunker"
-    echo "... copy script $CREATE_KEY_PAIR_SCRIPT to container"
-    docker cp $SCRIPT_DIR/$CREATE_KEY_PAIR_SCRIPT $1:$2/$CREATE_KEY_PAIR_SCRIPT
+def _createRSAKeyFilePairOnContainer(containerName, containerHomeDirectory):
+    print('----- Enable ssh key file connection between ' + containerName + ' and ' + _repositoryMachine )
+    
+    # copy the scripts that doe the job to the container
+    _runCommand('docker cp ' + _scriptDir + '/' + _createKeyPairScript + ' ' containerName ':' + containerHomeDirectory + '/' + _createKeyPairScript)
+    _runCommand('docker cp ' + _scriptDir + '/' + _addKnownHostScript + ' ' containerName ':' + containerHomeDirectory + '/' + _addKnownHostScript)
 
-    echo "... copy script $ADD_KNOWN_HOST_SCRIPT to container"
-    docker cp $SCRIPT_DIR/$ADD_KNOWN_HOST_SCRIPT $1:$2/$ADD_KNOWN_HOST_SCRIPT
-
-    echo "... execute script $CREATE_KEY_PAIR_SCRIPT in container"
     # This will create the key-pair on the container. We need to do this in the container or ssh will not accept the private key file.
-    docker exec --user jenkins:jenkins $1 /bin/bash $2/$CREATE_KEY_PAIR_SCRIPT $1
+    _runCommandInContainer( containerName, '/bin/bash ' + containerHomeDirectory + '/' + _createKeyPairScript , 'jenkins') 
 
 
-# ARG1 container-name
-# ARG2 container-home-directory
-def _grantContainerSSHAccessToDatenbunker():
-    # COPY AND REGISTER THE PUBLIC KEY WITH DATENBUNKER
+def _grantContainerSSHAccessToRepository( containerName, containerHomeDirectory):
+    # COPY AND REGISTER THE PUBLIC KEY WITH _repositoryMachine
     # The connection is used to access the git repository
     # This requires access to the datenbunker.
-    PUBLIC_KEY_FILE=$1$PUBLIC_KEY_FILE_POSTFIX
-    GIT_SERVER_PUBLIC_KEY_DIR=/etc/config/ssh
-    TEMP_DIR_HOST=~/temp
-    mkdir -p $TEMP_DIR_HOST
-    rm -f $TEMP_DIR_HOST/$PUBLIC_KEY_FILE # delete previously copied key-files
+    publicKeyFile = containerName + _publicKeyFilePostfix
+    tempDirHost= '~/temp'
+    _guaranteeDirectoryExists(tempDirHost)
+    os.remove( tempDirHost + '/' + publicKeyFile ) # delete previously copied key-files
     
     # Copy the public key from the jenkins jome directory to the jenkins-workspace directory on the host
-    docker cp $1:$2/$PUBLIC_KEY_FILE $TEMP_DIR_HOST
+    _runCommand('docker cp ' + containerName + ':' + containerHomeDirectory + '/' + publicKeyFile + ' ' + tempDirHost)
+    
     # Then copy it to the repository machine
-    scp $TEMP_DIR_HOST/$PUBLIC_KEY_FILE admin@datenbunker.local:$GIT_SERVER_PUBLIC_KEY_DIR
+    _runCommand('scp {}/{} {}@{}.local:{}'.format( tempDirHost, publicKeyFile, _repositoryMachineRootUser, _repositoryMachine, _repositoryMachinePublicKeyDir)  )
 
+    # add the key file to authorized_keys
+    authorizedKeysFile = _repositoryMachinePublicKeyDir + '/authorized_keys' 
     # Remove previously appended public keys from the given container and append the new public key to the authorized_keys file.
     # - print file without lines containing machine name string, then append new key to end of file
-    AUTHORIZED_KEYS_FILE=$GIT_SERVER_PUBLIC_KEY_DIR/authorized_keys
-    ssh admin@datenbunker \
-    "cat $AUTHORIZED_KEYS_FILE | grep -v $1 >> $GIT_SERVER_PUBLIC_KEY_DIR/keys_temp &&\
-    mv -f $GIT_SERVER_PUBLIC_KEY_DIR/keys_temp $AUTHORIZED_KEYS_FILE &&\
-    cat $GIT_SERVER_PUBLIC_KEY_DIR/$PUBLIC_KEY_FILE >> $AUTHORIZED_KEYS_FILE" 
+    command = (
+        'ssh {1}@{2} "'
+        'cat {3} | grep -v $1 >> {4}/keys_temp &&'
+        'mv -f {4}/keys_temp {3} &&'
+        'cat {4}/{5} >> {3}"'
+    )
+    command = command.format(_repositoryMachineRootUser, _repositoryMachine, authorizedKeysFile, _repositoryMachinePublicKeyDir, publicKeyFile)
+    _runCommand(command)
     
     # Add datenbunker as known host to prevent the authentication request on the first connect
-    docker exec --user jenkins:jenkins $1 /bin/bash $2/$ADD_KNOWN_HOST_SCRIPT $DATENBUNKER
+    _runCommandInContainer( containerName, '/bin/bash ' + containerHomeDirectory + '/' + _addKnownHostScript + ' ' +  _repositoryMachineIP, 'jenkins') 
 
 
 def _grantJenkinsMasterSSHAccessToJenkinsLinuxSlave():
-    echo "----- Grant $JENKINS_MASTER_CONTAINER ssh access to $FULL_LINUX_SLAVE_CONTAINER_NAME"
-    PUBLIC_KEY_FILE=$JENKINS_MASTER_CONTAINER$PUBLIC_KEY_FILE_POSTFIX
+    print('----- Grant ' + _jenkinsMasterContainer + ' ssh access to ' + _fullLinuxJenkinsSlaveName)
+    publicKeyFile = _jenkinsMasterContainer + _publicKeyFilePostfix
     
     # COPY AND REGISTER THE PUBLIC KEY WITH THE SLAVE 
     # Jenkins handles linux slaves with an ssh connection.
-    docker cp $JENKINS_WORKSPACE_HOST/$PUBLIC_KEY_FILE $FULL_LINUX_SLAVE_CONTAINER_NAME:$JENKINS_HOME_JENKINS_SLAVE/.ssh/authorized_keys
+    _runCommand('docker cp {1}/{2} {3}:{4}/.ssh/authorized_keys'.format( _jenkinsWorkspaceHost, publicKeyFile, _fullLinuxJenkinsSlaveName, _jenkinsHomeJenkinsSlave ))
     # Add slave as known host to prevent the authentication request on the first connect
-    docker exec --user jenkins:jenkins $JENKINS_MASTER_CONTAINER /bin/bash $JENKINS_WORKSPACE_JENKINS_MASTER/$ADD_KNOWN_HOST_SCRIPT $JENKINS_LINUX_SLAVE_IP
+    _addRemoteToKnownSSHHostsOfJenkinsMaster( _jenkinsLinuxSlaveContainerIP )
 
 
 def _grantJenkinsMasterSSHAccessToJenkinsWindowsSlave():
-    echo "----- Grant $JENKINS_MASTER_CONTAINER ssh access to $JENKINS_SLAVE_WINDOWS"
+    print("----- Grant {1} ssh access to {2}".format( _jenkinsMasterContainer, _jenkinsSlaveMachineWindows) )
+    
 
-    # copy the public key file from the jenkins master to build slave
-    SSH_DIR=C:/Users/$JENKINS_SLAVE_WINDOWS_USER/.ssh
-    scp $JENKINS_WORKSPACE_HOST/$PUBLIC_KEY_FILE $JENKINS_SLAVE_WINDOWS_USER@$JENKINS_SLAVE_WINDOWS:$SSH_DIR
-    
-    # Add the public key to the Bitvise SSH Server that is running on the windows slave
-    # 1. Update the authorized_keys file by removing the old key and adding the new one.
-    # 2. With the Bitvise SSH Server the keys in the authorized_keys file are only imported to the server when the windows user logs out. 
-    # To force an immediate update, we use the Bitvise SSH Client tool spksc to register the public key with the server.
-    # The synchronisation mechanism with the authorized_keys file will make sure that public keys from previous runs 
-    # of this script are automatically removed from the servers public key list. This step requires to enter the password again.
-    # 
-    ssh $JENKINS_SLAVE_WINDOWS_USER@$JENKINS_SLAVE_WINDOWS <<DATA
-cd $SSH_DIR
-type authorized_keys
-type authorized_keys | findstr /v $JENKINS_MASTER_CONTAINER >> keys_temp
-type keys_temp
-move /y keys_temp authorized_keys
-type $PUBLIC_KEY_FILE >> authorized_keys
-cd "C:/Program Files (x86)/Bitvise SSH Client"
-spksc knitschi@buildknechtwin -pw=3utterBro+ -unat=n -cmd="Add File $SSH_DIR/$PUBLIC_KEY_FILE"
-DATA
-    
-    # Add the salve to the known hosts
-    docker exec --user jenkins:jenkins $JENKINS_MASTER_CONTAINER /bin/bash $JENKINS_WORKSPACE_JENKINS_MASTER/$ADD_KNOWN_HOST_SCRIPT $JENKINS_SLAVE_WINDOWS
+    # copy a script for adding authorized ssh keys to the bitwise server to the windows slave machine
+    userDir = 'C:/Users/$_jenkinsSlaveMachineWindowsUser'
+    authorizedKeysScript = 'updateAuthorizedKeysBitvise.bat'
+    copyKeyFileCommand = 'scp {1}/{2} {3}@{4}:{5}'.format(
+        _scriptDir,
+        authorizedKeysScript,
+        _jenkinsSlaveMachineWindowsUser,
+        _jenkinsSlaveMachineWindows,
+        userDir)
+    _runCommand(copyKeyFileCommand)
+
+    # call the script
+    publicKey = readContent(_jenkinsMasterContainer + _publicKeyFilePostfix)
+    fullScriptPath = userDir + '/' + authorizedKeysScript
+    callScriptCommand = (
+        'ssh {1}@{2} "{3} {4} {5} {6} {7}"'
+    ).format(
+        _jenkinsSlaveMachineWindowsUser,
+        _jenkinsSlaveMachineWindows,
+        fullScriptPath,
+        publicKey,
+        _jenkinsMasterContainer,
+        _jenkinsSlaveMachineWindowsUser,
+        _jenkinsSlaveMachineWindowsPassword
+    )
+    _runCommand(callScriptCommand)
+
+    # Add the slave to the known hosts
+    _addRemoteToKnownSSHHostsOfJenkinsMaster( _jenkinsSlaveMachineWindows )
+
+
+def _addRemoteToKnownSSHHostsOfJenkinsMaster( remoteMachine ):
+    """
+    remoteMachine can be an IP or machine name.
+    """
+    _runCommandInContainer( _jenkinsMasterContainer, '/bin/bash ' + _jenkinsWorkspaceJenkinsMaster + '/' + _addKnownHostScript + ' ' +  remoteMachine, 'jenkins')
+
+
+def _writeAuthorizedKeysScript( filename, sshDirWindowsSlaveMachine, )
 
 
 def _grantJenkinsMasterSSHAccessToWebServer():
-    AUTHORIZED_KEYS_FILE=/root/.ssh/authorized_keys
-    PUBLIC_KEY_FILE=$JENKINS_MASTER_CONTAINER$PUBLIC_KEY_FILE_POSTFIX
+    authorizedKeysFile=/root/.ssh/authorized_keys
+    publicKeyFile=$_jenkinsMasterContainer$_publicKeyFilePostfix
 
-    docker cp $JENKINS_WORKSPACE_HOST/$PUBLIC_KEY_FILE $DOCUMENTS_SERVER_CONTAINER:$AUTHORIZED_KEYS_FILE
-    docker exec $DOCUMENTS_SERVER_CONTAINER chown root:root $AUTHORIZED_KEYS_FILE
-    docker exec $DOCUMENTS_SERVER_CONTAINER chmod 600 $AUTHORIZED_KEYS_FILE
-    docker exec $DOCUMENTS_SERVER_CONTAINER service ssh start
+    docker cp $_jenkinsWorkspaceHost/$publicKeyFile $_webserverContainer:$authorizedKeysFile
+    docker exec $_webserverContainer chown root:root $authorizedKeysFile
+    docker exec $_webserverContainer chmod 600 $authorizedKeysFile
+    docker exec $_webserverContainer service ssh start
     
     # Add doc-server as known host to prevent the authentication request on the first connect
-    docker exec --user jenkins:jenkins $JENKINS_MASTER_CONTAINER /bin/bash $JENKINS_WORKSPACE_JENKINS_MASTER/$ADD_KNOWN_HOST_SCRIPT $DOCUMENTS_SERVER_IP
+    docker exec --user jenkins:jenkins $_jenkinsMasterContainer /bin/bash $_jenkinsWorkspaceJenkinsMaster/$_addKnownHostScript $_webserverContainerIP
 
 
 def _configureJenkinsMaster()
     # ------ COPY JENKINS CONFIGURATION TO MASTER --------
     echo "---- Copy jenkins config.xml files to jenkins master."
     
-    cp -rf $SCRIPT_DIR/JenkinsConfig/* $JENKINS_WORKSPACE_HOST
+    cp -rf $SCRIPT_DIR/JenkinsConfig/* $_jenkinsWorkspaceHost
     
     # restart jenkins to make sure the config.xml files get loaded.
-    docker stop $JENKINS_MASTER_CONTAINER
-    docker start $JENKINS_MASTER_CONTAINER
+    docker stop $_jenkinsMasterContainer
+    docker start $_jenkinsMasterContainer
 
 
 if __name__ == '__main__':
