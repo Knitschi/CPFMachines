@@ -241,10 +241,11 @@ def _createJenkinsNodeConfigFiles():
     )
 
     # create config file for the windows slave
+    slaveWorkspace = 'C:\\jenkins'
     _configureNodeConfigFile(
         _fullWindowsJenkinsSlaveName,
         'A Windows 10 build slave based on a virtual machine.',
-        'C:\\jenkins',
+        slaveWorkspace,
         _jenkinsSlaveMachineWindows,
         _jenkinsSlaveMachineWindowsUser,
         slaveWorkspace,
