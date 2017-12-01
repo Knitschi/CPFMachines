@@ -25,10 +25,7 @@ set( sources
     DockerImages/buildDoxygen.sh
     DockerImages/buildGit.sh
     DockerImages/buildQt.sh
-    DockerImages/createLinuxNodeConfigFile.sh
     DockerImages/createSSHKeyFilePair.sh
-    DockerImages/createWindowsNodeConfigFile.sh
-    DockerImages/createWindowsSlaveStartScript.sh
     DockerImages/DockerfileCcbWebServer
     DockerImages/DockerfileJenkinsMaster
     DockerImages/DockerfileJenkinsSlaveLinux
@@ -45,7 +42,9 @@ set( sources
     DockerImages/ssh_config
     DockerImages/supervisord.conf
     DockerImages/triggerJenkinsJob.sh
-    DockerImages/
+    DockerImages/setupDockerContainer.py
+    DockerImages/updatedAuthorizedKeysBivise.bat
+    DockerImages/jenkinsSlaveNodeConfig.xml.in
 )
 
 add_custom_target( 
