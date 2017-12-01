@@ -47,18 +47,11 @@ def _configureJobConifgFile( destDir, jobName, repositoryAddress ):
     """
     Fills in the blanks in the config file and copies it to the given job directory.
     """
-    # Open target file
-    configFile = io.open( destDir + '/config.xml', 'w')
-
-    # Read the lines from the template, substitute the values, and write to the new config file
-    for line in io.open(_templateFile, 'r'):
-        line = line.replace( '$JOB_NAME', jobName )
-        line = line.replace( '$JENKINSFILE_VERSION', _jenkinsfileVersion )
-        line = line.replace( '$BUILD_REPOSITORY', repositoryAddress)
-        configFile.write(line)
-
-    # Close target file
-    configFile.close()
+    setupDockerContainer.configureFile(_templateFile,destDir + '/config.xml', { 
+        '$JOB_NAME' : jobName
+        '$JENKINSFILE_VERSION' : _jenkinsfileVersion
+        '$BUILD_REPOSITORY' : repositoryAddress
+    } )
 
 
 
