@@ -1,20 +1,20 @@
 :: This script writes a given public key for a given machine to the public keys file of a given user.
 ::
-:: Arguments
-:: 1:   The full content of the public key rsa file.
-:: 2:   The name of the machine to which the public key belongs.
-:: 3:   The user account that runs the ssh server.
-:: 4:   The password for the windows user account and ssh access
+:: Template Arguments
+:: @PUBLIC_KEY@:                     The full content of the public key rsa file.
+:: @JENKINS_MASTER_CONTAINER@:       The name of the machine to which the public key belongs.
+:: @SLAVE_MACHINE_USER@:             The user account that runs the ssh server.
+:: @SLAVE_MACHINE_USER_PASSWORD@:    The password for the windows user account and ssh access
 
-set publicKey="%1"
-set accessingMachine=%2
-set user=%3 
-set password=%4
+set publicKey="@PUBLIC_KEY@"
+set accessingMachine="@JENKINS_MASTER_CONTAINER@"
+set user="@SLAVE_MACHINE_USER@"
+set password="@SLAVE_MACHINE_USER_PASSWORD@"
 
 set sshDir="C:/Users/%user%/.ssh"
-cd $_sshDir
+cd %sshDir%
 :: write the content of authorized_keys to keys_temp excluding the public key of the accessing machine
-type authorized_keys | findstr /v $_jenkinsMasterContainer >> keys_temp
+type authorized_keys | findstr /v @JENKINS_MASTER_CONTAINER@ >> keys_temp
 move /y keys_temp authorized_keys
 :: add the new public key to the authorized_keys file
 echo %publicKey% >> authorized_keys
@@ -25,8 +25,8 @@ echo %publicKey% >> authorized_keys
 :: To force an immediate update, we use the Bitvise SSH Client tool spksc to register the public key with the server.
 :: The synchronisation mechanism with the authorized_keys file will make sure that public keys from previous runs 
 :: of this script are automatically removed from the servers public key list. This step requires to enter the password again.
-set publicKeyFile=%_sshDir%/%accessingMachine%_ssh_key.rsa.pub
+set publicKeyFile=%sshDir%/%accessingMachine%_ssh_key.rsa.pub
 echo %publicKey% >> %publicKeyFile%
 
 cd "C:/Program Files (x86)/Bitvise SSH Client"
-spksc %user%@buildknechtwin -pw=%4% -unat=n -cmd="Add File %publicKeyFile%"
+spksc %user%@buildknechtwin -pw=%password% -unat=n -cmd="Add File %publicKeyFile%"
