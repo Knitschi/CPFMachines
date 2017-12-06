@@ -189,7 +189,7 @@ def _runCommand(command, printOutput = False, printCommand = False):
         output = command + '\n'
 
     output += out.decode("utf-8")
-    errOutput = err.decode("utf-8")
+    errOutput = err.decode("ISO-8859-1")
     retCode = process.returncode
 
     if printOutput:
@@ -449,7 +449,7 @@ def _grantJenkinsMasterSSHAccessToJenkinsWindowsSlave():
     fullAuthorizedKeysScript = _scriptDir + '/' + authorizedKeysScript
     publicKeyFile = _jenkinsWorkspaceHost + '/' + _jenkinsMasterContainer + _publicKeyFilePostfix
     publicKey = _readFileContent(publicKeyFile)
-    publicKey.replace('\n','')  # remove the line end from the key
+    publicKey = publicKey.replace('\n','').replace('\r', '')  # remove the line end from the key
     configureFile( fullAuthorizedKeysScript + '.in', fullAuthorizedKeysScript, {
         '@PUBLIC_KEY@' : publicKey,
         '@JENKINS_MASTER_CONTAINER@' : _jenkinsMasterContainer,
@@ -480,10 +480,11 @@ def _grantJenkinsMasterSSHAccessToJenkinsWindowsSlave():
 
     # clean up the generated scripts because of the included password
     os.remove(fullAuthorizedKeysScript)
+    fullScriptPathOnSlaveBackslash = 'C:\\\\Users\\\\' + _jenkinsSlaveMachineWindowsUser + '\\\\' + authorizedKeysScript
     deleteScriptOnSlaveCommand = 'ssh {0}@{1} "del {2}"'.format(
         _jenkinsSlaveMachineWindowsUser,
         _jenkinsSlaveMachineWindows,
-        fullScriptPathOnSlave,
+        fullScriptPathOnSlaveBackslash,
     )
     _runCommand(deleteScriptOnSlaveCommand)
 
@@ -521,7 +522,7 @@ def _configureJenkinsMaster():
     print("---- Copy jenkins config.xml files to jenkins master.")
     
     # copy the content of JenkinsConfig to the jenkins workspace on the host
-    distutils.copy_tree( _scriptDir + '/' + JenkinsConfig, _jenkinsWorkspaceHost )
+    distutils.dir_util.copy_tree( _scriptDir + '/JenkinsConfig', _jenkinsWorkspaceHost )
     
     # restart jenkins to make sure the config.xml files get loaded.
     _stopDockerContainer( _jenkinsMasterContainer)
