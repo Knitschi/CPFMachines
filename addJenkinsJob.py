@@ -48,8 +48,8 @@ def _configureJobConifgFile( destDir, jobName, repositoryAddress ):
     Fills in the blanks in the config file and copies it to the given job directory.
     """
     setupDockerContainer.configureFile(_templateFile,destDir + '/config.xml', { 
-        '$JOB_NAME' : jobName
-        '$JENKINSFILE_VERSION' : _jenkinsfileVersion
+        '$JOB_NAME' : jobName,
+        '$JENKINSFILE_VERSION' : _jenkinsfileVersion,
         '$BUILD_REPOSITORY' : repositoryAddress
     } )
 
