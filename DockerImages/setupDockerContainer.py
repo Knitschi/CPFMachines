@@ -52,9 +52,10 @@ _createKeyPairScript = 'createSSHKeyFilePair.sh'
 _addKnownHostScript = 'addKnownSSHHost.sh'
 _addAuthorizedKeysBitwiseSSHScript = 'addAuthorizedBitwiseSSHKey.bat'
 
-# shared directories on host
+# directories on host
 _jenkinsWorkspaceHost = '/home/knitschi/CppCodeBaseMachines/jenkins-master-workspace'
 _htmlShareHost = '/home/knitschi/CppCodeBaseMachines/html'
+_tempDirHost= '/home/knitschi/temp'
 
 # directories on jenkins-master
 _jenkinsWorkspaceJenkinsMaster = '/var/jenkins_home'                    # This is the location of the jenkins configuration files on the jenkins-master. 
@@ -180,7 +181,7 @@ def _runCommand(command, printOutput = False, printCommand = False):
     The function throws if the command fails. In this case the output is always printed.
     """
     workingDir = os.getcwd()
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd = workingDir)
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE, cwd = workingDir)
     # wait for process to finish and get output
     out, err = process.communicate()
     
@@ -248,7 +249,7 @@ def _createJenkinsNodeConfigFiles():
         'A Debinan 8.9 build slave based on a docker container.',
         '/home/jenkins/workspaces',
         _jenkinsLinuxSlaveContainerIP,
-        _jenkinsSlaveMachineWindowsUser,
+        'jenkins',
         '~/bin',
         _getSlaveLabelsString( 'Debian-8.9' , 4)
     )
@@ -399,17 +400,16 @@ def _grantContainerSSHAccessToRepository( containerName, containerHomeDirectory)
     # The connection is used to access the git repository
     # This requires access to the datenbunker.
     publicKeyFile = containerName + _publicKeyFilePostfix
-    tempDirHost= '~/temp'
-    _guaranteeDirectoryExists(tempDirHost)
-    fullTempPublicKeyFile = tempDirHost + '/' + publicKeyFile
+    _guaranteeDirectoryExists(_tempDirHost)
+    fullTempPublicKeyFile = _tempDirHost + '/' + publicKeyFile
     if os.path.isfile(fullTempPublicKeyFile):
         os.remove(fullTempPublicKeyFile) # delete previously copied key-files
     
     # Copy the public key from the jenkins jome directory to the jenkins-workspace directory on the host
-    _runCommand('docker cp ' + containerName + ':' + containerHomeDirectory + '/' + publicKeyFile + ' ' + tempDirHost)
+    _runCommand('docker cp ' + containerName + ':' + containerHomeDirectory + '/' + publicKeyFile + ' ' + _tempDirHost)
     
     # Then copy it to the repository machine
-    _runCommand('scp {}/{} {}@{}.local:{}'.format( tempDirHost, publicKeyFile, _repositoryMachineRootUser, _repositoryMachine, _repositoryMachinePublicKeyDir)  )
+    _runCommand('scp {}/{} {}@{}.local:{}'.format( _tempDirHost, publicKeyFile, _repositoryMachineRootUser, _repositoryMachine, _repositoryMachinePublicKeyDir)  )
 
     # add the key file to authorized_keys
     authorizedKeysFile = _repositoryMachinePublicKeyDir + '/authorized_keys' 
@@ -422,8 +422,6 @@ def _grantContainerSSHAccessToRepository( containerName, containerHomeDirectory)
         'cat {4}/{5} >> {2}"'
     )
     command = command.format(_repositoryMachineRootUser, _repositoryMachine, authorizedKeysFile, containerName, _repositoryMachinePublicKeyDir, publicKeyFile)
-
-    devMessage(command)
     _runCommand(command)
     
     # Add datenbunker as known host to prevent the authentication request on the first connect
@@ -458,16 +456,16 @@ def _grantJenkinsMasterSSHAccessToJenkinsWindowsSlave():
     })
 
     # copy the script for to the windows slave machine
-    userDir = 'C:/Users/' + _jenkinsSlaveMachineWindowsUser
+    sshDir = 'C:/Users/' + _jenkinsSlaveMachineWindowsUser + '/.ssh'
     copyScriptCommand = 'scp {0} {1}@{2}:{3}'.format(
         fullAuthorizedKeysScript,
         _jenkinsSlaveMachineWindowsUser,
         _jenkinsSlaveMachineWindows,
-        userDir)
+        sshDir)
     _runCommand(copyScriptCommand)
 
     # call the script
-    fullScriptPathOnSlave = userDir + '/' + authorizedKeysScript
+    fullScriptPathOnSlave = sshDir + '/' + authorizedKeysScript
     callScriptCommand = (
         'ssh {0}@{1} "{2}"'
     ).format(
@@ -475,18 +473,20 @@ def _grantJenkinsMasterSSHAccessToJenkinsWindowsSlave():
         _jenkinsSlaveMachineWindows,
         fullScriptPathOnSlave,
     )
-    devMessage(callScriptCommand)
     _runCommand(callScriptCommand)
 
     # clean up the generated scripts because of the included password
     os.remove(fullAuthorizedKeysScript)
     fullScriptPathOnSlaveBackslash = 'C:\\\\Users\\\\' + _jenkinsSlaveMachineWindowsUser + '\\\\' + authorizedKeysScript
+    
+    """
     deleteScriptOnSlaveCommand = 'ssh {0}@{1} "del {2}"'.format(
         _jenkinsSlaveMachineWindowsUser,
         _jenkinsSlaveMachineWindows,
         fullScriptPathOnSlaveBackslash,
     )
     _runCommand(deleteScriptOnSlaveCommand)
+    """
 
     # Add the slave to the known hosts
     _addRemoteToKnownSSHHostsOfJenkinsMaster( _jenkinsSlaveMachineWindows )

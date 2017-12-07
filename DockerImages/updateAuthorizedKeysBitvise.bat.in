@@ -6,10 +6,10 @@
 :: @SLAVE_MACHINE_USER@:             The user account that runs the ssh server.
 :: @SLAVE_MACHINE_USER_PASSWORD@:    The password for the windows user account and ssh access
 
-set publicKey="@PUBLIC_KEY@"
-set accessingMachine="@JENKINS_MASTER_CONTAINER@"
-set user="@SLAVE_MACHINE_USER@"
-set password="@SLAVE_MACHINE_USER_PASSWORD@"
+set publicKey=@PUBLIC_KEY@
+set accessingMachine=@JENKINS_MASTER_CONTAINER@
+set user=@SLAVE_MACHINE_USER@
+set password=@SLAVE_MACHINE_USER_PASSWORD@
 
 set sshDir="C:/Users/%user%/.ssh"
 cd %sshDir%
@@ -29,4 +29,4 @@ set publicKeyFile=%sshDir%/%accessingMachine%_ssh_key.rsa.pub
 echo %publicKey% >> %publicKeyFile%
 
 cd "C:/Program Files (x86)/Bitvise SSH Client"
-spksc %user%@buildknechtwin -pw=%password% -unat=n -cmd="Add File %publicKeyFile%"
+spksc %user%@buildknechtwin -pw="%password%" -unat=n -cmd="Add File %publicKeyFile%"
