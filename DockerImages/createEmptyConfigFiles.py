@@ -17,7 +17,8 @@ def main():
         'HostTempDir' : '',
         'BuildSlaveWindowsMachine' : '',
         'BuildSlaveWindowsMachineUser' : '',
-        'JenkinsAccountConfigFiles' : { "User" : "config.xml" }
+        'JenkinsAccountConfigFiles' : {}
+        'JenkinsJobsConfigFiles' : {}
     }
     configValues = collections.OrderedDict(sorted(configDict.items(), key=lambda t: t[0]))
 

@@ -15,31 +15,13 @@ import shutil
 import io
 import json
 import pprint
-
+import getpass
 
 _scriptDir = os.path.dirname(os.path.realpath(__file__))
 
 
 
-# user configurabel variables.
-# repository machine
-#_repositoryMachine = 'datenbunker'                              # The name of the machine that holds the repositories.
-#_repositoryMachineRootUser = 'admin'                            # A user with administrative rights on the repository machine.
-# directories on repository machine
-#_repositoryMachinePublicKeyDir = '/etc/config/ssh'
-
-
-# HOST machine
-#_jenkinsWorkspaceHost = '/home/knitschi/CppCodeBaseMachines/jenkins-master-workspace'
-#_htmlShareHost = '/home/knitschi/CppCodeBaseMachines/html'
-#_tempDirHost= '/home/knitschi/temp'
-
-# Build slave windows machine
-#_jenkinsSlaveMachineWindows = 'buildknechtwin'                  # The name of the machine that runs the windows build slave.
-#_jenkinsSlaveMachineWindowsUser = 'Knitschi'                    # A user on the _jenkinsSlaveMachineWindows that can be used for ssh access.
-
-
-# Fixed constants
+# Constants
 
 # container
 _webserverContainer = 'ccb-web-server'
@@ -61,8 +43,6 @@ _linuxSlaveIndex = 0
 _windowsSlaveIndex = 0
 _fullLinuxJenkinsSlaveName = _linuxSlaveBaseName + '-' + str(_linuxSlaveIndex)
 _fullWindowsJenkinsSlaveName = 'jenkins-slave-windows-' + str(_windowsSlaveIndex)
-
-
 
 
 # Files
@@ -113,7 +93,8 @@ def configureFile( sourceFile, destFile, replacementDictionary ):
 
 def main():
     # read configuration
-    configValues = _readConfigFile(sys.argv[1])
+    configFile = sys.argv[1]
+    configValues = _readConfigFile(configFile)
 
     # prepare environment
     print('----- Cleanup existing container')
@@ -140,7 +121,7 @@ def main():
     _createRSAKeyFilePairOnContainer( _fullLinuxJenkinsSlaveName, _jenkinsHomeJenkinsSlave)
     _grantContainerSSHAccessToRepository( _fullLinuxJenkinsSlaveName, _jenkinsHomeJenkinsSlave, configValues)
 
-    _configureJenkinsMaster(configValues)
+    _configureJenkinsMaster(configValues, configFile)
 
     print('Successfully startet jenkins master, build slaves and the documentation server.')
 
@@ -329,11 +310,18 @@ def _buildAndStartJenkinsMaster(configValues):
     # --env JAVA_OPTS="-Djenkins.install.runSetupWizard=false" 
     # The jenkins master and its slaves communicate over the bridge network. 
     # This means the master and the slaves must be on the same host. This should later be upgraded to a swarm.
+    
+    # When the user already has a jenkins configuration (which we know because he has added user config files)
+    # , we add an option that prevents the first startup wizard from popping up.
+    noSetupWizardOption = ''
+    if configValues['JenkinsAccountConfigFiles']:
+        noSetupWizardOption = '--env JAVA_OPTS="-Djenkins.install.runSetupWizard=false" '
+
     command = ( 
         'docker run '
         '--detach '
         '--volume ' + configValues['HostJenkinsMasterShare'] + ':' + _jenkinsWorkspaceJenkinsMaster + ' ' # This makes the jenkins home directory accessible on the host. This eases debugging. 
-        '--env JAVA_OPTS="-Djenkins.install.runSetupWizard=false" '                      # This prevents the plugin install wizard from popping up on the first startup.
+        + noSetupWizardOption +
         '--publish 8080:8080 '                                                           # The jenkins webinterface is available under this port.
         '--publish 50000:50000 '                                                         # Who uses this?
         '--name ' + _jenkinsMasterContainer + ' '
@@ -496,9 +484,8 @@ def _grantJenkinsMasterSSHAccessToJenkinsWindowsSlave(configValues):
         sshDir)
     _runCommand(copyScriptCommand)
 
-    # Todo password on the fly eingeben
-    _jenkinsSlaveMachineWindowsPassword = '3utterBro+'
-
+    # Get the password for the windows slave, because we need it to update the bitwise ssh server.
+    _jenkinsSlaveMachineWindowsPassword = getpass.getpass("Enter the password for user " + jenkinsSlaveMachineWindowsUser + ' on ' + jenkinsSlaveMachineWindows + ': ')
 
     # call the script
     fullScriptPathOnSlave = sshDir + '/' + authorizedKeysScript
@@ -510,20 +497,15 @@ def _grantJenkinsMasterSSHAccessToJenkinsWindowsSlave(configValues):
         fullScriptPathOnSlave,
         _jenkinsSlaveMachineWindowsPassword,
     )
-    _runCommand(callScriptCommand)
+    try:
+        _runCommand(callScriptCommand)
+    except Exception as err:
+        print("Error: Updating the authorized ssh keys on " + jenkinsSlaveMachineWindows + " failed. Was the password correct?")
+        raise err
 
     # clean up the generated scripts because of the included password
     os.remove(fullAuthorizedKeysScript)
     fullScriptPathOnSlaveBackslash = 'C:\\\\Users\\\\' + jenkinsSlaveMachineWindowsUser + '\\\\' + authorizedKeysScript
-    
-    """
-    deleteScriptOnSlaveCommand = 'ssh {0}@{1} "del {2}"'.format(
-        jenkinsSlaveMachineWindowsUser,
-        jenkinsSlaveMachineWindows,
-        fullScriptPathOnSlaveBackslash,
-    )
-    _runCommand(deleteScriptOnSlaveCommand)
-    """
 
     # Add the slave to the known hosts
     _addRemoteToKnownSSHHostsOfJenkinsMaster( jenkinsSlaveMachineWindows )
@@ -557,21 +539,47 @@ def _grantJenkinsMasterSSHAccessToWebServer(configValues):
     _addRemoteToKnownSSHHostsOfJenkinsMaster( _webserverContainerIP )
 
 
-def _configureJenkinsMaster(configValues):
+def _configureJenkinsMaster(configValues, configFile):
+    if configValues['JenkinsAccountConfigFiles']: # Only copy the config files if we already have user accounts.
+                                                  # If not we start jenkins without config which will generate the initial admin password and
+                                                  # give the user a chance to create a first account.
 
-    jenkinsWorkspaceHost = configValues['HostJenkinsMasterShare']
+        jenkinsWorkspaceHost = configValues['HostJenkinsMasterShare']
 
-    # ------ COPY JENKINS CONFIGURATION TO MASTER --------
-    print("---- Copy jenkins config.xml files to jenkins master.")
-    
-    # copy the content of JenkinsConfig to the jenkins workspace on the host
-    distutils.dir_util.copy_tree( _scriptDir + '/JenkinsConfig', jenkinsWorkspaceHost )
-    
-    # copy user config xml files to user/<username>/config.xml
+        # ------ COPY JENKINS CONFIGURATION TO MASTER --------
+        print("---- Copy jenkins config.xml files to jenkins master.")
+        
+        # copy the content of JenkinsConfig to the jenkins workspace on the host
+        distutils.dir_util.copy_tree( _scriptDir + '/JenkinsConfig', jenkinsWorkspaceHost )
+        
+        # copy user config xml files to user/<username>/config.xml
+        configFileDir = os.path.dirname(configFile)
+        usersConfigDir = jenkinsWorkspaceHost + '/users'
+        for user, userConfigFile in configValues['JenkinsAccountConfigFiles'].items():
+            if configFileDir:
+                sourceConfigFile = configFileDir + '/' + userConfigFile
+            else:
+                sourceConfigFile =  userConfigFile
+            userConfigDir = usersConfigDir + '/' + user
+            os.makedirs(userConfigDir)
+            shutil.copyfile( sourceConfigFile, userConfigDir + '/config.xml')
 
-    # restart jenkins to make sure the config.xml files get loaded.
-    _stopDockerContainer( _jenkinsMasterContainer)
-    _startDockerContainer( _jenkinsMasterContainer)
+        # copy job config xml files to jobs/<jobname>/config.xml
+        jobsConfigDir = jenkinsWorkspaceHost + '/jobs'
+        for job, jobConfigFile in configValues['JenkinsJobConfigFiles'].items():
+            if configFileDir:
+                sourceConfigFile = configFileDir + '/' + jobConfigFile
+            else:
+                sourceConfigFile =  jobConfigFile
+            jobConfigDir = jobsConfigDir + '/' + job
+            os.makedirs(jobConfigDir)
+            shutil.copyfile( sourceConfigFile, jobConfigDir + '/config.xml')
+
+        # restart jenkins to make sure the config.xml files get loaded.
+        _stopDockerContainer( _jenkinsMasterContainer)
+        _startDockerContainer( _jenkinsMasterContainer)
+    else:
+        print("Jenkins will be run without the default conifiguration, because no user files were given.")
 
 
 if __name__ == '__main__':
