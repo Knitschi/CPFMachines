@@ -26,19 +26,6 @@ def addCppCodeBaseJob( jobName, repositoryAddress, jenkinsDirectory):
     _configureJobConifgFile(jobDir, jobName, repositoryAddress)
 
 
-def addCustomJob( jobName, configFile, jenkinsDirectory):
-    """
-    This function adds a build job with the given name and the given config.xml file
-    to a jenkins instance.
-    """
-    # remove the existing job
-    jobDir = _getJobDir(jenkinsDirectory, jobName)
-    _clearDirectory(jobDir)
-
-    # copy the config file
-    shutil.copyfile( configFile, jobDir + '/config.xml')
-
-
 def _getJobDir( jenkinsDirectory, jobName):
     return jenkinsDirectory + '/jobs/' + jobName
 
