@@ -1,15 +1,17 @@
 :: This script writes a given public key for a given machine to the public keys file of a given user.
 ::
+:: Script arguments:
+:: 1:                                The password for the user that is used by jenkins to ssh into the windows build slave.
+::
 :: Template Arguments
 :: @PUBLIC_KEY@:                     The full content of the public key rsa file.
 :: @JENKINS_MASTER_CONTAINER@:       The name of the machine to which the public key belongs.
 :: @SLAVE_MACHINE_USER@:             The user account that runs the ssh server.
-:: @SLAVE_MACHINE_USER_PASSWORD@:    The password for the windows user account and ssh access
 
 set publicKey=@PUBLIC_KEY@
 set accessingMachine=@JENKINS_MASTER_CONTAINER@
 set user=@SLAVE_MACHINE_USER@
-set password=@SLAVE_MACHINE_USER_PASSWORD@
+set password=%1
 
 set sshDir="C:/Users/%user%/.ssh"
 cd %sshDir%
