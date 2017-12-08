@@ -184,16 +184,25 @@ def _runCommand(command, printOutput = False, printCommand = False):
     """
     workingDir = os.getcwd()
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE, cwd = workingDir)
-    # wait for process to finish and get output
-    out, err = process.communicate()
     
+    # print output as soon as it is generated.
     output = ''
+    lines_iterator = iter(process.stdout.readline, b"")
+    while process.poll() is None:
+        for line in lines_iterator:
+            nline = line.rstrip()
+            lineString = nline.decode("utf-8")
+            output += lineString + "\r\n"
+            if printOutput:
+                print( lineString, end = "\r\n",flush =True) # yield line
+
+    out, err = process.communicate()
+    retCode = process.returncode
+
     if printCommand:
         output = command + '\n'
 
-    output += out.decode("utf-8")
-    errOutput = err.decode("ISO-8859-1")
-    retCode = process.returncode
+    errOutput = err.decode("ISO-8859-1") # the iso codec helped to fix a problem with the output when sshing on the windows container.
 
     if printOutput:
         print(output)
@@ -329,7 +338,7 @@ def _buildAndStartJenkinsMaster(configValues):
         '--ip ' + _jenkinsMasterContainerIP + ' '
         + containerImage
     )
-    _runCommand( command, True)
+    _runCommand( command, printOutput=True)
 
     # add global gitconfig after mounting the workspace volume, otherwise is gets deleted.
     _runCommandInContainer(_jenkinsMasterContainer, 'git config --global user.email not@valid.org')
@@ -365,7 +374,7 @@ def _buildAndStartWebServer(configValues):
         '--ip ' + _webserverContainerIP + ' '
         + containerImage
     )
-    _runCommand( command, True)
+    _runCommand( command, printOutput=True)
 
     # copy the doxyserach.cgi to the html share
     _runCommandInContainer( _webserverContainer, 'rm -fr ' + _htmlShareWebServer + '/cgi-bin', 'root')
@@ -389,7 +398,7 @@ def _buildAndStartJenkinsLinuxSlave():
         '--ip ' + _jenkinsLinuxSlaveContainerIP + ' '
         + containerImage
     )
-    _runCommand( command, True)
+    _runCommand( command, printOutput=True)
 
 
 def _createRSAKeyFilePairOnContainer(containerName, containerHomeDirectory):
