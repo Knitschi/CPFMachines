@@ -4,7 +4,7 @@
 # after the first start of the jenkins server. Then change the admin account under "Manage Jenkins" -> "Manage Users"
 
 # Get the basic jenkins container
-FROM jenkins:2.60.2
+FROM jenkins/jenkins:lts
 
 # Install initial plugins
 RUN install-plugins.sh \
