@@ -22,6 +22,8 @@ _scriptDir = os.path.dirname(os.path.realpath(__file__))
 
 
 # Constants
+_jenkinsVersion='2.89.1'
+_jenkinsSha256='f9f363959042fce1615ada81ae812e08d79075218c398ed28e68e1302c4b272f' # The sha256 checksum of the jenkins.war package of the given jenkins version.
 
 # container
 _webserverContainer = 'ccb-web-server'
@@ -96,13 +98,16 @@ def main():
     configFile = sys.argv[1]
     configValues = _readConfigFile(configFile)
 
+    # Get the password for the windows slave, because we need it to update the bitwise ssh server.
+    # We do this at the beginning, to prevent interuptions in the middle when the user may be doing something else because of long execution times.
+    jenkinsSlaveMachineWindowsPassword = getpass.getpass("Enter the password for user " + configValues['BuildSlaveWindowsMachineUser'] + ' on ' + configValues['BuildSlaveWindowsMachine'] + ': ')
+
     # prepare environment
     print('----- Cleanup existing container')
     _clearDocker()
     clearDirectory(configValues['HostJenkinsMasterShare'])
     _guaranteeDirectoryExists(configValues['HostHTMLShare'])   # we do not clear this to preserve the accumulated web content.
     _createDockerNetwork(_dockerNetworkName)
-    _createJenkinsNodeConfigFiles(configValues)
 
     # build container
     _buildAndStartJenkinsMaster(configValues)
@@ -115,7 +120,7 @@ def main():
     _createRSAKeyFilePairOnContainer( _jenkinsMasterContainer, _jenkinsWorkspaceJenkinsMaster)
     _grantContainerSSHAccessToRepository( _jenkinsMasterContainer, _jenkinsWorkspaceJenkinsMaster, configValues)
     _grantJenkinsMasterSSHAccessToJenkinsLinuxSlave(configValues)
-    _grantJenkinsMasterSSHAccessToJenkinsWindowsSlave(configValues)
+    _grantJenkinsMasterSSHAccessToJenkinsWindowsSlave(configValues, jenkinsSlaveMachineWindowsPassword)
     _grantJenkinsMasterSSHAccessToWebServer(configValues)
     # setup ssh accesses used by jenkins-slave-linux
     _createRSAKeyFilePairOnContainer( _fullLinuxJenkinsSlaveName, _jenkinsHomeJenkinsSlave)
@@ -266,7 +271,7 @@ def _createJenkinsNodeConfigFiles(configValues):
     )
 
     # create config file for the windows slave
-    slaveWorkspace = 'C:\\jenkins'
+    slaveWorkspace = 'C:/jenkins'
     _configureNodeConfigFile(
         _fullWindowsJenkinsSlaveName,
         'A Windows 10 build slave based on a virtual machine.',
@@ -311,9 +316,17 @@ def _configureNodeConfigFile( slaveName, description, slaveWorkspaceDir, slaveMa
 def _buildAndStartJenkinsMaster(configValues):
     print( "----- Build and start the docker MASTER container " + _jenkinsMasterContainer )
 
+    # Create the jenkins base image. This is required to customize the jenkins version.
+    jenkinsBaseImage = 'jenkins-image-' + _jenkinsVersion
+    _buildDockerImage( 
+        jenkinsBaseImage, 
+        _scriptDir + '/DockerfileJenkinsBase/Dockerfile' , 
+        _scriptDir + '/DockerfileJenkinsBase', 
+        ['JENKINS_VERSION=' + _jenkinsVersion, 'JENKINS_SHA=' + _jenkinsSha256] )
+
     # Create the container image
     containerImage = _jenkinsMasterContainer + '-image'
-    _buildDockerImage( containerImage, _scriptDir + '/DockerfileJenkinsMaster' , _scriptDir )
+    _buildDockerImage( containerImage, _scriptDir + '/DockerfileJenkinsMaster' , _scriptDir, ['JENKINS_BASE_IMAGE=' + jenkinsBaseImage] )
 
     # Start the container
     # --env JAVA_OPTS="-Djenkins.install.runSetupWizard=false" 
@@ -332,7 +345,7 @@ def _buildAndStartJenkinsMaster(configValues):
         '--volume ' + configValues['HostJenkinsMasterShare'] + ':' + _jenkinsWorkspaceJenkinsMaster + ' ' # This makes the jenkins home directory accessible on the host. This eases debugging. 
         + noSetupWizardOption +
         '--publish 8080:8080 '                                                           # The jenkins webinterface is available under this port.
-        '--publish 50000:50000 '                                                         # Who uses this?
+        #'--publish 50000:50000 '                                                        # Only needed for hnlp slaves?
         '--name ' + _jenkinsMasterContainer + ' '
         '--net ' + _dockerNetworkName + ' '
         '--ip ' + _jenkinsMasterContainerIP + ' '
@@ -345,8 +358,12 @@ def _buildAndStartJenkinsMaster(configValues):
     _runCommandInContainer(_jenkinsMasterContainer, 'git config --global user.name jenkins')
 
 
-def _buildDockerImage( imageName, dockerFile, buildContextDirectory):
-    command = 'docker build -t ' + imageName + ' -f ' + dockerFile + ' ' + buildContextDirectory
+def _buildDockerImage( imageName, dockerFile, buildContextDirectory, buildArgs):
+    buildArgsString = ''
+    for arg in buildArgs:
+        buildArgsString += ' --build-arg ' + arg
+    
+    command = 'docker build' + buildArgsString + ' -t ' + imageName + ' -f ' + dockerFile + ' ' + buildContextDirectory
     _runCommand( command, True)
 
 def _runCommandInContainer(container, command, user = None):
@@ -362,7 +379,7 @@ def _buildAndStartWebServer(configValues):
     print( "----- Build and start the web-server container " + _webserverContainer)
     
     containerImage = _webserverContainer + '-image'
-    _buildDockerImage( containerImage, _scriptDir + '/DockerfileCcbWebServer', _scriptDir )
+    _buildDockerImage( containerImage, _scriptDir + '/DockerfileCcbWebServer', _scriptDir, [] )
 
     command = (
         'docker run '
@@ -388,7 +405,7 @@ def _buildAndStartJenkinsLinuxSlave():
     print("----- Build and start the docker SLAVE container " + _fullLinuxJenkinsSlaveName)
 
     containerImage = _linuxSlaveBaseName + '-image'
-    _buildDockerImage( containerImage, _scriptDir + '/DockerfileJenkinsSlaveLinux', _scriptDir )
+    _buildDockerImage( containerImage, _scriptDir + '/DockerfileJenkinsSlaveLinux', _scriptDir, [] )
 
     command = (
         'docker run '
@@ -464,7 +481,7 @@ def _grantJenkinsMasterSSHAccessToJenkinsLinuxSlave(configValues):
     _addRemoteToKnownSSHHostsOfJenkinsMaster( _jenkinsLinuxSlaveContainerIP )
 
 
-def _grantJenkinsMasterSSHAccessToJenkinsWindowsSlave(configValues):
+def _grantJenkinsMasterSSHAccessToJenkinsWindowsSlave(configValues, jenkinsSlaveMachineWindowsPassword):
 
     jenkinsWorkspaceHost = configValues['HostJenkinsMasterShare']    
     jenkinsSlaveMachineWindows = configValues['BuildSlaveWindowsMachine']
@@ -493,9 +510,6 @@ def _grantJenkinsMasterSSHAccessToJenkinsWindowsSlave(configValues):
         sshDir)
     _runCommand(copyScriptCommand)
 
-    # Get the password for the windows slave, because we need it to update the bitwise ssh server.
-    _jenkinsSlaveMachineWindowsPassword = getpass.getpass("Enter the password for user " + jenkinsSlaveMachineWindowsUser + ' on ' + jenkinsSlaveMachineWindows + ': ')
-
     # call the script
     fullScriptPathOnSlave = sshDir + '/' + authorizedKeysScript
     callScriptCommand = (
@@ -504,7 +518,7 @@ def _grantJenkinsMasterSSHAccessToJenkinsWindowsSlave(configValues):
         jenkinsSlaveMachineWindowsUser,
         jenkinsSlaveMachineWindows,
         fullScriptPathOnSlave,
-        _jenkinsSlaveMachineWindowsPassword,
+        jenkinsSlaveMachineWindowsPassword,
     )
     try:
         _runCommand(callScriptCommand)
@@ -558,6 +572,9 @@ def _configureJenkinsMaster(configValues, configFile):
         # ------ COPY JENKINS CONFIGURATION TO MASTER --------
         print("---- Copy jenkins config.xml files to jenkins master.")
         
+        # create config files for the slave nodes
+        _createJenkinsNodeConfigFiles(configValues)
+
         # copy the content of JenkinsConfig to the jenkins workspace on the host
         distutils.dir_util.copy_tree( _scriptDir + '/JenkinsConfig', jenkinsWorkspaceHost )
         

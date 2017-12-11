@@ -1,14 +1,14 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <slave>
-    <name>$SLAVE_NAME</name>
-    <description>$DESCRIPTION</description>
-    <remoteFS>$WORKSPACE</remoteFS>
-    <numExecutors>1</numExecutors>
-    <mode>NORMAL</mode>
-    <retentionStrategy class="hudson.slaves.RetentionStrategy$Always"/>
-    <launcher class="hudson.slaves.CommandLauncher">
-        <agentCommand>ssh $USER@$MACHINE java -jar $SLAVE_JAR_DIR/slave.jar</agentCommand>
-    </launcher>
-    <label>$LABELS</label>
-    <nodeProperties/>
+  <name>$SLAVE_NAME</name>
+  <description>$DESCRIPTION</description>
+  <remoteFS>$WORKSPACE</remoteFS>
+  <numExecutors>1</numExecutors>
+  <mode>NORMAL</mode>
+  <retentionStrategy class="hudson.slaves.RetentionStrategy$Always"/>
+  <launcher class="hudson.slaves.CommandLauncher" plugin="command-launcher@1.2">
+    <agentCommand>ssh $USER@$MACHINE java -jar $SLAVE_JAR_DIR/slave.jar</agentCommand>
+  </launcher>
+  <label>$LABELS</label>
+  <nodeProperties/>
 </slave>

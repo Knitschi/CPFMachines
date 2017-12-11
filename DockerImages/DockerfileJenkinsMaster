@@ -4,16 +4,10 @@
 # after the first start of the jenkins server. Then change the admin account under "Manage Jenkins" -> "Manage Users"
 
 # Get the basic jenkins container
-FROM jenkins/jenkins:lts
-
-# Install initial plugins
-RUN install-plugins.sh \
-workflow-aggregator \
-blueocean \
-junit \
-git \
-greenballs \
-xvfb
+# documentation at https://github.com/jenkinsci/docker/blob/master/README.md
+# This image must be build before this one can be build.
+ARG JENKINS_BASE_IMAGE
+FROM ${JENKINS_BASE_IMAGE}
 
 USER root
 
@@ -21,7 +15,6 @@ USER root
 RUN apt-get update && apt-get -y -q install \
 netcat \
 tree
-
 
 # ------------------- GCC --------------------
 COPY installGcc.sh installGcc.sh
@@ -42,18 +35,21 @@ RUN /bin/bash buildCMake.sh
 
 EXPOSE 22
     
-# Add user groups
-# add root to jenkinsRoot group
-#RUN groupadd jenkinsRoot &&\ 
-#    usermod -a -G jenkinsRoot root
-    
-# add jenkins to jenkinsShare group
-#RUN groupadd jenkinsShare &&\ 
-#    usermod -a -G jenkinsShare jenkins
-    
-
 # Make sure the container is run with the jenkins user rights
 USER jenkins
+
+# ----------------- Jenkins Plugins ---------------
+#
+# blueocean -> pipeline step and pipeline guy
+# geenballs -> green instead of blue balls
+# xvfb -> mock x-server needed to run Qt guy tests on linux
+# command-launcher -> "Launch agent via execution of command on the master" option for jenkins slaves.
+
+RUN install-plugins.sh \
+blueocean:1.3.4 \
+greenballs:1.15 \
+xvfb:1.1.3 \
+command-launcher:1.2
 
 # create share and home directories
 RUN mkdir -p /var/jenkins_home/html

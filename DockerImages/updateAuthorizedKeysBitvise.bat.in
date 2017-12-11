@@ -28,7 +28,7 @@ echo %publicKey% >> authorized_keys
 :: The synchronisation mechanism with the authorized_keys file will make sure that public keys from previous runs 
 :: of this script are automatically removed from the servers public key list. This step requires to enter the password again.
 set publicKeyFile=%sshDir%/%accessingMachine%_ssh_key.rsa.pub
-echo %publicKey% >> %publicKeyFile%
+echo %publicKey% > %publicKeyFile%
 
 cd "C:/Program Files (x86)/Bitvise SSH Client"
 spksc %user%@buildknechtwin -pw="%password%" -unat=n -cmd="Add File %publicKeyFile%"
