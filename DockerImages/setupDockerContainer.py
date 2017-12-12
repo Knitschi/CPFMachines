@@ -16,6 +16,8 @@ import io
 import json
 import pprint
 import getpass
+import requests
+import time
 
 _scriptDir = os.path.dirname(os.path.realpath(__file__))
 
@@ -98,12 +100,25 @@ def main():
     configFile = sys.argv[1]
     configValues = _readConfigFile(configFile)
 
+
+    # Get some passwords at the beginning, to prevent interuptions in the middle when the user may be doing something else because of long execution times.
     # Get the password for the windows slave, because we need it to update the bitwise ssh server.
-    # We do this at the beginning, to prevent interuptions in the middle when the user may be doing something else because of long execution times.
-    jenkinsSlaveMachineWindowsPassword = getpass.getpass("Enter the password for user " + configValues['BuildSlaveWindowsMachineUser'] + ' on ' + configValues['BuildSlaveWindowsMachine'] + ': ')
+    jenkinsSlaveMachineWindowsPassword = _getMissingPassword( 
+        configValues, 
+        'BuildSlaveWindowsMachinePassword', 
+        "Enter the password for the windows account of user " + configValues['BuildSlaveWindowsMachineUser'] + ' on ' + configValues['BuildSlaveWindowsMachine'] + ': '
+        )
+    # Get the password for the jenkins admin user, which we need to configure jenkins via command line.
+    jenkinsAdminPassword = _getMissingPassword(
+        configValues, 
+        'JenkinsAdminUserPassword', 
+        "Enter the password for the jenkins account of user " + configValues['JenkinsAdminUser'] + ': '
+        )
+
 
     # prepare environment
     print('----- Cleanup existing container')
+
     _clearDocker()
     clearDirectory(configValues['HostJenkinsMasterShare'])
     _guaranteeDirectoryExists(configValues['HostHTMLShare'])   # we do not clear this to preserve the accumulated web content.
@@ -126,7 +141,7 @@ def main():
     _createRSAKeyFilePairOnContainer( _fullLinuxJenkinsSlaveName, _jenkinsHomeJenkinsSlave)
     _grantContainerSSHAccessToRepository( _fullLinuxJenkinsSlaveName, _jenkinsHomeJenkinsSlave, configValues)
 
-    _configureJenkinsMaster(configValues, configFile)
+    _configureJenkinsMaster(configValues, configFile, jenkinsAdminPassword)
 
     print('Successfully startet jenkins master, build slaves and the documentation server.')
 
@@ -141,6 +156,12 @@ def _readConfigFile(configFile):
         data = json.load(file)
     pprint.pprint(data)
     return data
+
+def _getMissingPassword(configValues, configKeyPassword, promptMessage):
+    password = configValues[configKeyPassword]
+    if not password:
+        password = getpass.getpass(promptMessage)
+    return password
 
 def _clearDocker():
     _stubbornlyRemoveContainer(_webserverContainer)
@@ -182,10 +203,14 @@ def _runCommandToGetList(command):
     return output.splitlines()
 
 
-def _runCommand(command, printOutput = False, printCommand = False):
+def _runCommand(command, printOutput=False, printCommand=False, ignoreReturnCode=False):
     """
     Runs the given command and returns its standard output.
     The function throws if the command fails. In this case the output is always printed.
+
+    Problems:
+    This fails to return the complete output of "docker logs jenkins-master"
+    However when printOutput is set to true, it prints everything on the command line.
     """
     workingDir = os.getcwd()
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE, cwd = workingDir)
@@ -199,7 +224,7 @@ def _runCommand(command, printOutput = False, printCommand = False):
             lineString = nline.decode("utf-8")
             output += lineString + "\r\n"
             if printOutput:
-                print( lineString, end = "\r\n",flush =True) # yield line
+                print( lineString, end = "\r\n", flush=True) # yield line
 
     out, err = process.communicate()
     retCode = process.returncode
@@ -213,11 +238,11 @@ def _runCommand(command, printOutput = False, printCommand = False):
         print(output)
         print(errOutput)
 
-    if retCode != 0:
+    if not ignoreReturnCode and retCode != 0:
         if not printOutput:                         # always print the output in case of an error
             print(output)
             print(errOutput)
-        raise Exception('Command "' + command +'" executed in directory "' + workingDir + '" failed.')
+        raise Exception('Command "' + command +'" executed in directory "' + workingDir + '" returned error code ' + str(retCode) + '.')
 
     return output
 
@@ -257,62 +282,6 @@ def _createDockerNetwork(network):
     _runCommand('docker network create --subnet=172.19.0.0/16 ' + network)
 
 
-def _createJenkinsNodeConfigFiles(configValues):
-
-    # create config file for the windows slave
-    _configureNodeConfigFile(
-        _fullLinuxJenkinsSlaveName,
-        'A Debinan 8.9 build slave based on a docker container.',
-        '/home/jenkins/workspaces',
-        _jenkinsLinuxSlaveContainerIP,
-        'jenkins',
-        '~/bin',
-        _getSlaveLabelsString( 'Debian-8.9' , 4)
-    )
-
-    # create config file for the windows slave
-    slaveWorkspace = 'C:/jenkins'
-    _configureNodeConfigFile(
-        _fullWindowsJenkinsSlaveName,
-        'A Windows 10 build slave based on a virtual machine.',
-        slaveWorkspace,
-        configValues['BuildSlaveWindowsMachine'],
-        configValues['BuildSlaveWindowsMachineUser'],
-        slaveWorkspace,
-        _getSlaveLabelsString( 'Windows-10' , 4)
-    )
-
-
-def _getSlaveLabelsString(baseLabelName, maxIndex):
-    labels = [baseLabelName]
-    for i in range(maxIndex + 1):
-        labels.append(baseLabelName + '-' + str(i))
-    return ' '.join(labels)
-
-
-def _configureNodeConfigFile( slaveName, description, slaveWorkspaceDir, slaveMachine, slaveMachineUser, slaveJarDir, slaveLabels ):
-    """
-    Uses a template file to create a config.xml file for a jenkins node that the master
-    controls via ssh.
-    """
-    nodesDir = _scriptDir + '/JenkinsConfig/nodes'
-    nodeDir = nodesDir + '/' + slaveName
-    clearDirectory(nodeDir)
-
-    createdConfigFile = nodeDir + '/config.xml'
-    configTemplateFile = _scriptDir + '/jenkinsSlaveNodeConfig.xml.in'
-
-    configureFile( configTemplateFile, createdConfigFile, { 
-        '$SLAVE_NAME' : slaveName,
-        '$DESCRIPTION' : description,
-        '$WORKSPACE' : slaveWorkspaceDir,
-        '$USER' : slaveMachineUser,
-        '$MACHINE' : slaveMachine,
-        '$SLAVE_JAR_DIR' : slaveJarDir,
-        '$LABELS' : slaveLabels
-    } )
-
-
 def _buildAndStartJenkinsMaster(configValues):
     print( "----- Build and start the docker MASTER container " + _jenkinsMasterContainer )
 
@@ -333,10 +302,10 @@ def _buildAndStartJenkinsMaster(configValues):
     # The jenkins master and its slaves communicate over the bridge network. 
     # This means the master and the slaves must be on the same host. This should later be upgraded to a swarm.
     
-    # When the user already has a jenkins configuration (which we know because he has added user config files)
-    # , we add an option that prevents the first startup wizard from popping up.
+    # When the user already has a jenkins configuration
+    # we add an option that prevents the first startup wizard from popping up.
     noSetupWizardOption = ''
-    if configValues['JenkinsAccountConfigFiles']:
+    if not configValues['UseUnconfiguredJenkinsMaster']:
         noSetupWizardOption = '--env JAVA_OPTS="-Djenkins.install.runSetupWizard=false" '
 
     command = ( 
@@ -562,50 +531,178 @@ def _grantJenkinsMasterSSHAccessToWebServer(configValues):
     _addRemoteToKnownSSHHostsOfJenkinsMaster( _webserverContainerIP )
 
 
-def _configureJenkinsMaster(configValues, configFile):
-    if configValues['JenkinsAccountConfigFiles']: # Only copy the config files if we already have user accounts.
-                                                  # If not we start jenkins without config which will generate the initial admin password and
-                                                  # give the user a chance to create a first account.
+def _configureJenkinsMaster(configValues, configFile, jenkinsAdminPassword):
+    if not configValues['UseUnconfiguredJenkinsMaster']:
+        print("----- Configure the jenkins master server.")
 
-        jenkinsWorkspaceHost = configValues['HostJenkinsMasterShare']
+        _setGeneralJenkinsOptions(configValues)
+        _setJenkinsUsers(configValues, configFile)
+        _setJenkinsJobs(configValues, configFile)
 
-        # ------ COPY JENKINS CONFIGURATION TO MASTER --------
-        print("---- Copy jenkins config.xml files to jenkins master.")
-        
-        # create config files for the slave nodes
-        _createJenkinsNodeConfigFiles(configValues)
-
-        # copy the content of JenkinsConfig to the jenkins workspace on the host
-        distutils.dir_util.copy_tree( _scriptDir + '/JenkinsConfig', jenkinsWorkspaceHost )
-        
-        # copy user config xml files to user/<username>/config.xml
-        configFileDir = os.path.dirname(configFile)
-        usersConfigDir = jenkinsWorkspaceHost + '/users'
-        for user, userConfigFile in configValues['JenkinsAccountConfigFiles'].items():
-            if configFileDir:
-                sourceConfigFile = configFileDir + '/' + userConfigFile
-            else:
-                sourceConfigFile =  userConfigFile
-            userConfigDir = usersConfigDir + '/' + user
-            os.makedirs(userConfigDir)
-            shutil.copyfile( sourceConfigFile, userConfigDir + '/config.xml')
-
-        # copy job config xml files to jobs/<jobname>/config.xml
-        jobsConfigDir = jenkinsWorkspaceHost + '/jobs'
-        for job, jobConfigFile in configValues['JenkinsJobConfigFiles'].items():
-            if configFileDir:
-                sourceConfigFile = configFileDir + '/' + jobConfigFile
-            else:
-                sourceConfigFile =  jobConfigFile
-            jobConfigDir = jobsConfigDir + '/' + job
-            os.makedirs(jobConfigDir)
-            shutil.copyfile( sourceConfigFile, jobConfigDir + '/config.xml')
-
-        # restart jenkins to make sure the config.xml files get loaded.
+        # restart jenkins to make sure it as the desired configuration
+        # this is required because setting the slaves requires jenkins to be
+        # up and running.
         _stopDockerContainer( _jenkinsMasterContainer)
         _startDockerContainer( _jenkinsMasterContainer)
+        _waitForJenkinsMasterToComeOnline(configValues, jenkinsAdminPassword )
+
+        _setJenkinsSlaves(configValues, jenkinsAdminPassword)
+
+
     else:
         print("Jenkins will be run without the default conifiguration, because no user files were given.")
+
+
+def _setGeneralJenkinsOptions(configValues):
+    """
+    Configure the general options by copying the .xml config files from the JenkinsConfig directory 
+    to the jenkins master home directory.
+    """
+    jenkinsWorkspaceHost = configValues['HostJenkinsMasterShare']
+    distutils.dir_util.copy_tree( _scriptDir + '/JenkinsConfig', jenkinsWorkspaceHost )
+
+
+def _setJenkinsUsers(configValues, configFile):
+    """
+    Copy user config xml files to user/<username>/config.xml
+    """
+    _copyJenkinsConfigFiles(configValues, configFile, 'users', 'JenkinsAccountConfigFiles')
+
+
+def _setJenkinsJobs(configValues, configFile):
+    """
+    copy job config xml files to jobs/<jobname>/config.xml
+    """
+    _copyJenkinsConfigFiles(configValues, configFile, 'jobs', 'JenkinsJobConfigFiles')
+
+
+def _copyJenkinsConfigFiles(configValues, configFile, configDir, filesConfigKey):
+    """
+    Copies the config.xml files that are mentioned in a map under filesConfigKey
+    in the script config file to named directories under the given config dir
+    to the jenkins-master home directory.
+    """
+    jenkinsWorkspaceHost = configValues['HostJenkinsMasterShare']
+    configFileDir = os.path.dirname(configFile)
+    jobsConfigDir = jenkinsWorkspaceHost + '/' + configDir
+    for job, jobConfigFile in configValues[filesConfigKey].items():
+        if configFileDir:
+            sourceConfigFile = configFileDir + '/' + jobConfigFile
+        else:
+            sourceConfigFile =  jobConfigFile
+        jobConfigDir = jobsConfigDir + '/' + job
+        os.makedirs(jobConfigDir)
+        shutil.copyfile( sourceConfigFile, jobConfigDir + '/config.xml')
+
+
+def _waitForJenkinsMasterToComeOnline(configValues, jenkinsPassword):
+    """
+    Returns when the jenkins instance is fully operable.
+
+    We wait for the crumb request to work, because this is what we need next.
+    """
+    print("----- Wait for jenkins to come online")
+    time.sleep(4) # we have to whait a little or we get python exceptions
+    crumbText = "Jenkins-Crumb"
+    url = 'http://localhost:8080/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)'
+    auth = (configValues['JenkinsAdminUser'], jenkinsPassword)
+
+    text = ''
+    while not crumbText in text:
+        text = requests.get(url, auth=auth).text
+        time.sleep(1)
+
+
+def _setJenkinsSlaves(configValues, jenkinsAdminPassword):
+    """
+    Create config files for the slave nodes.
+    All slave nodes are based on the ssh command execution start scheme from
+    the command-launcher plugin.
+    """
+    # create config file for the linux slave
+    _configureNodeConfigFile(
+        configValues,
+        jenkinsAdminPassword,
+        _fullLinuxJenkinsSlaveName,
+        'A Debinan 8.9 build slave based on a docker container.',
+        '/home/jenkins/workspaces',
+        _jenkinsLinuxSlaveContainerIP,
+        'jenkins',
+        '~/bin',
+        _getSlaveLabelsString( 'Debian-8.9' , 4)
+    )
+
+    # create config file for the windows slave
+    slaveWorkspace = 'C:/jenkins'
+    _configureNodeConfigFile(
+        configValues,
+        jenkinsAdminPassword,
+        _fullWindowsJenkinsSlaveName,
+        'A Windows 10 build slave based on a virtual machine.',
+        slaveWorkspace,
+        configValues['BuildSlaveWindowsMachine'],
+        configValues['BuildSlaveWindowsMachineUser'],
+        slaveWorkspace,
+        _getSlaveLabelsString( 'Windows-10' , 4)
+    )
+
+
+def _getSlaveLabelsString(baseLabelName, maxIndex):
+    labels = [baseLabelName]
+    for i in range(maxIndex + 1):
+        labels.append(baseLabelName + '-' + str(i))
+    return ' '.join(labels)
+
+
+def _configureNodeConfigFile( configValues, jenkinsAdminPassword, slaveName, description, slaveWorkspaceDir, slaveMachine, slaveMachineUser, slaveJarDir, slaveLabels ):
+    """
+    Uses a template file to create a config.xml file for a jenkins node that the master
+    controls via ssh.
+    """
+    nodesDir = _scriptDir + '/JenkinsConfig/nodes'
+    nodeDir = nodesDir + '/' + slaveName
+    clearDirectory(nodeDir)
+
+    createdConfigFile = nodeDir + '/config.xml'
+    configTemplateFile = _scriptDir + '/jenkinsSlaveNodeConfig.xml.in'
+    startCommand = 'ssh {0}@{1} java -jar {2}/slave.jar'.format(slaveMachineUser,slaveMachine,slaveJarDir)
+
+    # create the config file in nodes
+    configureFile( configTemplateFile, createdConfigFile, { 
+        '$SLAVE_NAME' : slaveName,
+        '$DESCRIPTION' : description,
+        '$WORKSPACE' : slaveWorkspaceDir,
+        '$START_COMMAND' : startCommand,
+        '$LABELS' : slaveLabels
+    } )
+
+    # Approve the start commands via jenkins groovy script console
+    jenkinsUser = configValues['JenkinsAdminUser']
+    jenkinsCrumb = _getJenkinsCrumb(jenkinsUser, jenkinsAdminPassword)
+    _approveJenkinsScript( jenkinsUser, jenkinsAdminPassword, jenkinsCrumb, startCommand)
+
+
+def _getJenkinsCrumb(jenkinsUser, jenkinsPassword):
+    url = 'http://localhost:8080/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)'
+    auth = (jenkinsUser, jenkinsPassword)
+    request = requests.get(url, auth=auth)
+    request.raise_for_status()
+    return request.text
+
+
+def _approveJenkinsScript(jenkinsUser, jenkinsPassword, jenkinsCrumb, approvedScriptText):
+    """
+    Runs a groovy script over the jenkins groovy console, that approves the commands
+    that are used to start the slaves.
+
+    I failed to make this work with the requests package.
+    """
+    groovyScript = "def scriptApproval = Jenkins.instance.getExtensionList('org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval')[0];scriptApproval.approveScript(scriptApproval.hash('{0}', 'system-command'))".format(approvedScriptText)
+    curlCommand = "curl --user '{0}:{1}' -H \"{2}\" --data-urlencode \"script={3}\" localhost:8080/scriptText".format(jenkinsUser,jenkinsPassword,jenkinsCrumb,groovyScript)
+    ret = _runCommand(curlCommand)
+    print(ret)
+
+    
 
 
 if __name__ == '__main__':

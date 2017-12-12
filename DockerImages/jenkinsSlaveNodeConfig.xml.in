@@ -7,7 +7,7 @@
   <mode>NORMAL</mode>
   <retentionStrategy class="hudson.slaves.RetentionStrategy$Always"/>
   <launcher class="hudson.slaves.CommandLauncher" plugin="command-launcher@1.2">
-    <agentCommand>ssh $USER@$MACHINE java -jar $SLAVE_JAR_DIR/slave.jar</agentCommand>
+    <agentCommand>$START_COMMAND</agentCommand>
   </launcher>
   <label>$LABELS</label>
   <nodeProperties/>
