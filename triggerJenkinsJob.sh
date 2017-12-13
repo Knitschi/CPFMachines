@@ -5,12 +5,12 @@
 #
 
 refname=$1
+jenkinsUser=$2
+jenkinsPassword=$3
 
 # The base url of the jenkins server on which a job is triggered
 jenkinsUrl="http://knitschi@feldrechengeraet:8080"
 # Change this to a user and a password that is used on your jenkins server for doing the automated integration of a commit.
-jenkinsUser="CaptainGitHook"
-jenkinsPassword="1234temp"
 
 # Get the name of the buildjob by assuming that the repository base directory and the build job both have the name of the build package
 dirName=$(basename "$PWD")

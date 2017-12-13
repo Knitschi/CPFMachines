@@ -7,6 +7,9 @@ unset GIT_DIR # whithout this we get git errors "remote: fatal: Not a git reposi
 
 echo ----- Run CppCodeBaseJenkinsjob post-receive hook -----
 
+set jenkinsUser=CaptainGitHook
+set jenkinsPassword=1234temp
+
 function normalizeDir()
 {
         normalDir="`cd "$1";pwd`"
@@ -43,7 +46,7 @@ do
     ( cd $fullNonBareSisterRepoDir && git checkout $pushedBranch)
     ( cd $fullNonBareSisterRepoDir && git submodule update --remote --recursive)
 
-    bash $fullNonBareSisterRepoDir/Sources/CppCodeBaseJenkinsjob/triggerJenkinsJob.sh $refname # pass all arguments except the first on to the triggerJenkinsJob.sh script
+    bash $fullNonBareSisterRepoDir/Sources/CppCodeBaseJenkinsjob/triggerJenkinsJob.sh $refname "$jenkinsUser" "$jenkinsPassword" # pass all arguments except the first on to the triggerJenkinsJob.sh script
 done
 
 
