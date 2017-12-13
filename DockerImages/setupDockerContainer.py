@@ -187,90 +187,100 @@ def _stubbornlyRemoveContainer(container):
 
 
 def _getRunningDockerContainer():
-    return _runCommandToGetList("docker ps --format '{{.Names}}'")
+    return _run_commandToGetList("docker ps --format '{{.Names}}'")
 
 
 def _getAllDockerContainer():
-    return _runCommandToGetList("docker ps -a --format '{{.Names}}'")
+    return _run_commandToGetList("docker ps -a --format '{{.Names}}'")
 
 
-def _runCommandToGetList(command):
+def _run_commandToGetList(command):
     """
     The function assumes that the ouput of comand is a list with one element per line.
     It returns that list as a python list.
     """
-    output = _runCommand(command)
+    output = _run_command(command)
     return output.splitlines()
 
 
-def _runCommand(command, printOutput=False, printCommand=False, ignoreReturnCode=False):
+def _run_command(command, print_output=False, print_command=False, ignore_return_code=False):
     """
     Runs the given command and returns its standard output.
     The function throws if the command fails. In this case the output is always printed.
 
     Problems:
     This fails to return the complete output of "docker logs jenkins-master"
-    However when printOutput is set to true, it prints everything on the command line.
+    However when print_output is set to true, it prints everything on the command line.
     """
-    workingDir = os.getcwd()
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE, cwd = workingDir)
-    
+    working_dir = os.getcwd()
+    process = subprocess.Popen(
+        command,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        stdin=subprocess.PIPE,
+        cwd=working_dir)
+
     # print output as soon as it is generated.
     output = ''
     lines_iterator = iter(process.stdout.readline, b"")
     while process.poll() is None:
         for line in lines_iterator:
             nline = line.rstrip()
-            lineString = nline.decode("utf-8")
-            output += lineString + "\r\n"
-            if printOutput:
-                print( lineString, end = "\r\n", flush=True) # yield line
+            line_string = nline.decode("utf-8")
+            output += line_string + "\r\n"
+            if print_output:
+                print(line_string, end="\r\n", flush=True) # yield line
 
     out, err = process.communicate()
-    retCode = process.returncode
+    retcode = process.returncode
 
-    if printCommand:
+    if print_command:
         output = command + '\n'
 
-    errOutput = err.decode("ISO-8859-1") # the iso codec helped to fix a problem with the output when sshing on the windows container.
+    # the iso codec helped to fix a problem with the output when sshing on the windows container.
+    err_output = err.decode("ISO-8859-1")
 
-    if printOutput:
+    if print_output:
         print(output)
-        print(errOutput)
+        print(err_output)
 
-    if not ignoreReturnCode and retCode != 0:
-        if not printOutput:                         # always print the output in case of an error
+    if not ignore_return_code and retcode != 0:
+        if not print_output:                         # always print the output in case of an error
             print(output)
-            print(errOutput)
-        raise Exception('Command "' + command +'" executed in directory "' + workingDir + '" returned error code ' + str(retCode) + '.')
+            print(err_output)
+        error = (
+            'Command "{0}" executed in directory "{1}" returned error code {2}.'
+            ).format(command, working_dir, str(retcode))
+        raise Exception(error)
 
     return output
 
 
 def _stopDockerContainer(container):
-    _runCommand('docker stop ' + container)
+    _run_command('docker stop ' + container)
 
 
 def _startDockerContainer(container):
-    _runCommand('docker start ' + container)
+    _run_command('docker start ' + container)
 
 
 def _removeContainer(container):
     """
     This removes a given docker container and will fail if the container is running.
     """
-    _runCommand('docker rm -f ' + container)
+    _run_command('docker rm -f ' + container)
 
 
 def _removeDockerNetwork(network):
-    networkLines = _runCommandToGetList('docker network ls')
+    networkLines = _run_commandToGetList('docker network ls')
     networks = []
     for line in networkLines:
         columns = line.split()
         networks.append(columns[1])
 
     if network in networks:
-        _runCommand('docker network rm ' + _dockerNetworkName)
+        _run_command('docker network rm ' + _dockerNetworkName)
 
 
 def _guaranteeDirectoryExists(directory):
@@ -279,7 +289,7 @@ def _guaranteeDirectoryExists(directory):
 
 
 def _createDockerNetwork(network):
-    _runCommand('docker network create --subnet=172.19.0.0/16 ' + network)
+    _run_command('docker network create --subnet=172.19.0.0/16 ' + network)
 
 
 def _buildAndStartJenkinsMaster(configValues):
@@ -320,11 +330,11 @@ def _buildAndStartJenkinsMaster(configValues):
         '--ip ' + _jenkinsMasterContainerIP + ' '
         + containerImage
     )
-    _runCommand( command, printOutput=True)
+    _run_command( command, printOutput=True)
 
     # add global gitconfig after mounting the workspace volume, otherwise is gets deleted.
-    _runCommandInContainer(_jenkinsMasterContainer, 'git config --global user.email not@valid.org')
-    _runCommandInContainer(_jenkinsMasterContainer, 'git config --global user.name jenkins')
+    _run_commandInContainer(_jenkinsMasterContainer, 'git config --global user.email not@valid.org')
+    _run_commandInContainer(_jenkinsMasterContainer, 'git config --global user.name jenkins')
 
 
 def _buildDockerImage( imageName, dockerFile, buildContextDirectory, buildArgs):
@@ -333,15 +343,15 @@ def _buildDockerImage( imageName, dockerFile, buildContextDirectory, buildArgs):
         buildArgsString += ' --build-arg ' + arg
     
     command = 'docker build' + buildArgsString + ' -t ' + imageName + ' -f ' + dockerFile + ' ' + buildContextDirectory
-    _runCommand( command, True)
+    _run_command( command, True)
 
-def _runCommandInContainer(container, command, user = None):
+def _run_commandInContainer(container, command, user = None):
     userOption = ''
     if user:
         userOption = '--user ' + user + ':' + user + ' '
     command = 'docker exec ' + userOption + container + ' ' + command
     print(command)
-    return _runCommand(command)
+    return _run_command(command)
 
 
 def _buildAndStartWebServer(configValues):
@@ -360,13 +370,13 @@ def _buildAndStartWebServer(configValues):
         '--ip ' + _webserverContainerIP + ' '
         + containerImage
     )
-    _runCommand( command, printOutput=True)
+    _run_command( command, printOutput=True)
 
     # copy the doxyserach.cgi to the html share
-    _runCommandInContainer( _webserverContainer, 'rm -fr ' + _htmlShareWebServer + '/cgi-bin', 'root')
-    _runCommandInContainer( _webserverContainer, 'mkdir ' + _htmlShareWebServer + '/cgi-bin', 'root')
-    _runCommandInContainer( _webserverContainer, 'mkdir ' + _htmlShareWebServer + '/cgi-bin/doxysearch.db', 'root')
-    _runCommandInContainer( _webserverContainer, 'cp -r -f /usr/local/bin/doxysearch.cgi ' + _htmlShareWebServer + '/cgi-bin', 'root')
+    _run_commandInContainer( _webserverContainer, 'rm -fr ' + _htmlShareWebServer + '/cgi-bin', 'root')
+    _run_commandInContainer( _webserverContainer, 'mkdir ' + _htmlShareWebServer + '/cgi-bin', 'root')
+    _run_commandInContainer( _webserverContainer, 'mkdir ' + _htmlShareWebServer + '/cgi-bin/doxysearch.db', 'root')
+    _run_commandInContainer( _webserverContainer, 'cp -r -f /usr/local/bin/doxysearch.cgi ' + _htmlShareWebServer + '/cgi-bin', 'root')
 
 
 def _buildAndStartJenkinsLinuxSlave():
@@ -384,18 +394,18 @@ def _buildAndStartJenkinsLinuxSlave():
         '--ip ' + _jenkinsLinuxSlaveContainerIP + ' '
         + containerImage
     )
-    _runCommand( command, printOutput=True)
+    _run_command( command, printOutput=True)
 
 
 def _createRSAKeyFilePairOnContainer(containerName, containerHomeDirectory):
     print('----- Create SSH key file pair for container ' + containerName + ' in directory ' + containerHomeDirectory )
     
     # copy the scripts that does the job to the container
-    _runCommand('docker cp ' + _scriptDir + '/' + _createKeyPairScript + ' ' + containerName + ':' + containerHomeDirectory + '/' + _createKeyPairScript)
-    _runCommand('docker cp ' + _scriptDir + '/' + _addKnownHostScript + ' ' + containerName + ':' + containerHomeDirectory + '/' + _addKnownHostScript)
+    _run_command('docker cp ' + _scriptDir + '/' + _createKeyPairScript + ' ' + containerName + ':' + containerHomeDirectory + '/' + _createKeyPairScript)
+    _run_command('docker cp ' + _scriptDir + '/' + _addKnownHostScript + ' ' + containerName + ':' + containerHomeDirectory + '/' + _addKnownHostScript)
 
     # This will create the key-pair on the container. We need to do this in the container or ssh will not accept the private key file.
-    _runCommandInContainer( containerName, '/bin/bash ' + containerHomeDirectory + '/' + _createKeyPairScript + ' ' + containerName, 'jenkins') 
+    _run_commandInContainer( containerName, '/bin/bash ' + containerHomeDirectory + '/' + _createKeyPairScript + ' ' + containerName, 'jenkins') 
 
 
 def _grantContainerSSHAccessToRepository( containerName, containerHomeDirectory, configValues):
@@ -416,10 +426,10 @@ def _grantContainerSSHAccessToRepository( containerName, containerHomeDirectory,
         os.remove(fullTempPublicKeyFile) # delete previously copied key-files
     
     # Copy the public key from the jenkins jome directory to the jenkins-workspace directory on the host
-    _runCommand('docker cp ' + containerName + ':' + containerHomeDirectory + '/' + publicKeyFile + ' ' + tempDirHost)
+    _run_command('docker cp ' + containerName + ':' + containerHomeDirectory + '/' + publicKeyFile + ' ' + tempDirHost)
     
     # Then copy it to the repository machine
-    _runCommand('scp {}/{} {}@{}.local:{}'.format( tempDirHost, publicKeyFile, repositoryMachineUser, repositoryMachine, repositoryMachineSSHDir)  )
+    _run_command('scp {}/{} {}@{}.local:{}'.format( tempDirHost, publicKeyFile, repositoryMachineUser, repositoryMachine, repositoryMachineSSHDir)  )
 
     # add the key file to authorized_keys
     authorizedKeysFile = repositoryMachineSSHDir + '/authorized_keys' 
@@ -432,11 +442,11 @@ def _grantContainerSSHAccessToRepository( containerName, containerHomeDirectory,
         'cat {4}/{5} >> {2}"'
     )
     command = command.format( repositoryMachineUser, repositoryMachine, authorizedKeysFile, containerName, repositoryMachineSSHDir, publicKeyFile)
-    _runCommand(command)
+    _run_command(command)
     
     # Add datenbunker as known host to prevent the authentication request on the first connect
     repositoryMachineIP = socket.gethostbyname( repositoryMachine )
-    _runCommandInContainer( containerName, '/bin/bash ' + containerHomeDirectory + '/' + _addKnownHostScript + ' ' +  repositoryMachineIP, 'jenkins') 
+    _run_commandInContainer( containerName, '/bin/bash ' + containerHomeDirectory + '/' + _addKnownHostScript + ' ' +  repositoryMachineIP, 'jenkins') 
 
 
 def _grantJenkinsMasterSSHAccessToJenkinsLinuxSlave(configValues):
@@ -445,7 +455,7 @@ def _grantJenkinsMasterSSHAccessToJenkinsLinuxSlave(configValues):
     
     # COPY AND REGISTER THE PUBLIC KEY WITH THE SLAVE 
     # Jenkins handles linux slaves with an ssh connection.
-    _runCommand('docker cp {0}/{1} {2}:{3}/.ssh/authorized_keys'.format( configValues['HostJenkinsMasterShare'], publicKeyFile, _fullLinuxJenkinsSlaveName, _jenkinsHomeJenkinsSlave ))
+    _run_command('docker cp {0}/{1} {2}:{3}/.ssh/authorized_keys'.format( configValues['HostJenkinsMasterShare'], publicKeyFile, _fullLinuxJenkinsSlaveName, _jenkinsHomeJenkinsSlave ))
     # Add slave as known host to prevent the authentication request on the first connect
     _addRemoteToKnownSSHHostsOfJenkinsMaster( _jenkinsLinuxSlaveContainerIP )
 
@@ -477,7 +487,7 @@ def _grantJenkinsMasterSSHAccessToJenkinsWindowsSlave(configValues, jenkinsSlave
         jenkinsSlaveMachineWindowsUser,
         jenkinsSlaveMachineWindows,
         sshDir)
-    _runCommand(copyScriptCommand)
+    _run_command(copyScriptCommand)
 
     # call the script
     fullScriptPathOnSlave = sshDir + '/' + authorizedKeysScript
@@ -490,7 +500,7 @@ def _grantJenkinsMasterSSHAccessToJenkinsWindowsSlave(configValues, jenkinsSlave
         jenkinsSlaveMachineWindowsPassword,
     )
     try:
-        _runCommand(callScriptCommand)
+        _run_command(callScriptCommand)
     except Exception as err:
         print("Error: Updating the authorized ssh keys on " + jenkinsSlaveMachineWindows + " failed. Was the password correct?")
         raise err
@@ -512,7 +522,7 @@ def _addRemoteToKnownSSHHostsOfJenkinsMaster( remoteMachine ):
     """
     remoteMachine can be an IP or machine name.
     """
-    _runCommandInContainer( _jenkinsMasterContainer, '/bin/bash ' + _jenkinsWorkspaceJenkinsMaster + '/' + _addKnownHostScript + ' ' +  remoteMachine, 'jenkins')
+    _run_commandInContainer( _jenkinsMasterContainer, '/bin/bash ' + _jenkinsWorkspaceJenkinsMaster + '/' + _addKnownHostScript + ' ' +  remoteMachine, 'jenkins')
 
 
 def _grantJenkinsMasterSSHAccessToWebServer(configValues):
@@ -522,10 +532,10 @@ def _grantJenkinsMasterSSHAccessToWebServer(configValues):
     authorizedKeysFile = '/root/.ssh/authorized_keys'
     publicKeyFile = _jenkinsMasterContainer + _publicKeyFilePostfix
 
-    _runCommand( 'docker cp {0}/{1} {2}:{3}'.format( jenkinsWorkspaceHost, publicKeyFile, _webserverContainer, authorizedKeysFile) )
-    _runCommandInContainer( _webserverContainer, 'chown root:root ' + authorizedKeysFile )
-    _runCommandInContainer( _webserverContainer, 'chmod 600 ' + authorizedKeysFile )
-    _runCommandInContainer( _webserverContainer, 'service ssh start' )
+    _run_command( 'docker cp {0}/{1} {2}:{3}'.format( jenkinsWorkspaceHost, publicKeyFile, _webserverContainer, authorizedKeysFile) )
+    _run_commandInContainer( _webserverContainer, 'chown root:root ' + authorizedKeysFile )
+    _run_commandInContainer( _webserverContainer, 'chmod 600 ' + authorizedKeysFile )
+    _run_commandInContainer( _webserverContainer, 'service ssh start' )
     
     # Add doc-server as known host to prevent the authentication request on the first connect
     _addRemoteToKnownSSHHostsOfJenkinsMaster( _webserverContainerIP )
@@ -699,7 +709,7 @@ def _approveJenkinsScript(jenkinsUser, jenkinsPassword, jenkinsCrumb, approvedSc
     """
     groovyScript = "def scriptApproval = Jenkins.instance.getExtensionList('org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval')[0];scriptApproval.approveScript(scriptApproval.hash('{0}', 'system-command'))".format(approvedScriptText)
     curlCommand = "curl --user '{0}:{1}' -H \"{2}\" --data-urlencode \"script={3}\" localhost:8080/scriptText".format(jenkinsUser,jenkinsPassword,jenkinsCrumb,groovyScript)
-    ret = _runCommand(curlCommand)
+    ret = _run_command(curlCommand)
     print(ret)
 
     
