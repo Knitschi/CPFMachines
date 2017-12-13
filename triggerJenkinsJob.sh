@@ -15,7 +15,7 @@ jenkinsPassword="1234temp"
 # Get the name of the buildjob by assuming that the repository base directory and the build job both have the name of the build package
 dirName=$(basename "$PWD")
 # remove the .git extension from the repo directory
-packageName=${dirName/.git/} 
+packageName=${dirName}
 
 # Get the branch name from the refname argument
 branch=$(git rev-parse --symbolic --abbrev-ref $refname)
