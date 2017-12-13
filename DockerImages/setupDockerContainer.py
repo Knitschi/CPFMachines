@@ -602,7 +602,7 @@ def _waitForJenkinsMasterToComeOnline(configValues, jenkinsPassword):
     We wait for the crumb request to work, because this is what we need next.
     """
     print("----- Wait for jenkins to come online")
-    time.sleep(4) # we have to whait a little or we get python exceptions
+    time.sleep(10) # we have to whait a little or we get python exceptions. This is ugly, because it can still fail on slower machines.
     crumbText = "Jenkins-Crumb"
     url = 'http://localhost:8080/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)'
     auth = (configValues['JenkinsAdminUser'], jenkinsPassword)
