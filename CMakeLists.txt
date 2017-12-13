@@ -7,6 +7,7 @@ set( sources
     README.md
     instantiateJob.cmake
     triggerJenkinsjob.sh
+    JenkinsPipelineScript.groovy
 )
 
 add_custom_target( 
