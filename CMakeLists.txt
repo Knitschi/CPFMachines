@@ -11,6 +11,7 @@ set( sources
     JenkinsPipelineScript.groovy
     addJenkinsJob.py
     deployGitHooks.py
+    GitHookConfigTemplate.json
 )
 
 add_custom_target( 
