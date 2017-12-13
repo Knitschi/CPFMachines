@@ -4,10 +4,13 @@ set(PACKAGE_NAME CppCodeBaseJenkinsjob)
 
 set( sources 
     config.xml.in
+    post-receive.in
     README.md
     instantiateJob.cmake
     triggerJenkinsjob.sh
     JenkinsPipelineScript.groovy
+    addJenkinsJob.py
+    deployGitHooks.py
 )
 
 add_custom_target( 
