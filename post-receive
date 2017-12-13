@@ -4,6 +4,16 @@
 
 scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+# get the directory of the parallel non bare repository that provides the trigger script.
+thisRepositoryDir = $(basename $(realpath $scriptDir/..))
+# assume the convention that the real repo is ended with .git and the sibling repo has the same name without .git
+nonBareSisterRepoDir=${thisRepositoryDir::-4} 
+fullNonBareSisterRepoDir=$(realpath $scriptDir/../../$nonBareSisterRepoDir)
+
+# update the sibling repo
+cd $fullNonBareSisterRepoDir
+git pull --all
+
 # The information about pushed branches is given to script over the input stream
 # This stream contains a line for each branch that was pushed.
 # Each line looks something like 2b3a00c587a4df993d608b82ab31321b88037dc9 18f998b61f0fe5069e5666a33863b70bf44a12f8 refs/heads/Knitschi-master
@@ -11,5 +21,12 @@ scriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # The last element contains the name of the branch.
 while read oldrev newrev refname
 do
-    bash $scriptDir/triggerJenkinsJob.sh $refname # pass all arguments except the first on to the triggerJenkinsJob.sh script 
+    # get the latest version of trigger script
+    # get the pure branch name 
+    pushedBranch=$(basename $refname)
+    git checkout $pushedBranch
+    git submodule update --remote --recursive
+
+    bash $fullNonBareSisterRepoDir/Sources/CppCodeBaseJenkinsjob/triggerJenkinsJob.sh $refname # pass all arguments except the first on to the triggerJenkinsJob.sh script 
 done
+
