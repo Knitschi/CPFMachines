@@ -11,12 +11,14 @@ import sys
 import io
 import os
 import subprocess
+import json
+import pprint
+
+import CppCodeBaseJenkinsjob_version
 
 _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 _POST_RECEIVE_HOOK_TEMPLATE = 'post-receive.in'
-
-
 
 
 def main():
@@ -27,18 +29,11 @@ def main():
     # read configuration
     config_file = sys.argv[1]
     config_values = _read_config_file(config_file)
-
-    # TODO repalce with config file values.
-    jenkins_url = 'http://feldrechengeraet:8080'
-    jenkins_user = 'CaptainGitHook'
-    jenkins_password = '1234temp'
-    jenkins_job_base_name = 'BuildCppCodeBase'
-    package_version = '0.0.0'
-
-    hook_target_directories = [
-        'admin@datenbunker:/share/GitRepositories/BuildCppCodeBase.git/hooks',
-        'admin@datenbunker:/share/GitRepositories/BuildCppCodeBaseAssistant.git/hooks',
-    ]
+    jenkins_url = config_values['JenkinsUrl']
+    jenkins_user = config_values['JenkinsUser']
+    jenkins_password = config_values['JenkinsPassword']
+    jenkins_job_base_name = config_values['JenkinsJobBasename']
+    hook_target_directories = config_values['HookScriptTargetDirectories']
 
     temp_script = _SCRIPT_DIR + '/post-receive'
     script_template = _SCRIPT_DIR + '/post-receive.in'
@@ -48,13 +43,16 @@ def main():
         '@JENKINS_USER@' : jenkins_user,
         '@JENKINS_PASSWORD@' : jenkins_password,
         '@JENKINS_JOB_BASENAME@' : jenkins_job_base_name,
-        '@CPPCODEBASE_JENKINSJOB_VERSION@' : package_version,
+        '@CPPCODEBASE_JENKINSJOB_VERSION@' : CppCodeBaseJenkinsjob_version.PACKAGE_VERSION,
     }
 
     _configure_file(script_template, temp_script, replacement_dict)
 
     for target_dir in hook_target_directories:
         _scp_copy_file(temp_script, target_dir)
+
+    # clean up the script
+    os.remove(temp_script)
 
 
 def _configure_file(source_file, dest_file, replacement_dictionary):
@@ -75,9 +73,9 @@ def _configure_file(source_file, dest_file, replacement_dictionary):
     config_file.close()
 
 
-def _read_config_file(configFile):
-    print('----- Read configuration file ' + configFile)
-    with open(configFile) as file:
+def _read_config_file(config_file):
+    print('----- Read configuration file ' + config_file)
+    with open(config_file) as file:
         data = json.load(file)
     pprint.pprint(data)
     return data
