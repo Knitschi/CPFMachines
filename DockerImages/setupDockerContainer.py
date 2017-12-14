@@ -9,7 +9,6 @@
 
 import os
 import sys
-import socket
 import distutils.dir_util
 import subprocess
 import shutil
@@ -17,9 +16,9 @@ import io
 import json
 import pprint
 import getpass
-import requests
 import time
-import urllib
+import requests
+
 
 _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
