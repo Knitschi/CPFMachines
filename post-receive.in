@@ -10,22 +10,20 @@ echo ----- Run CppCodeBaseJenkinsjob post-receive hook -----
 set jenkinsUrl=@JENKINS_URL@                                            # The base url of the jenkins server on which a job is triggered e.g. http://localhost:8080
 set jenkinsUser=@JENKINS_USER@                                          # The user that triggers the job
 set jenkinsPassword=@JENKINS_PASSWORD@                                  # The password of that user
-set jenkinsJobBaseName=@JENKINS_JOB_BASENAME@                           # The name of the job without the version number.
-set CppCodeBaseJenkinsjobVersion=@CPPCODEBASE_JENKINSJOB_VERSION@       # The version of this package.
+set jenkinsJobName=@JENKINS_JOB_NAME@                                   # The name of the job that is triggered.
 
 function triggerJenkinsJob()
 {
     branch=$1
-    jobName=$jenkinsJobBaseName-$CppCodeBaseJenkinsjobVersion
 
     # filter out pushes that do noot seem to belong to an integration branch
     filterPattern="^.*-int-.*$"
 
     if [[ "$branch" =~ $filterPattern ]]; then 
-        echo "Trigger jenkins job" $jobName "for branch" $branch
+        echo "Trigger jenkins job" $jenkinsJobName "for branch" $branch
 
         # Trigger the parameterized build-job and pass it the branch name as argument.
-        curl $jenkinsUrl/job/$jobName/build \
+        curl $jenkinsUrl/job/$jenkinsJobName/build \
         --user $jenkinsUser:$jenkinsPassword \
         --data-urlencode json='{"parameter": [{"name":"branchOrTag", "value":"'$branch'"}]}'
     fi

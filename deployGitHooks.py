@@ -14,7 +14,7 @@ import subprocess
 import json
 import pprint
 
-import CppCodeBaseJenkinsjob_version
+import addJenkinsJob
 
 _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -42,35 +42,16 @@ def main():
         '@JENKINS_URL@' : jenkins_url,
         '@JENKINS_USER@' : jenkins_user,
         '@JENKINS_PASSWORD@' : jenkins_password,
-        '@JENKINS_JOB_BASENAME@' : jenkins_job_base_name,
-        '@CPPCODEBASE_JENKINSJOB_VERSION@' : CppCodeBaseJenkinsjob_version.PACKAGE_VERSION,
+        '@JENKINS_JOB_NAME@' : addJenkinsJob.get_job_name(jenkins_job_base_name),
     }
 
-    _configure_file(script_template, temp_script, replacement_dict)
+    addJenkinsJob.configure_file(script_template, temp_script, replacement_dict)
 
     for target_dir in hook_target_directories:
         _scp_copy_file(temp_script, target_dir)
 
     # clean up the script
     os.remove(temp_script)
-
-
-def _configure_file(source_file, dest_file, replacement_dictionary):
-    """
-    Searches in sourceFile for the keys in replacementDictionary, replaces them
-    with the values and writes the result to destFile.
-    """
-    # Open target file
-    config_file = io.open(dest_file, 'w')
-
-    # Read the lines from the template, substitute the values, and write to the new config file
-    for line in io.open(source_file, 'r'):
-        for key, value in replacement_dictionary.items():
-            line = line.replace(key, value)
-        config_file.write(line)
-
-    # Close target file
-    config_file.close()
 
 
 def _read_config_file(config_file):
