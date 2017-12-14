@@ -41,7 +41,3 @@ do
     pushedBranch=$(basename $refname)
     triggerJenkinsJob $pushedBranch
 done
-
-
-
-
