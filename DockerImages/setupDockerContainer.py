@@ -629,6 +629,7 @@ def _setJenkinsSlaves(configValues, jenkinsAdminPassword):
     All slave nodes are based on the ssh command execution start scheme from
     the command-launcher plugin.
     """
+    print("----- Configure jenkins slave nodes")
     # create config file for the linux slave
     _configureNodeConfigFile(
         configValues,
