@@ -689,7 +689,7 @@ def _configureNodeConfigFile( configValues, jenkinsAdminPassword, slaveName, des
     # Approve the start commands via jenkins groovy script console
     jenkinsUser = configValues['JenkinsAdminUser']
     jenkinsCrumb = _getJenkinsCrumb(jenkinsUser, jenkinsAdminPassword)
-    _approveJenkinsScript2( jenkinsUser, jenkinsAdminPassword, jenkinsCrumb, startCommand)
+    _approveJenkinsScript( jenkinsUser, jenkinsAdminPassword, jenkinsCrumb, startCommand)
 
 
 def _getJenkinsCrumb(jenkinsUser, jenkinsPassword):
@@ -701,19 +701,6 @@ def _getJenkinsCrumb(jenkinsUser, jenkinsPassword):
 
 
 def _approveJenkinsScript(jenkinsUser, jenkinsPassword, jenkinsCrumb, approvedScriptText):
-    """
-    Runs a groovy script over the jenkins groovy console, that approves the commands
-    that are used to start the slaves.
-
-    I failed to make this work with the requests package.
-    """
-    groovyScript = "def scriptApproval = Jenkins.instance.getExtensionList('org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval')[0];scriptApproval.approveScript(scriptApproval.hash('{0}', 'system-command'))".format(approvedScriptText)
-    curlCommand = "curl --user '{0}:{1}' -H \"{2}\" --data-urlencode \"script={3}\" localhost:8080/scriptText".format(jenkinsUser,jenkinsPassword,jenkinsCrumb,groovyScript)
-    ret = _run_command(curlCommand)
-    print(ret)
-
-
-def _approveJenkinsScript2(jenkinsUser, jenkinsPassword, jenkinsCrumb, approvedScriptText):
     """
     Runs a groovy script over the jenkins groovy console, that approves the commands
     that are used to start the slaves.
