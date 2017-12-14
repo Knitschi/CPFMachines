@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
-# This script removes and adds and starts all docker container of the CppCodeBase project infrastructure.
+# This script removes and adds and starts all docker container of the CppCodeBase project
+# infrastructure.
 # Arguments:
-# 1. - The path to a configuration json file. (An empty file can be generated with the createEmptyConfigFiles.py script)
-
+# 1. - The path to a configuration json file.
+# (An empty file can be generated with the createEmptyconfig_files.py script)
 
 
 import os
@@ -20,7 +21,7 @@ import requests
 import time
 import urllib
 
-_scriptDir = os.path.dirname(os.path.realpath(__file__))
+_SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 # Constants
 # The version of the jenkins CI server that is installed on the jenkins-master machine.
@@ -79,149 +80,155 @@ _JENKINS_HOME_JENKINS_SLAVE_CONTAINER = '/home/jenkins'
 _HTML_SHARE_WEB_SERVER_CONTAINER = '/var/www/html'
 
 
-def clearDirectory(directory):
+def clear_directory(directory):
     """
     This functions deletes the given directory and all its content and recreates it.
     """
-    if(os.path.isdir(directory)):
+    if os.path.isdir(directory):
         shutil.rmtree(directory)
     os.makedirs(directory)
 
 
-def configureFile(sourceFile, destFile, replacementDictionary):
+def configure_file(source_file, dest_file, replacement_dictionary):
     """
-    Searches in sourceFile for the keys in replacementDictionary, replaces them
-    with the values and writes the result to destFile.
+    Searches in source_file for the keys in replacement_dictionary, replaces them
+    with the values and writes the result to dest_file.
     """
     # Open target file
-    configFile = io.open(destFile, 'w')
+    config_file = io.open(dest_file, 'w')
 
     # Read the lines from the template, substitute the values, and write to the new config file
-    for line in io.open(sourceFile, 'r'):
-        for key, value in replacementDictionary.items():
+    for line in io.open(source_file, 'r'):
+        for key, value in replacement_dictionary.items():
             line = line.replace(key, value)
-        configFile.write(line)
+        config_file.write(line)
 
     # Close target file
-    configFile.close()
+    config_file.close()
 
 
-def main():
+def main(config_file):
+    """
+    Entry point of the scrpit.
+    """
     # read configuration
-    configFile = sys.argv[1]
-    configValues = _readConfigFile(configFile)
+    config_values = _readconfig_file(config_file)
 
     # Get some passwords at the beginning, to prevent interuptions in the middle when the user may
     # be doing something else because of long execution times.
     # Get the password for the windows slave, because we need it to update the bitwise ssh server.
-    jenkinsSlaveMachineWindowsPassword = _getMissingPassword(
-        configValues,
+    jenkins_slave_machine_windows_password = _get_password(
+        config_values,
         'BuildSlaveWindowsMachinePassword',
         "Enter the password for the windows account of user " +
-        configValues['BuildSlaveWindowsMachineUser'] +
-        ' on ' + configValues['BuildSlaveWindowsMachine'] + ': '
+        config_values['BuildSlaveWindowsMachineUser'] +
+        ' on ' + config_values['BuildSlaveWindowsMachine'] + ': '
         )
     # Get the password for the jenkins admin user.
-    jenkinsAdminPassword = _getMissingPassword(
-        configValues,
+    jenkins_admin_password = _get_password(
+        config_values,
         'JenkinsAdminUserPassword',
         "Enter the password for the jenkins account of user " +
-        configValues['JenkinsAdminUser'] + ': '
+        config_values['JenkinsAdminUser'] + ': '
         )
 
 
     # prepare environment
     print('----- Cleanup existing container')
 
-    _clearDocker()
-    clearDirectory(configValues['HostJenkinsMasterShare'])
+    _clear_docker()
+    clear_directory(config_values['HostJenkinsMasterShare'])
     # we do not clear this to preserve the accumulated web content.
-    _guaranteeDirectoryExists(configValues['HostHTMLShare'])
-    _createDockerNetwork(_DOCKER_NETWORK_NAME)
+    _guarantee_directory_exists(config_values['HostHTMLShare'])
+    _create_docker_network(_DOCKER_NETWORK_NAME)
 
     # build container
-    _buildAndStartJenkinsMaster(configValues)
+    _build_and_start_jenkins_master(config_values)
     # The document server must be started before the jenkins slave is started because mounting
     # the shared volume here sets the owner of the share to root an only the jenkins container
     # can set it to jenkins.
-    _buildAndStartWebServer(configValues)
-    _buildAndStartJenkinsLinuxSlave()
+    _build_and_start_web_server(config_values)
+    _build_and_start_jenkins_linux_slave()
 
     # setup ssh accesses used by jenkins-master
-    _createRSAKeyFilePairOnContainer(
+    _create_rsa_key_file_pair_on_container(
         _JENINS_MASTER_CONTAINER,
         _JENKINS_HOME_JENKINS_MASTER_CONTAINER)
-    _grantContainerSSHAccessToRepository(
+    _grant_container_ssh_access_to_repository(
         _JENINS_MASTER_CONTAINER,
         _JENKINS_HOME_JENKINS_MASTER_CONTAINER,
-        configValues)
-    _grantJenkinsMasterSSHAccessToJenkinsLinuxSlave(configValues)
-    _grantJenkinsMasterSSHAccessToJenkinsWindowsSlave(
-        configValues,
-        jenkinsSlaveMachineWindowsPassword)
-    _grantJenkinsMasterSSHAccessToWebServer(configValues)
+        config_values)
+    _grant_jenkins_master_ssh_access_to_jenkins_linux_slave(config_values)
+    _grant_jenkins_master_ssh_access_to_jenkins_windows_slave(
+        config_values,
+        jenkins_slave_machine_windows_password)
+    _grant_jenkins_master_ssh_access_to_web_server(config_values)
     # setup ssh accesses used by jenkins-slave-linux
-    _createRSAKeyFilePairOnContainer(
+    _create_rsa_key_file_pair_on_container(
         _FULL_LINUX_JENKINS_SLAVE_NAME,
         _JENKINS_HOME_JENKINS_SLAVE_CONTAINER)
-    _grantContainerSSHAccessToRepository(
+    _grant_container_ssh_access_to_repository(
         _FULL_LINUX_JENKINS_SLAVE_NAME,
-        _JENKINS_HOME_JENKINS_SLAVE_CONTAINER, configValues)
+        _JENKINS_HOME_JENKINS_SLAVE_CONTAINER, config_values)
 
-    _configureJenkinsMaster(configValues, configFile, jenkinsAdminPassword)
+    _configure_jenkins_master(config_values, config_file, jenkins_admin_password)
 
     print('Successfully startet jenkins master, build slaves and the documentation server.')
 
 
-def devMessage(text):
+def dev_message(text):
+    """
+    Print function emphasizes the printed string with some dashes.
+    It is intended to be used for debugging during development.
+    """
     print('--------------- ' + str(text))
 
 
-def _readConfigFile(configFile):
-    print('----- Read configuration file ' + configFile)
-    with open(configFile) as file:
+def _readconfig_file(config_file):
+    print('----- Read configuration file ' + config_file)
+    with open(config_file) as file:
         data = json.load(file)
     pprint.pprint(data)
     return data
 
-def _getMissingPassword(configValues, configKeyPassword, promptMessage):
-    password = configValues[configKeyPassword]
+def _get_password(config_values, config_key_password, prompt_message):
+    password = config_values[config_key_password]
     if not password:
-        password = getpass.getpass(promptMessage)
+        password = getpass.getpass(prompt_message)
     return password
 
-def _clearDocker():
-    _stubbornlyRemoveContainer(_WEBSERVER_CONTAINER)
-    _stubbornlyRemoveContainer(_JENINS_MASTER_CONTAINER)
-    _stubbornlyRemoveContainer(_FULL_LINUX_JENKINS_SLAVE_NAME)
+def _clear_docker():
+    _stubbornly_remove_container(_WEBSERVER_CONTAINER)
+    _stubbornly_remove_container(_JENINS_MASTER_CONTAINER)
+    _stubbornly_remove_container(_FULL_LINUX_JENKINS_SLAVE_NAME)
 
-    _removeDockerNetwork(_DOCKER_NETWORK_NAME)
+    _remove_docker_network(_DOCKER_NETWORK_NAME)
 
 
-def _stubbornlyRemoveContainer(container):
+def _stubbornly_remove_container(container):
     """
     Removes a given docker container even if it is running.
     If the container does not exist, the function does nothing.
     """
-    runningContainer = _getRunningDockerContainer()
+    running_container = _get_running_docker_container()
 
-    if container in runningContainer:
-        _stopDockerContainer(container)
+    if container in running_container:
+        _stop_docker_container(container)
 
-    allContainer = _getAllDockerContainer()
-    if container in allContainer:
-        _removeContainer(container)
-
-
-def _getRunningDockerContainer():
-    return _run_commandToGetList("docker ps --format '{{.Names}}'")
+    all_container = _get_all_docker_container()
+    if container in all_container:
+        _remove_container(container)
 
 
-def _getAllDockerContainer():
-    return _run_commandToGetList("docker ps -a --format '{{.Names}}'")
+def _get_running_docker_container():
+    return _run_command_to_get_list("docker ps --format '{{.Names}}'")
 
 
-def _run_commandToGetList(command):
+def _get_all_docker_container():
+    return _run_command_to_get_list("docker ps -a --format '{{.Names}}'")
+
+
+def _run_command_to_get_list(command):
     """
     The function assumes that the ouput of comand is a list with one element per line.
     It returns that list as a python list.
@@ -284,25 +291,25 @@ def _run_command(command, print_output=False, print_command=False, ignore_return
     return output
 
 
-def _stopDockerContainer(container):
+def _stop_docker_container(container):
     _run_command('docker stop ' + container)
 
 
-def _startDockerContainer(container):
+def _start_docker_container(container):
     _run_command('docker start ' + container)
 
 
-def _removeContainer(container):
+def _remove_container(container):
     """
     This removes a given docker container and will fail if the container is running.
     """
     _run_command('docker rm -f ' + container)
 
 
-def _removeDockerNetwork(network):
-    networkLines = _run_commandToGetList('docker network ls')
+def _remove_docker_network(network):
+    network_lines = _run_command_to_get_list('docker network ls')
     networks = []
-    for line in networkLines:
+    for line in network_lines:
         columns = line.split()
         networks.append(columns[1])
 
@@ -310,33 +317,33 @@ def _removeDockerNetwork(network):
         _run_command('docker network rm ' + _DOCKER_NETWORK_NAME)
 
 
-def _guaranteeDirectoryExists(directory):
+def _guarantee_directory_exists(directory):
     if not os.path.isdir(directory):
         os.makedirs(directory)
 
 
-def _createDockerNetwork(network):
+def _create_docker_network(network):
     _run_command('docker network create --subnet=172.19.0.0/16 ' + network)
 
 
-def _buildAndStartJenkinsMaster(configValues):
+def _build_and_start_jenkins_master(config_values):
     print("----- Build and start the docker MASTER container " + _JENINS_MASTER_CONTAINER)
 
     # Create the jenkins base image. This is required to customize the jenkins version.
-    jenkinsBaseImage = 'jenkins-image-' + _JENKINS_VERSION
-    _buildDockerImage(
-        jenkinsBaseImage,
-        _scriptDir + '/DockerfileJenkinsBase/Dockerfile',
-        _scriptDir + '/DockerfileJenkinsBase',
+    jenkins_base_image = 'jenkins-image-' + _JENKINS_VERSION
+    _build_docker_image(
+        jenkins_base_image,
+        _SCRIPT_DIR + '/DockerfileJenkinsBase/Dockerfile',
+        _SCRIPT_DIR + '/DockerfileJenkinsBase',
         ['JENKINS_VERSION=' + _JENKINS_VERSION, 'JENKINS_SHA=' + _JENKINS_SHA256])
 
     # Create the container image
-    containerImage = _JENINS_MASTER_CONTAINER + '-image'
-    _buildDockerImage(
-        containerImage,
-        _scriptDir + '/DockerfileJenkinsMaster',
-        _scriptDir,
-        ['JENKINS_BASE_IMAGE=' + jenkinsBaseImage])
+    container_image = _JENINS_MASTER_CONTAINER + '-image'
+    _build_docker_image(
+        container_image,
+        _SCRIPT_DIR + '/DockerfileJenkinsMaster',
+        _SCRIPT_DIR,
+        ['JENKINS_BASE_IMAGE=' + jenkins_base_image])
 
     # Start the container
     # --env JAVA_OPTS="-Djenkins.install.runSetupWizard=false"
@@ -346,16 +353,16 @@ def _buildAndStartJenkinsMaster(configValues):
 
     # When the user already has a jenkins configuration
     # we add an option that prevents the first startup wizard from popping up.
-    noSetupWizardOption = ''
-    if not configValues['UseUnconfiguredJenkinsMaster']:
-        noSetupWizardOption = '--env JAVA_OPTS="-Djenkins.install.runSetupWizard=false" '
+    no_setup_wizard_option = ''
+    if not config_values['UseUnconfiguredJenkinsMaster']:
+        no_setup_wizard_option = '--env JAVA_OPTS="-Djenkins.install.runSetupWizard=false" '
 
     command = (
         'docker run '
         '--detach '
         # This makes the jenkins home directory accessible on the host. This eases debugging.
-        '--volume ' + configValues['HostJenkinsMasterShare'] + ':' + _JENKINS_HOME_JENKINS_MASTER_CONTAINER + ' '
-        + noSetupWizardOption +
+        '--volume ' + config_values['HostJenkinsMasterShare'] + ':' + _JENKINS_HOME_JENKINS_MASTER_CONTAINER + ' '
+        + no_setup_wizard_option +
         # The jenkins webinterface is available under this port.
         '--publish 8080:8080 '
         # Only needed for hnlp slaves. We leave it here in case we need hnlp slave later.
@@ -363,83 +370,85 @@ def _buildAndStartJenkinsMaster(configValues):
         '--name ' + _JENINS_MASTER_CONTAINER + ' '
         '--net ' + _DOCKER_NETWORK_NAME + ' '
         '--ip ' + _JENINS_MASTER_CONTAINERIP + ' '
-        + containerImage
+        + container_image
     )
     _run_command(command, print_output=True)
 
     # add global gitconfig after mounting the workspace volume, otherwise is gets deleted.
-    _run_commandInContainer(
+    _run_command_in_container(
         _JENINS_MASTER_CONTAINER,
         'git config --global user.email not@valid.org')
-    _run_commandInContainer(
+    _run_command_in_container(
         _JENINS_MASTER_CONTAINER,
         'git config --global user.name jenkins')
 
 
-def _buildDockerImage(imageName, dockerFile, buildContextDirectory, buildArgs):
-    buildArgsString = ''
-    for arg in buildArgs:
-        buildArgsString += ' --build-arg ' + arg
+def _build_docker_image(image_name, docker_file, build_context_directory, build_args):
+    build_args_string = ''
+    for arg in build_args:
+        build_args_string += ' --build-arg ' + arg
 
     command = (
-        'docker build' + buildArgsString + ' -t ' + imageName +
-        ' -f ' + dockerFile + ' ' + buildContextDirectory
+        'docker build' + build_args_string + ' -t ' + image_name +
+        ' -f ' + docker_file + ' ' + build_context_directory
     )
     _run_command(command, True)
 
 
-def _run_commandInContainer(container, command, user=None):
-    userOption = ''
+def _run_command_in_container(container, command, user=None):
+    user_option = ''
     if user:
-        userOption = '--user ' + user + ':' + user + ' '
-    command = 'docker exec ' + userOption + container + ' ' + command
+        user_option = '--user ' + user + ':' + user + ' '
+    command = 'docker exec ' + user_option + container + ' ' + command
     print(command)
     return _run_command(command)
 
 
-def _buildAndStartWebServer(configValues):
+def _build_and_start_web_server(config_values):
     print("----- Build and start the web-server container " + _WEBSERVER_CONTAINER)
 
-    containerImage = _WEBSERVER_CONTAINER + '-image'
-    _buildDockerImage(containerImage, _scriptDir + '/DockerfileCcbWebServer', _scriptDir, [])
+    container_image = _WEBSERVER_CONTAINER + '-image'
+    _build_docker_image(container_image, _SCRIPT_DIR + '/DockerfileCcbWebServer', _SCRIPT_DIR, [])
 
     command = (
         'docker run '
         '--detach '
         '--publish 80:80 '      # The web-page is reached under port 80
-        '--volume ' + configValues['HostHTMLShare'] + ':' + _HTML_SHARE_WEB_SERVER_CONTAINER + ' '
+        '--volume ' + config_values['HostHTMLShare'] + ':' + _HTML_SHARE_WEB_SERVER_CONTAINER + ' '
         '--name ' + _WEBSERVER_CONTAINER + ' '
         '--net ' + _DOCKER_NETWORK_NAME + ' '
         '--ip ' + _WEBSERVER_CONTAINERIP + ' '
-        + containerImage
+        + container_image
     )
     _run_command(command, print_output=True)
 
     # copy the doxyserach.cgi to the html share
-    _run_commandInContainer(
+    _run_command_in_container(
         _WEBSERVER_CONTAINER,
         'rm -fr ' + _HTML_SHARE_WEB_SERVER_CONTAINER + '/cgi-bin',
         'root')
-    _run_commandInContainer(
+    _run_command_in_container(
         _WEBSERVER_CONTAINER,
         'mkdir ' + _HTML_SHARE_WEB_SERVER_CONTAINER + '/cgi-bin',
         'root')
-    _run_commandInContainer(
+    _run_command_in_container(
         _WEBSERVER_CONTAINER,
         'mkdir ' + _HTML_SHARE_WEB_SERVER_CONTAINER + '/cgi-bin/doxysearch.db',
         'root')
-    _run_commandInContainer(
+    _run_command_in_container(
         _WEBSERVER_CONTAINER,
         'cp -r -f /usr/local/bin/doxysearch.cgi ' + _HTML_SHARE_WEB_SERVER_CONTAINER + '/cgi-bin',
         'root')
 
 
-def _buildAndStartJenkinsLinuxSlave():
+def _build_and_start_jenkins_linux_slave():
     # Start the container.
     print("----- Build and start the docker SLAVE container " + _FULL_LINUX_JENKINS_SLAVE_NAME)
 
-    containerImage = _LINUX_SLAVE_BASE_NAME + '-image'
-    _buildDockerImage(containerImage, _scriptDir + '/DockerfileJenkinsSlaveLinux', _scriptDir, [])
+    container_image = _LINUX_SLAVE_BASE_NAME + '-image'
+    _build_docker_image(
+        container_image, _SCRIPT_DIR + '/DockerfileJenkinsSlaveLinux',
+        _SCRIPT_DIR, [])
 
     command = (
         'docker run '
@@ -447,70 +456,70 @@ def _buildAndStartJenkinsLinuxSlave():
         '--name ' + _FULL_LINUX_JENKINS_SLAVE_NAME + ' '
         '--net ' + _DOCKER_NETWORK_NAME + ' '
         '--ip ' + _JENKINS_LINUX_SLAVE_CONTAINER_IP + ' '
-        + containerImage
+        + container_image
     )
     _run_command(command, print_output=True)
 
 
-def _createRSAKeyFilePairOnContainer(containerName, containerHomeDirectory):
+def _create_rsa_key_file_pair_on_container(container_name, container_home_directory):
     print(
-        '----- Create SSH key file pair for container ' + containerName +
-        ' in directory ' + containerHomeDirectory)
+        '----- Create SSH key file pair for container ' + container_name +
+        ' in directory ' + container_home_directory)
 
     # copy the scripts that does the job to the container
     _run_command(
-        'docker cp ' + _scriptDir + '/' + _CREATEKEYPAIR_SCRIPT +
-        ' ' + containerName + ':' + containerHomeDirectory + '/' + _CREATEKEYPAIR_SCRIPT)
+        'docker cp ' + _SCRIPT_DIR + '/' + _CREATEKEYPAIR_SCRIPT +
+        ' ' + container_name + ':' + container_home_directory + '/' + _CREATEKEYPAIR_SCRIPT)
 
     _run_command(
-        'docker cp ' + _scriptDir + '/' + _ADDKNOWNHOST_SCRIPT +
-        ' ' + containerName + ':' + containerHomeDirectory + '/' + _ADDKNOWNHOST_SCRIPT)
+        'docker cp ' + _SCRIPT_DIR + '/' + _ADDKNOWNHOST_SCRIPT +
+        ' ' + container_name + ':' + container_home_directory + '/' + _ADDKNOWNHOST_SCRIPT)
 
     # This will create the key-pair on the container.
     # We need to do this in the container or ssh will not accept the private key file.
-    _run_commandInContainer(
-        containerName,
-        '/bin/bash ' + containerHomeDirectory + '/' + _CREATEKEYPAIR_SCRIPT + ' ' + containerName,
+    _run_command_in_container(
+        container_name,
+        '/bin/bash ' + container_home_directory + '/' + _CREATEKEYPAIR_SCRIPT + ' '+ container_name,
         'jenkins')
 
 
-def _grantContainerSSHAccessToRepository(containerName, containerHomeDirectory, configValues):
+def _grant_container_ssh_access_to_repository(container_name, container_home_directory, config_values):
 
-    repositoryMachine = configValues['RepositoryMachineName']
-    repositoryMachineUser = configValues['RepositoryMachineUser']
-    repositoryMachineSSHDir = configValues['RepositoryMachineSSHDir']
-    tempDirHost = configValues['HostTempDir']
+    repository_machine = config_values['RepositoryMachineName']
+    repository_machine_user = config_values['RepositoryMachineUser']
+    repository_machine_ssh_dir = config_values['RepositoryMachineSSHDir']
+    temp_dir_host = config_values['HostTempDir']
 
     print(
-        '----- Grant container ' + containerName +
-        ' SSH access to the repository machine ' + repositoryMachine)
+        '----- Grant container ' + container_name +
+        ' SSH access to the repository machine ' + repository_machine)
     # COPY AND REGISTER THE PUBLIC KEY WITH repositoryMachine
     # The connection is used to access the git repository
     # This requires access to the datenbunker.
-    publicKeyFile = containerName + _PUBLIC_KEY_FILE_POSTFIX
-    _guaranteeDirectoryExists(tempDirHost)
-    fullTempPublicKeyFile = tempDirHost + '/' + publicKeyFile
-    if os.path.isfile(fullTempPublicKeyFile):
-        os.remove(fullTempPublicKeyFile) # delete previously copied key-files
+    public_key_file = container_name + _PUBLIC_KEY_FILE_POSTFIX
+    _guarantee_directory_exists(temp_dir_host)
+    full_temp_public_key_file = temp_dir_host + '/' + public_key_file
+    if os.path.isfile(full_temp_public_key_file):
+        os.remove(full_temp_public_key_file) # delete previously copied key-files
 
     # Copy the public key from the jenkins jome directory to the
     # jenkins-workspace directory on the host
     _run_command((
         'docker cp {0}:{1}/{2} {3}'
-        ).format(containerName, containerHomeDirectory, publicKeyFile, tempDirHost))
+        ).format(container_name, container_home_directory, public_key_file, temp_dir_host))
 
     # Then copy it to the repository machine
     _run_command((
         'scp {}/{} {}@{}.local:{}'
         ).format(
-            tempDirHost,
-            publicKeyFile,
-            repositoryMachineUser,
-            repositoryMachine,
-            repositoryMachineSSHDir))
+            temp_dir_host,
+            public_key_file,
+            repository_machine_user,
+            repository_machine,
+            repository_machine_ssh_dir))
 
     # add the key file to authorized_keys
-    authorizedKeysFile = repositoryMachineSSHDir + '/authorized_keys'
+    authorized_keys_file = repository_machine_ssh_dir + '/authorized_keys'
     # Remove previously appended public keys from the given container and append the
     # new public key to the authorized_keys file.
     # - print file without lines containing machine name string, then append new key to end of file
@@ -521,151 +530,149 @@ def _grantContainerSSHAccessToRepository(containerName, containerHomeDirectory, 
         'cat {4}/{5} >> {2}"'
     )
     command = command.format(
-        repositoryMachineUser,
-        repositoryMachine,
-        authorizedKeysFile,
-        containerName,
-        repositoryMachineSSHDir,
-        publicKeyFile)
+        repository_machine_user,
+        repository_machine,
+        authorized_keys_file,
+        container_name,
+        repository_machine_ssh_dir,
+        public_key_file)
     _run_command(command)
 
     # Add the repository machine as known host to prevent the authentication request on the first
     # connect
-    _run_commandInContainer(
-        containerName,
-        '/bin/bash '+ containerHomeDirectory +'/' + _ADDKNOWNHOST_SCRIPT + ' ' +  repositoryMachine,
+    _run_command_in_container(
+        container_name,
+        '/bin/bash '+ container_home_directory +'/' + _ADDKNOWNHOST_SCRIPT + ' '+repository_machine,
         'jenkins')
 
 
-def _grantJenkinsMasterSSHAccessToJenkinsLinuxSlave(configValues):
+def _grant_jenkins_master_ssh_access_to_jenkins_linux_slave(config_values):
     print('----- Grant '+_JENINS_MASTER_CONTAINER+' ssh access to '+_FULL_LINUX_JENKINS_SLAVE_NAME)
-    publicKeyFile = _JENINS_MASTER_CONTAINER + _PUBLIC_KEY_FILE_POSTFIX
+    public_key_file = _JENINS_MASTER_CONTAINER + _PUBLIC_KEY_FILE_POSTFIX
 
     # COPY AND REGISTER THE PUBLIC KEY WITH THE SLAVE
     # Jenkins handles linux slaves with an ssh connection.
     _run_command(
         'docker cp {0}/{1} {2}:{3}/.ssh/authorized_keys'.format(
-            configValues['HostJenkinsMasterShare'],
-            publicKeyFile,
+            config_values['HostJenkinsMasterShare'],
+            public_key_file,
             _FULL_LINUX_JENKINS_SLAVE_NAME,
             _JENKINS_HOME_JENKINS_SLAVE_CONTAINER))
     # Add slave as known host to prevent the authentication request on the first connect
-    _addRemoteToKnownSSHHostsOfJenkinsMaster(_JENKINS_LINUX_SLAVE_CONTAINER_IP)
+    _add_remote_to_known_ssh_hosts_of_jenkins_master(_JENKINS_LINUX_SLAVE_CONTAINER_IP)
 
 
-def _grantJenkinsMasterSSHAccessToJenkinsWindowsSlave(configValues, jenkinsSlaveMachineWindowsPassword):
+def _grant_jenkins_master_ssh_access_to_jenkins_windows_slave(config_values, jenkins_slave_machine_windows_password):
 
-    jenkinsWorkspaceHost = configValues['HostJenkinsMasterShare']
-    jenkinsSlaveMachineWindows = configValues['BuildSlaveWindowsMachine']
-    jenkinsSlaveMachineWindowsUser = configValues['BuildSlaveWindowsMachineUser']
+    jenkins_workspace_host = config_values['HostJenkinsMasterShare']
+    jenkins_slave_machine_windows = config_values['BuildSlaveWindowsMachine']
+    jenkins_slave_machine_windows_user = config_values['BuildSlaveWindowsMachineUser']
 
     print((
         "----- Grant {0} ssh access to {1}"
-        ).format(_JENINS_MASTER_CONTAINER, jenkinsSlaveMachineWindows))
+        ).format(_JENINS_MASTER_CONTAINER, jenkins_slave_machine_windows))
 
     # configure the script for adding an authorized key to the bitwise ssh server on the
     # windows machine
-    authorizedKeysScript = 'updateAuthorizedKeysBitvise.bat'
-    fullAuthorizedKeysScript = _scriptDir + '/' + authorizedKeysScript
-    publicKeyFile = jenkinsWorkspaceHost + '/' + _JENINS_MASTER_CONTAINER + _PUBLIC_KEY_FILE_POSTFIX
-    publicKey = _readFileContent(publicKeyFile)
-    publicKey = publicKey.replace('\n', '').replace('\r', '')  # remove the line end from the key
-    configureFile(fullAuthorizedKeysScript + '.in', fullAuthorizedKeysScript, {
-        '@PUBLIC_KEY@' : publicKey,
+    authorized_keys_script = 'updateAuthorizedKeysBitvise.bat'
+    full_authorized_keys_script = _SCRIPT_DIR + '/' + authorized_keys_script
+    public_key_file = jenkins_workspace_host +'/'+_JENINS_MASTER_CONTAINER+ _PUBLIC_KEY_FILE_POSTFIX
+    public_key = _read_file_content(public_key_file)
+    public_key = public_key.replace('\n', '').replace('\r', '')  # remove the line end from the key
+    configure_file(full_authorized_keys_script + '.in', full_authorized_keys_script, {
+        '@PUBLIC_KEY@' : public_key,
         '@JENKINS_MASTER_CONTAINER@' : _JENINS_MASTER_CONTAINER,
-        '@SLAVE_MACHINE_USER@' : jenkinsSlaveMachineWindowsUser,
+        '@SLAVE_MACHINE_USER@' : jenkins_slave_machine_windows_user,
     })
 
     # copy the script for to the windows slave machine
-    sshDir = 'C:/Users/' + jenkinsSlaveMachineWindowsUser + '/.ssh'
-    copyScriptCommand = 'scp {0} {1}@{2}:{3}'.format(
-        fullAuthorizedKeysScript,
-        jenkinsSlaveMachineWindowsUser,
-        jenkinsSlaveMachineWindows,
-        sshDir)
-    _run_command(copyScriptCommand)
+    ssh_dir = 'C:/Users/' + jenkins_slave_machine_windows_user + '/.ssh'
+    copy_script_command = 'scp {0} {1}@{2}:{3}'.format(
+        full_authorized_keys_script,
+        jenkins_slave_machine_windows_user,
+        jenkins_slave_machine_windows,
+        ssh_dir)
+    _run_command(copy_script_command)
 
     # call the script
-    fullScriptPathOnSlave = sshDir + '/' + authorizedKeysScript
-    callScriptCommand = (
+    full_script_path_on_slave = ssh_dir + '/' + authorized_keys_script
+    call_script_command = (
         'ssh {0}@{1} "{2} {3}"'
     ).format(
-        jenkinsSlaveMachineWindowsUser,
-        jenkinsSlaveMachineWindows,
-        fullScriptPathOnSlave,
-        jenkinsSlaveMachineWindowsPassword,
+        jenkins_slave_machine_windows_user,
+        jenkins_slave_machine_windows,
+        full_script_path_on_slave,
+        jenkins_slave_machine_windows_password,
     )
     try:
-        _run_command(callScriptCommand)
+        _run_command(call_script_command)
     except Exception as err:
         print(
             "Error: Updating the authorized ssh keys on "
-            + jenkinsSlaveMachineWindows + " failed. Was the password correct?")
+            + jenkins_slave_machine_windows + " failed. Was the password correct?")
         raise err
 
-    # clean up the generated scripts because of the included password
-    os.remove(fullAuthorizedKeysScript)
-    fullScriptPathOnSlaveBackslash = (
-        'C:\\\\Users\\\\' + jenkinsSlaveMachineWindowsUser + '\\\\' + authorizedKeysScript)
+    # clean up the generated script because of the included password
+    os.remove(full_authorized_keys_script)
 
     # Add the slave to the known hosts
-    _addRemoteToKnownSSHHostsOfJenkinsMaster(jenkinsSlaveMachineWindows)
+    _add_remote_to_known_ssh_hosts_of_jenkins_master(jenkins_slave_machine_windows)
 
 
-def _readFileContent(filename):
-    with open(filename) as f:
-        return f.read()
+def _read_file_content(filename):
+    with open(filename) as open_file:
+        return open_file.read()
 
 
-def _addRemoteToKnownSSHHostsOfJenkinsMaster(remoteMachine):
+def _add_remote_to_known_ssh_hosts_of_jenkins_master(remote_machine):
     """
     remoteMachine can be an IP or machine name.
     """
     runScriptCommand = (
         '/bin/bash ' + _JENKINS_HOME_JENKINS_MASTER_CONTAINER +
-        '/' + _ADDKNOWNHOST_SCRIPT + ' ' + remoteMachine)
-    _run_commandInContainer(
+        '/' + _ADDKNOWNHOST_SCRIPT + ' ' + remote_machine)
+    _run_command_in_container(
         _JENINS_MASTER_CONTAINER,
         runScriptCommand,
         'jenkins')
 
 
-def _grantJenkinsMasterSSHAccessToWebServer(configValues):
+def _grant_jenkins_master_ssh_access_to_web_server(config_values):
 
-    jenkinsWorkspaceHost = configValues['HostJenkinsMasterShare']
+    jenkins_workspace_host = config_values['HostJenkinsMasterShare']
 
-    authorizedKeysFile = '/root/.ssh/authorized_keys'
-    publicKeyFile = _JENINS_MASTER_CONTAINER + _PUBLIC_KEY_FILE_POSTFIX
+    authorized_keys_file = '/root/.ssh/authorized_keys'
+    public_key_file = _JENINS_MASTER_CONTAINER + _PUBLIC_KEY_FILE_POSTFIX
 
     _run_command('docker cp {0}/{1} {2}:{3}'.format(
-        jenkinsWorkspaceHost,
-        publicKeyFile,
+        jenkins_workspace_host,
+        public_key_file,
         _WEBSERVER_CONTAINER,
-        authorizedKeysFile))
-    _run_commandInContainer(_WEBSERVER_CONTAINER, 'chown root:root ' + authorizedKeysFile)
-    _run_commandInContainer(_WEBSERVER_CONTAINER, 'chmod 600 ' + authorizedKeysFile)
-    _run_commandInContainer(_WEBSERVER_CONTAINER, 'service ssh start')
+        authorized_keys_file))
+    _run_command_in_container(_WEBSERVER_CONTAINER, 'chown root:root ' + authorized_keys_file)
+    _run_command_in_container(_WEBSERVER_CONTAINER, 'chmod 600 ' + authorized_keys_file)
+    _run_command_in_container(_WEBSERVER_CONTAINER, 'service ssh start')
 
     # Add doc-server as known host to prevent the authentication request on the first connect
-    _addRemoteToKnownSSHHostsOfJenkinsMaster(_WEBSERVER_CONTAINERIP)
+    _add_remote_to_known_ssh_hosts_of_jenkins_master(_WEBSERVER_CONTAINERIP)
 
 
-def _configureJenkinsMaster(configValues, configFile, jenkinsAdminPassword):
-    if not configValues['UseUnconfiguredJenkinsMaster']:
+def _configure_jenkins_master(config_values, config_file, jenkins_admin_password):
+    if not config_values['UseUnconfiguredJenkinsMaster']:
         print("----- Configure the jenkins master server.")
 
-        _setGeneralJenkinsOptions(configValues)
-        _setJenkinsUsers(configValues, configFile)
-        _setJenkinsJobs(configValues, configFile)
+        _set_general_jenkins_options(config_values)
+        _setJenkinsUsers(config_values, config_file)
+        _set_jenkins_jobs(config_values, config_file)
 
         # restart jenkins to make sure it as the desired configuration
         # this is required because setting the slaves requires jenkins to be
         # up and running.
-        _stopDockerContainer(_JENINS_MASTER_CONTAINER)
-        _startDockerContainer(_JENINS_MASTER_CONTAINER)
-        _waitForJenkinsMasterToComeOnline(configValues, jenkinsAdminPassword)
+        _stop_docker_container(_JENINS_MASTER_CONTAINER)
+        _start_docker_container(_JENINS_MASTER_CONTAINER)
+        _wait_for_jenkins_master_to_come_online(config_values, jenkins_admin_password)
 
-        _setJenkinsSlaves(configValues, jenkinsAdminPassword)
+        _set_jenkins_slaves(config_values, jenkins_admin_password)
 
 
     else:
@@ -674,49 +681,49 @@ def _configureJenkinsMaster(configValues, configFile, jenkinsAdminPassword):
             " because no user files were given.")
 
 
-def _setGeneralJenkinsOptions(configValues):
+def _set_general_jenkins_options(config_values):
     """
     Configure the general options by copying the .xml config files from the JenkinsConfig
     directory to the jenkins master home directory.
     """
-    jenkinsWorkspaceHost = configValues['HostJenkinsMasterShare']
-    distutils.dir_util.copy_tree(_scriptDir + '/JenkinsConfig', jenkinsWorkspaceHost)
+    jenkins_workspace_host = config_values['HostJenkinsMasterShare']
+    distutils.dir_util.copy_tree(_SCRIPT_DIR + '/JenkinsConfig', jenkins_workspace_host)
 
 
-def _setJenkinsUsers(configValues, configFile):
+def _set_jenkins_users(config_values, config_file):
     """
     Copy user config xml files to user/<username>/config.xml
     """
-    _copyJenkinsConfigFiles(configValues, configFile, 'users', 'JenkinsAccountConfigFiles')
+    _copy_jenkins_config_files(config_values, config_file, 'users', 'JenkinsAccountconfig_files')
 
 
-def _setJenkinsJobs(configValues, configFile):
+def _set_jenkins_jobs(config_values, config_file):
     """
     copy job config xml files to jobs/<jobname>/config.xml
     """
-    _copyJenkinsConfigFiles(configValues, configFile, 'jobs', 'JenkinsJobConfigFiles')
+    _copy_jenkins_config_files(config_values, config_file, 'jobs', 'JenkinsJobconfig_files')
 
 
-def _copyJenkinsConfigFiles(configValues, configFile, configDir, filesConfigKey):
+def _copy_jenkins_config_files(config_values, config_file, config_dir, files_config_key):
     """
     Copies the config.xml files that are mentioned in a map under filesConfigKey
     in the script config file to named directories under the given config dir
     to the jenkins-master home directory.
     """
-    jenkinsWorkspaceHost = configValues['HostJenkinsMasterShare']
-    configFileDir = os.path.dirname(configFile)
-    jobsConfigDir = jenkinsWorkspaceHost + '/' + configDir
-    for job, jobConfigFile in configValues[filesConfigKey].items():
-        if configFileDir:
-            sourceConfigFile = configFileDir + '/' + jobConfigFile
+    jenkins_workspace_host = config_values['HostJenkinsMasterShare']
+    config_file_dir = os.path.dirname(config_file)
+    jobs_config_dir = jenkins_workspace_host + '/' + config_dir
+    for job, jobconfig_file in config_values[files_config_key].items():
+        if config_file_dir:
+            sourceconfig_file = config_file_dir + '/' + jobconfig_file
         else:
-            sourceConfigFile = jobConfigFile
-        jobConfigDir = jobsConfigDir + '/' + job
-        os.makedirs(jobConfigDir)
-        shutil.copyfile(sourceConfigFile, jobConfigDir + '/config.xml')
+            sourceconfig_file = jobconfig_file
+        job_config_dir = jobs_config_dir + '/' + job
+        os.makedirs(job_config_dir)
+        shutil.copyfile(sourceconfig_file, job_config_dir + '/config.xml')
 
 
-def _waitForJenkinsMasterToComeOnline(configValues, jenkinsPassword):
+def _wait_for_jenkins_master_to_come_online(config_values, jenkins_password):
     """
     Returns when the jenkins instance is fully operable.
 
@@ -726,17 +733,17 @@ def _waitForJenkinsMasterToComeOnline(configValues, jenkinsPassword):
     # We have to whait a little or we get python exceptions.
     # This is ugly, because it can still fail on slower machines.
     time.sleep(10)
-    crumbText = "Jenkins-Crumb"
+    crumb_text = "Jenkins-Crumb"
     url = 'http://localhost:8080/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)'
-    auth = (configValues['JenkinsAdminUser'], jenkinsPassword)
+    auth = (config_values['JenkinsAdminUser'], jenkins_password)
 
     text = ''
-    while not crumbText in text:
+    while crumb_text not in text:
         text = requests.get(url, auth=auth).text
         time.sleep(1)
 
 
-def _setJenkinsSlaves(configValues, jenkinsAdminPassword):
+def _set_jenkins_slaves(config_values, jenkins_admin_password):
     """
     Create config files for the slave nodes.
     All slave nodes are based on the ssh command execution start scheme from
@@ -744,105 +751,105 @@ def _setJenkinsSlaves(configValues, jenkinsAdminPassword):
     """
     print("----- Configure jenkins slave nodes")
     # create config file for the linux slave
-    _configureNodeConfigFile(
-        configValues,
-        jenkinsAdminPassword,
+    _configure_node_config_file(
+        config_values,
+        jenkins_admin_password,
         _FULL_LINUX_JENKINS_SLAVE_NAME,
         'A Debinan 8.9 build slave based on a docker container.',
         '/home/jenkins/workspaces',
         _JENKINS_LINUX_SLAVE_CONTAINER_IP,
         'jenkins',
         '~/bin',
-        _getSlaveLabelsString('Debian-8.9', 4)
+        _get_slave_labels_string('Debian-8.9', 4)
     )
 
     # create config file for the windows slave
-    slaveWorkspace = 'C:/jenkins'
-    _configureNodeConfigFile(
-        configValues,
-        jenkinsAdminPassword,
+    slave_workspace = 'C:/jenkins'
+    _configure_node_config_file(
+        config_values,
+        jenkins_admin_password,
         _FULL_WINDOWS_JENKINS_SLAVE_NAME,
         'A Windows 10 build slave based on a virtual machine.',
-        slaveWorkspace,
-        configValues['BuildSlaveWindowsMachine'],
-        configValues['BuildSlaveWindowsMachineUser'],
-        slaveWorkspace,
-        _getSlaveLabelsString('Windows-10', 4)
+        slave_workspace,
+        config_values['BuildSlaveWindowsMachine'],
+        config_values['BuildSlaveWindowsMachineUser'],
+        slave_workspace,
+        _get_slave_labels_string('Windows-10', 4)
     )
 
 
-def _getSlaveLabelsString(baseLabelName, maxIndex):
-    labels = [baseLabelName]
-    for i in range(maxIndex + 1):
-        labels.append(baseLabelName + '-' + str(i))
+def _get_slave_labels_string(base_label_name, max_index):
+    labels = [base_label_name]
+    for i in range(max_index + 1):
+        labels.append(base_label_name + '-' + str(i))
     return ' '.join(labels)
 
 
-def _configureNodeConfigFile(
-        configValues,
-        jenkinsAdminPassword,
-        slaveName,
+def _configure_node_config_file(
+        config_values,
+        jenkins_admin_password,
+        slave_name,
         description,
-        slaveWorkspaceDir,
-        slaveMachine,
-        slaveMachineUser,
-        slaveJarDir,
-        slaveLabels):
+        slave_workspace_dir,
+        slave_machine,
+        slave_machine_user,
+        slave_jar_dir,
+        slave_labels):
     """
     Uses a template file to create a config.xml file for a jenkins node that the master
     controls via ssh.
     """
-    nodesDir = _scriptDir + '/JenkinsConfig/nodes'
-    nodeDir = nodesDir + '/' + slaveName
-    clearDirectory(nodeDir)
+    nodes_dir = _SCRIPT_DIR + '/JenkinsConfig/nodes'
+    node_dir = nodes_dir + '/' + slave_name
+    clear_directory(node_dir)
 
-    createdConfigFile = nodeDir + '/config.xml'
-    configTemplateFile = _scriptDir + '/jenkinsSlaveNodeConfig.xml.in'
-    startCommand = (
+    createdconfig_file = node_dir + '/config.xml'
+    config_template_file = _SCRIPT_DIR + '/jenkinsSlaveNodeConfig.xml.in'
+    start_command = (
         'ssh {0}@{1} java -jar {2}/slave.jar'
-        ).format(slaveMachineUser, slaveMachine, slaveJarDir)
+        ).format(slave_machine_user, slave_machine, slave_jar_dir)
 
     # create the config file in nodes
-    configureFile(configTemplateFile, createdConfigFile, {
-        '$SLAVE_NAME' : slaveName,
+    configure_file(config_template_file, createdconfig_file, {
+        '$SLAVE_NAME' : slave_name,
         '$DESCRIPTION' : description,
-        '$WORKSPACE' : slaveWorkspaceDir,
-        '$START_COMMAND' : startCommand,
-        '$LABELS' : slaveLabels
+        '$WORKSPACE' : slave_workspace_dir,
+        '$START_COMMAND' : start_command,
+        '$LABELS' : slave_labels
     })
 
     # Approve the start commands via jenkins groovy script console
-    jenkinsUser = configValues['JenkinsAdminUser']
-    jenkinsCrumb = _getJenkinsCrumb(jenkinsUser, jenkinsAdminPassword)
-    _approveJenkinsScript(jenkinsUser, jenkinsAdminPassword, jenkinsCrumb, startCommand)
+    jenkins_user = config_values['JenkinsAdminUser']
+    jenkins_crumb = _get_jenkins_crumb(jenkins_user, jenkins_admin_password)
+    _approve_jenkins_script(jenkins_user, jenkins_admin_password, jenkins_crumb, start_command)
 
 
-def _getJenkinsCrumb(jenkinsUser, jenkinsPassword):
+def _get_jenkins_crumb(jenkins_user, jenkins_password):
     url = 'http://localhost:8080/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)'
-    auth = (jenkinsUser, jenkinsPassword)
+    auth = (jenkins_user, jenkins_password)
     request = requests.get(url, auth=auth)
     request.raise_for_status()
     return request.text
 
 
-def _approveJenkinsScript(jenkinsUser, jenkinsPassword, jenkinsCrumb, approvedScriptText):
+def _approve_jenkins_script(jenkins_user, jenkins_password, jenkins_crumb, approved_script_text):
     """
     Runs a groovy script over the jenkins groovy console, that approves the commands
     that are used to start the slaves.
     """
     url = 'http://localhost:8080/scriptText'
-    myAuth = ('Knitschi', '3utterBro+')
-    crumbParts = jenkinsCrumb.split(':')
-    crumbHeader = {crumbParts[0] : crumbParts[1]}
-    groovyScript = (
+    auth = (jenkins_user, jenkins_password)
+    crumb_parts = jenkins_crumb.split(':')
+    crumb_header = {crumb_parts[0] : crumb_parts[1]}
+    groovy_script = (
         "def scriptApproval = Jenkins.instance.getExtensionList('org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval')[0];" +
         "scriptApproval.approveScript(scriptApproval.hash('{0}', 'system-command'))"
-        ).format(approvedScriptText)
-    scriptData = {'script' : groovyScript}
+        ).format(approved_script_text)
+    script_data = {'script' : groovy_script}
 
-    response = requests.post(url, auth=myAuth, headers=crumbHeader, data=scriptData)
+    response = requests.post(url, auth=auth, headers=crumb_header, data=script_data)
     response.raise_for_status()
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    sys.exit(main(sys.argv[1]))
