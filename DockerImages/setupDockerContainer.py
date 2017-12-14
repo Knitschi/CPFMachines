@@ -18,6 +18,7 @@ import pprint
 import getpass
 import requests
 import time
+import urllib
 
 _scriptDir = os.path.dirname(os.path.realpath(__file__))
 
@@ -330,7 +331,7 @@ def _buildAndStartJenkinsMaster(configValues):
         '--ip ' + _jenkinsMasterContainerIP + ' '
         + containerImage
     )
-    _run_command( command, printOutput=True)
+    _run_command( command, print_output=True)
 
     # add global gitconfig after mounting the workspace volume, otherwise is gets deleted.
     _run_commandInContainer(_jenkinsMasterContainer, 'git config --global user.email not@valid.org')
@@ -370,7 +371,7 @@ def _buildAndStartWebServer(configValues):
         '--ip ' + _webserverContainerIP + ' '
         + containerImage
     )
-    _run_command( command, printOutput=True)
+    _run_command( command, print_output=True)
 
     # copy the doxyserach.cgi to the html share
     _run_commandInContainer( _webserverContainer, 'rm -fr ' + _htmlShareWebServer + '/cgi-bin', 'root')
@@ -394,7 +395,7 @@ def _buildAndStartJenkinsLinuxSlave():
         '--ip ' + _jenkinsLinuxSlaveContainerIP + ' '
         + containerImage
     )
-    _run_command( command, printOutput=True)
+    _run_command( command, print_output=True)
 
 
 def _createRSAKeyFilePairOnContainer(containerName, containerHomeDirectory):
@@ -444,9 +445,8 @@ def _grantContainerSSHAccessToRepository( containerName, containerHomeDirectory,
     command = command.format( repositoryMachineUser, repositoryMachine, authorizedKeysFile, containerName, repositoryMachineSSHDir, publicKeyFile)
     _run_command(command)
     
-    # Add datenbunker as known host to prevent the authentication request on the first connect
-    repositoryMachineIP = socket.gethostbyname( repositoryMachine )
-    _run_commandInContainer( containerName, '/bin/bash ' + containerHomeDirectory + '/' + _addKnownHostScript + ' ' +  repositoryMachineIP, 'jenkins') 
+    # Add the repository machine as known host to prevent the authentication request on the first connect
+    _run_commandInContainer( containerName, '/bin/bash ' + containerHomeDirectory + '/' + _addKnownHostScript + ' ' +  repositoryMachine, 'jenkins') 
 
 
 def _grantJenkinsMasterSSHAccessToJenkinsLinuxSlave(configValues):
@@ -689,7 +689,7 @@ def _configureNodeConfigFile( configValues, jenkinsAdminPassword, slaveName, des
     # Approve the start commands via jenkins groovy script console
     jenkinsUser = configValues['JenkinsAdminUser']
     jenkinsCrumb = _getJenkinsCrumb(jenkinsUser, jenkinsAdminPassword)
-    _approveJenkinsScript( jenkinsUser, jenkinsAdminPassword, jenkinsCrumb, startCommand)
+    _approveJenkinsScript2( jenkinsUser, jenkinsAdminPassword, jenkinsCrumb, startCommand)
 
 
 def _getJenkinsCrumb(jenkinsUser, jenkinsPassword):
@@ -712,7 +712,21 @@ def _approveJenkinsScript(jenkinsUser, jenkinsPassword, jenkinsCrumb, approvedSc
     ret = _run_command(curlCommand)
     print(ret)
 
-    
+
+def _approveJenkinsScript2(jenkinsUser, jenkinsPassword, jenkinsCrumb, approvedScriptText):
+    """
+    Runs a groovy script over the jenkins groovy console, that approves the commands
+    that are used to start the slaves.
+    """
+    url = 'http://localhost:8080/scriptText'
+    myAuth = ('Knitschi', '3utterBro+')
+    crumbParts = jenkinsCrumb.split(':')
+    crumbHeader = { crumbParts[0] : crumbParts[1]}
+    groovyScript = "def scriptApproval = Jenkins.instance.getExtensionList('org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval')[0];scriptApproval.approveScript(scriptApproval.hash('" + approvedScriptText + "', 'system-command'))"
+    scriptData = { 'script' : groovyScript}
+
+    response = requests.post(url, auth=myAuth, headers=crumbHeader, data=scriptData)
+    response.raise_for_status()
 
 
 if __name__ == '__main__':
