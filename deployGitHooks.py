@@ -49,6 +49,7 @@ def main():
 
     for target_dir in hook_target_directories:
         _scp_copy_file(temp_script, target_dir)
+        #TODO chmod +x für script file
 
     # clean up the script
     os.remove(temp_script)

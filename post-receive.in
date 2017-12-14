@@ -7,10 +7,17 @@ unset GIT_DIR # whithout this we get git errors "remote: fatal: Not a git reposi
 
 echo ----- Run CppCodeBaseJenkinsjob post-receive hook -----
 
-set jenkinsUrl=@JENKINS_URL@                                            # The base url of the jenkins server on which a job is triggered e.g. http://localhost:8080
-set jenkinsUser=@JENKINS_USER@                                          # The user that triggers the job
-set jenkinsPassword=@JENKINS_PASSWORD@                                  # The password of that user
-set jenkinsJobName=@JENKINS_JOB_NAME@                                   # The name of the job that is triggered.
+# The base url of the jenkins server on which a job is triggered e.g. http://localhost:8080
+jenkinsUrl=@JENKINS_URL@
+# The user that triggers the job
+jenkinsUser=@JENKINS_USER@
+# The password of that user
+jenkinsPassword=@JENKINS_PASSWORD@
+# The name of the job that is triggered.
+jenkinsJobName=@JENKINS_JOB_NAME@
+
+jenkinsCrumb=$(curl --user $jenkinsUser:$jenkinsPassword '$jenkinsUrl/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)' )
+echo $jenkinsCrumb
 
 function triggerJenkinsJob()
 {
@@ -23,9 +30,12 @@ function triggerJenkinsJob()
         echo "Trigger jenkins job" $jenkinsJobName "for branch" $branch
 
         # Trigger the parameterized build-job and pass it the branch name as argument.
+        set -x
         curl $jenkinsUrl/job/$jenkinsJobName/build \
         --user $jenkinsUser:$jenkinsPassword \
+        --header $jenkinsCrumb
         --data-urlencode json='{"parameter": [{"name":"branchOrTag", "value":"'$branch'"}]}'
+        set +x
     fi
 }
 
