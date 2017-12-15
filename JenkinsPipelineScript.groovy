@@ -1,45 +1,20 @@
 #!groovy
 
-import static Constants.*
-
-class Constants {
-
-    // config names
-    static final VS2015DEBUG = "VS2015Debug"
-    static final VS2015RELEASE = "VS2015Release"
-    static final GCCDEBUG = "GCCDEBUG"
-    static final CLANGRELEASE = "CLANGRELEASE"
-
-    // locations
-    static final REPOSITORY_HOST_NAME="admin@datenbunker"
-    static final WEBSERVER_HOST_NAME="root@172.19.0.2"
-    static final CHECKOUT_FOLDER = 'Check out dir'
-    static final CPPCODEBASECMAKE_DIR = 'CppCodeBaseCMake'
-
-    // stash names
-    static final HTML_STASH = "html"
-
-}
-
 /**
-This script offers the function runJob() that can be used to create all sub-jobs
-in the CppCodeBase make pipeline. Bisides from running the various python scrips
-from the Infrastructure folder this also contains a task that is responsible for
-defining which jobs are run in parallel and which are run squeantially.
+The jenkins pipeline script for a CppCodeBase project.
 */
 
-// This node is the driver for the subjobs
+import static Constants.*
+import groovy.json.JsonSlurper
 
-def toolchains = [VS2015DEBUG,VS2015RELEASE,GCCDEBUG,CLANGRELEASE]
-//def toolchains = [VS2015DEBUG,GCCDEBUG]
-//def toolchains = [VS2015RELEASE]
-//def toolchains = [GCCDEBUG]
-//def toolchains = [GCCDEBUG,CLANGRELEASE]
-//def toolchains = [CLANGRELEASE]
-//def toolchains = [VS2015DEBUG]
-//def toolchains = [VS2015DEBUG,VS2015RELEASE]
 
+//############################### SCRIPT SECTION ################################
 echo "----------- Working on branch ${params.branchOrTag} -----------"
+
+if( params.target == '')
+(
+    params.target = pipeline
+)
 
 if(params.task == 'integration')
 {
@@ -55,7 +30,7 @@ if(params.task == 'integration')
     def developer = parts[0]
 
     createTempBranch( developer, mainBranch)
-    addPipelineStage( toolchains, tempBranch)
+    addPipelineStage( toolchains, tempBranch, params.target)
     addUpdateMainBranchStage( developer, mainBranch, tempBranch)
     addUpdateWebPageStage( toolchains, params.branchOrTag)
 }
@@ -63,7 +38,7 @@ else if( params.task == 'rebuild' )
 {
     // Rebuild an existing tag.
 
-    addPipelineStage(toolchains, params.branchOrTag)
+    addPipelineStage(toolchains, params.branchOrTag, params.target)
     addUpdateWebPageStage(toolchains, params.branchOrTag)
 }
 else if( params.task == 'incrementMajor' || params.task == 'incrementMinor' || params.task == 'incrementPatch' )
@@ -73,7 +48,7 @@ else if( params.task == 'incrementMajor' || params.task == 'incrementMinor' || p
     def branchName = pathParts.last()
 
     addCreateReleaseTagStage( params.task, branchName)
-    addPipelineStage( toolchains, branchName)
+    addPipelineStage( toolchains, branchName, params.target)
     addUpdateWebPageStage( toolchains, params.branchOrTag)
 }
 else
@@ -81,6 +56,38 @@ else
     echo "Job parameter \"task\" has invalid value \"${params.task}\"."
 }
 
+//############################### FUNCTION SECTION ################################
+class Constants {
+    // config names
+    static final VS2015DEBUG = "VS2015Debug"
+    static final VS2015RELEASE = "VS2015Release"
+    static final GCCDEBUG = "GCCDEBUG"
+    static final CLANGRELEASE = "CLANGRELEASE"
+
+    // locations
+    static final REPOSITORY_HOST_NAME="admin@datenbunker"
+    static final WEBSERVER_HOST_NAME="root@172.19.0.2"
+    static final CHECKOUT_FOLDER = 'Check out dir'
+    static final CPPCODEBASECMAKE_DIR = 'CppCodeBaseCMake'
+
+    // stash names
+    static final HTML_STASH = "html"
+}
+
+def getCcbConfigurations()
+{
+    if( params.ccbConfiguration == '')
+    {
+        // read the CiBuiltConfigurations.json file
+        def configFile = new File("${CHECKOUT_FOLDER}/Sources/CIBuildConfigurations.json")
+        def InputJSON = new JsonSlurper().parse(configFile)
+        InputJSON.each{ println it }
+    }
+    else
+    {
+        return params.ccbConfiguration
+    }
+}
 
 // Create a temporary branch that contains the the latest revision of the
 // main branch (e.g. master) and merge the revisions into it that were pushed to
@@ -103,7 +110,7 @@ def createTempBranch( developer, mainBranch)
     }
 }
 
-def addPipelineStage(toolchains, tempBranch)
+def addPipelineStage( ccbConfigs, tempBranch, target, ccbConfiguration)
 {
     stage('Build Pipeline')
     {
@@ -117,7 +124,7 @@ def addPipelineStage(toolchains, tempBranch)
             echo "Create build node " + toolchain
             def nodeLabel = getBaseNodeLabelForToolchain(toolchain, nodeIndex)
             echo "Build ${toolchain} under label ${nodeLabel}"
-            def myNode = createBuildNode( nodeLabel, toolchain, tempBranch)
+            def myNode = createBuildNode( nodeLabel, toolchain, tempBranch, target)
             parallelNodes[nodeLabel] = myNode
             nodeIndex++
         }
@@ -127,7 +134,7 @@ def addPipelineStage(toolchains, tempBranch)
     }
 }
 
-def createBuildNode( nodeLabel, toolchain, builtTagOrBranch)
+def createBuildNode( nodeLabel, ccbConfig, builtTagOrBranch, target)
 {
     return { 
         node(nodeLabel)
@@ -179,7 +186,7 @@ def createBuildNode( nodeLabel, toolchain, builtTagOrBranch)
                     runPythonCommand(toolchain, "2_Generate.py ${toolchain}")
 
                     // build the pipeline target
-                    runXvfbWrappedPythonCommand( toolchain, "3_Make.py ${toolchain} --target pipeline ${configOption}" )
+                    runXvfbWrappedPythonCommand( toolchain, "3_Make.py ${toolchain} --target ${target} ${configOption}" )
 
                     // stash generated html content
                     dir( "Generated/${toolchain}" )
@@ -230,7 +237,7 @@ def addUpdateMainBranchStage( developer, mainBranch, tempBranch)
     }
 }
 
-def addUpdateWebPageStage(toolchains, branchOrTag)
+def addUpdateWebPageStage(ccbConfigs, branchOrTag)
 {
     stage('Update Project Web-Page')
     {
@@ -317,7 +324,7 @@ def unstashFiles(String stashName, String toolchain)
     unstash fullStashName
 }
 
-def runPythonCommand(toolchainOrOs, command)
+def runPythonCommand(ccbConfigOrOs, command)
 {
     def os = ''
     if(toolchainOrOs == 'linux' || toolchainOrOs == 'windows')
