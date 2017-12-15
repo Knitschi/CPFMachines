@@ -19,6 +19,7 @@ import getpass
 import time
 import requests
 
+import CppCodeBaseMachines_version.CPPCODEBASEMACHINES_VERSION
 
 _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -661,7 +662,7 @@ def _configure_jenkins_master(config_values, config_file, jenkins_admin_password
         print("----- Configure the jenkins master server.")
 
         _set_general_jenkins_options(config_values)
-        _setJenkinsUsers(config_values, config_file)
+        _set_jenkins_users(config_values, config_file)
         _set_jenkins_jobs(config_values, config_file)
 
         # restart jenkins to make sure it as the desired configuration
@@ -759,7 +760,7 @@ def _set_jenkins_slaves(config_values, jenkins_admin_password):
         _JENKINS_LINUX_SLAVE_CONTAINER_IP,
         'jenkins',
         '~/bin',
-        _get_slave_labels_string('Debian-8.9', 4)
+        _get_slave_labels_string('Debian-8.9', 10)
     )
 
     # create config file for the windows slave
@@ -773,14 +774,19 @@ def _set_jenkins_slaves(config_values, jenkins_admin_password):
         config_values['BuildSlaveWindowsMachine'],
         config_values['BuildSlaveWindowsMachineUser'],
         slave_workspace,
-        _get_slave_labels_string('Windows-10', 4)
+        _get_slave_labels_string('Windows-10', 10)
     )
 
 
 def _get_slave_labels_string(base_label_name, max_index):
     labels = [base_label_name]
+    # We add multiple labels with indexes, because the jenkins pipeline model
+    # requires a label for each node-name and node-names need to be different
+    # for nodes that are run in parallel.
     for i in range(max_index + 1):
-        labels.append(base_label_name + '-' + str(i))
+        # The version must be in the label, to make sure that we can change
+        # the nodes and still build old versions of a package no the old nodes.
+        labels.append(base_label_name + '-' + CppCodeBaseMachines_version.CPPCODEBASEMACHINES_VERSION + '-' + str(i))
     return ' '.join(labels)
 
 
