@@ -33,26 +33,33 @@ def main():
     jenkins_user = config_values['JenkinsUser']
     jenkins_password = config_values['JenkinsPassword']
     jenkins_job_base_name = config_values['JenkinsJobBasename']
-    hook_target_directories = config_values['HookScriptTargetDirectories']
+    package_repo_target_directories = config_values['CcbPackageRepoHookDirectories']
 
-    temp_script = _SCRIPT_DIR + '/post-receive'
     script_template = _SCRIPT_DIR + '/post-receive.in'
 
-    replacement_dict = {
-        '@JENKINS_URL@' : jenkins_url,
-        '@JENKINS_USER@' : jenkins_user,
-        '@JENKINS_PASSWORD@' : jenkins_password,
-        '@JENKINS_JOB_NAME@' : addJenkinsJob.get_job_name(jenkins_job_base_name),
-    }
+    # Configure one hook for each given package.
+    # The hook needs to tell the buildjob which package was changed,
+    # so the job can update that package in the build repository.
+    temp_files = ['']
+    for package, hook_directory in package_repo_target_directories.items():
+        replacement_dict = {
+            '@JENKINS_URL@' : jenkins_url,
+            '@JENKINS_USER@' : jenkins_user,
+            '@JENKINS_PASSWORD@' : jenkins_password,
+            '@JENKINS_JOB_NAME@' : addJenkinsJob.get_job_name(jenkins_job_base_name),
+            '@CCB_PACKAGE@' : package
+        }
+        temp_script = _SCRIPT_DIR + '/post-receive_' + package
+        temp_files.append(temp_script)
+        addJenkinsJob.configure_file(script_template, temp_script, replacement_dict)
 
-    addJenkinsJob.configure_file(script_template, temp_script, replacement_dict)
+        # copy the file to the repository
+        dest_file = hook_directory + '/post-receive'
+        _scp_copy_file(temp_script, dest_file)
+        _make_remote_file_executable(dest_file)
 
-    for target_dir in hook_target_directories:
-        _scp_copy_file(temp_script, target_dir)
-        #TODO chmod +x für script file
-
-    # clean up the script
-    os.remove(temp_script)
+        # clean up the script
+        os.remove(temp_script)
 
 
 def _read_config_file(config_file):
@@ -68,6 +75,14 @@ def _scp_copy_file(source, dest):
     Runs the scp command for the given pathes.
     """
     _run_command('scp ' + source + ' ' + dest)
+
+
+def _make_remote_file_executable(remote_file):
+    """
+    Runs the chmod +x command for the file over ssh.
+    """
+    machine, path = remote_file.split(':')
+    _run_command('ssh ' + machine + ' "chmod +x ' + path + '"' )
 
 
 def _run_command(command, print_output=False, print_command=False, ignore_return_code=False):
