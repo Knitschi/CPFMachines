@@ -166,13 +166,13 @@ def addPipelineStage( ccbConfigs, tempBranch, target)
 def createBuildNode( nodeLabel, ccbConfig, builtTagOrBranch, target)
 {
     return { 
-        devMessage("reached mark")
         node(nodeLabel)
         {
             // acquiering an extra workspace seems to be necessary to prevent interaction between
             // the parallel run nodes, although node() should already create an own workspace.
             ws(toolchain)   
             {   
+                devMessage("reached mark")
                 checkoutBranch(builtTagOrBranch)
 
                 dir(CHECKOUT_FOLDER)
