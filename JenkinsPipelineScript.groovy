@@ -122,8 +122,7 @@ def checkoutBranch(branch)
     def repo = parts[0] + ':' + parts[1] + parts[2]
 
     checkout([$class: 'GitSCM',
-            //userRemoteConfigs: [[url: repo]],
-            userRemoteConfigs: [[url: 'ssh://admin@datenbunker/share/GitRepositories/CppCodeBaseJenkinsjob.git']],
+            userRemoteConfigs: [[url: repo]],
             branches: [[name: branch]],
             // We checkout to a subdirectory so the folders for the test files that lie parallel to the repository are still within the workspace.
             extensions: [
@@ -139,6 +138,8 @@ def checkoutBranch(branch)
             submoduleCfg: []
         ]
     )
+
+    devMessage("checked out repo")
 }
 
 def addPipelineStage( ccbConfigs, tempBranch, target)
