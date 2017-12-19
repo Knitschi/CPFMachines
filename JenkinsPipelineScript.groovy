@@ -150,10 +150,7 @@ def addPipelineStage( ccbConfigs, tempBranch, target)
             echo "Create build node " + config
             def nodeLabel = config.BuildSlaveLabel + '-' + nodeIndex
             echo "Build ${config.ConfigName} under label ${nodeLabel}"
-
-            def compilerConfig = config?.CompilerConfig
-            devMessage("dereferenced compiler config which is " + compilerConfig )
-            def myNode = createBuildNode( nodeLabel, config.ConfigName, tempBranch, target)
+            def myNode = createBuildNode( nodeLabel, config.ConfigName, tempBranch, target, config?.CompilerConfig)
             parallelNodes[nodeLabel] = myNode
             nodeIndex++
         }
@@ -163,16 +160,15 @@ def addPipelineStage( ccbConfigs, tempBranch, target)
     }
 }
 
-def createBuildNode( nodeLabel, ccbConfig, builtTagOrBranch, target)
+def createBuildNode( nodeLabel, ccbConfig, builtTagOrBranch, target, compileConfig)
 {
     return { 
         node(nodeLabel)
         {
             // acquiering an extra workspace seems to be necessary to prevent interaction between
             // the parallel run nodes, although node() should already create an own workspace.
-            ws(toolchain)   
+            ws(ccbConfig)
             {   
-                devMessage("reached mark")
                 checkoutBranch(builtTagOrBranch)
 
                 dir(CHECKOUT_FOLDER)
@@ -191,8 +187,7 @@ def createBuildNode( nodeLabel, ccbConfig, builtTagOrBranch, target)
 
                     // build the pipeline target
                     def configOption = ''
-                    def compilerConfig = false
-                    if( compilerConfig ) // The build config option is only needed for multi-config generators.
+                    if(compilerConfig) // The build config option is only needed for multi-config generators.
                     {
                         configOption = "--config ${compilerConfig}"
                     }
@@ -223,19 +218,7 @@ def addUpdateMainBranchStage( developer, mainBranch, tempBranch)
                 checkoutBranch(tempBranch)
                 dir(CHECKOUT_FOLDER)
                 {
-                    // TODO Add format target and reactivate this code.
-
-                    // Build the format target and commit the code changes.
-                    /*
-                    def toolchain = GCCDEBUG
-                    runPythonCommand(toolchain, "0_Configure.py ${toolchain} --inherits Gcc-shared-debug")
-                    runPythonCommand(toolchain, "1_Generate.py ${toolchain}")
-                    runPythonCommand(toolchain, "2_Make.py ${toolchain} --target format")
-
-                    // Commit the changed source files.
-                    sh "git commit . -m\"Version update and formatting for integration of branch ${params.branch}.\" || :"
-                    sh 'git push || :'
-                    */
+                    // TODO Add format target, build it and commit the changes.
 
                     // Merge the tmp branch into the main branch and tag it.
                     sh "cmake -DDEVELOPER=${developer} -DMAIN_BRANCH=${mainBranch} -DROOT_DIR=\"\$PWD\" -P Sources/${CPPCODEBASECMAKE_DIR}/Scripts/integrateTmpBranch.cmake"
