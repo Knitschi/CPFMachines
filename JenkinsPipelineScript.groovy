@@ -29,7 +29,7 @@ if(params.task == 'integration')
     def tempBranch = parts[0] + '-tmp-' + parts[1]
     def developer = parts[0]
 
-    def configurations = addRepositoryOperationsStage( developer, mainBranch, true)
+    def configurations = addRepositoryOperationsStage(  mainBranch, true, developer)
     addPipelineStage(configurations, tempBranch, params.target)
     addUpdateMainBranchStage( developer, mainBranch, tempBranch)
     addUpdateWebPageStage(configurations, params.branchOrTag)
@@ -37,7 +37,7 @@ if(params.task == 'integration')
 else if( params.task == 'rebuild' ) 
 {
     // Rebuild an existing tag.
-    def configurations = addRepositoryOperationsStage( developer, mainBranch, false)
+    def configurations = addRepositoryOperationsStage( mainBranch, false, '')
     addPipelineStage(configurations, params.branchOrTag, params.target)
     addUpdateWebPageStage(configurations, params.branchOrTag)
 }
@@ -70,7 +70,7 @@ class Constants {
 // Create a temporary branch that contains the the latest revision of the
 // main branch (e.g. master) and merge the revisions into it that were pushed to
 // the developer branch.
-def addRepositoryOperationsStage( developer, mainBranch, createTempBranch)
+def addRepositoryOperationsStage( mainBranch, createTempBranch, developer)
 {
     stage('Create Tmp Branch')
     {
