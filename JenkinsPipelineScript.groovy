@@ -6,8 +6,6 @@ The jenkins pipeline script for a CppCodeBase project.
 
 import static Constants.*
 import groovy.json.JsonSlurper
-import SystemUtils
-import System
 
 
 //############################### SCRIPT SECTION ################################
@@ -326,21 +324,19 @@ def getPythonCommand(os)
 
 def runCommand(command)
 {
-    def os = System.properties['os.name']
-    if(os.toLowerCase().contains('windows'))
+    if(isUnix())
     {
-        return bat(returnStdout: true, script: command).trim()
+        return sh(returnStdout: true, script: command).trim()
     }
     else
     {
-        return sh(returnStdout: true, script: command).trim()
+        return bat(returnStdout: true, script: command).trim()
     }
 }
 
 def runXvfbWrappedPythonCommand(command)
 {
-    def os = System.properties['os.name']
-    if(!os.toLowerCase().contains('windows'))
+    if(isUnix())
     {
         // On linux we need the jenkins Xvfb plugin to simulate an x11 server or qt will give us errors that it can not connect to the x11 server.
         wrap([$class: 'Xvfb', parallelBuild: true, displayNameOffset: 1, autoDisplayName: true, assignedLables: 'linux'])
@@ -362,15 +358,14 @@ def cleanWorkspace()
     }
 }
 
-def showTree(toolchain)
+def showTree()
 {
-    def os = getOsFromToolchain(toolchain)
-    if(os == 'windows')
+    if(isUnix())
     {
-        bat 'tree /F /A'
+        sh 'tree'
     }
     else if(os == 'linux')
     {
-        sh 'tree'
+        bat 'tree /F /A'
     }
 }
