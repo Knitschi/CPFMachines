@@ -27,7 +27,7 @@ stage('Test')
     def parallelNodes = [:]
     parallelNodes.failFast = true
 
-    parallelNodes['Windows-10-0.0.0-0'] = { node('Windows-10-0.0.0-0'){
+    parallelNodes['A'] = { node('Windows-10-0.0.0-0'){
             ws('TempWorkspace')
             {   
                 bat 'echo fuck yall 1'
@@ -35,7 +35,7 @@ stage('Test')
         }
     }
 
-    parallelNodes['Windows-10-0.0.0-1'] = { node('Windows-10-0.0.0-1'){
+    parallelNodes['B'] = { node('Windows-10-0.0.0-1'){
             ws('TempWorkspace')
             {   
                 bat 'echo fuck yall 2'
