@@ -118,8 +118,8 @@ def checkoutBranch(branch)
 {
     // For unknown reasons, the repo url can not contain the second : after the machine name.
     // So we remove it here.
-    ssh, machine, directory = params.buildRepository.split(':')
-    def repo = ssh + ':' + machine + directory
+    parts = params.buildRepository.split(':')
+    def repo = parts[0] + ':' + parts[1] + parts[2]
     echo repo
 
     checkout([$class: 'GitSCM',
