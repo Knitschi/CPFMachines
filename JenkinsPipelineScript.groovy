@@ -120,11 +120,10 @@ def checkoutBranch(branch)
     // So we remove it here.
     parts = params.buildRepository.split(':')
     def repo = parts[0] + ':' + parts[1] + parts[2]
-    echo repo
 
     checkout([$class: 'GitSCM',
-            userRemoteConfigs: [[url: repo]],
-            //userRemoteConfigs: [[url: 'ssh://admin@datenbunker/share/GitRepositories/BuildCppCodeBase.git']],
+            //userRemoteConfigs: [[url: repo]],
+            userRemoteConfigs: [[url: 'ssh://admin@datenbunker/share/GitRepositories/CppCodeBaseJenkinsjob.git']],
             branches: [[name: branch]],
             // We checkout to a subdirectory so the folders for the test files that lie parallel to the repository are still within the workspace.
             extensions: [
@@ -176,9 +175,6 @@ def createBuildNode( nodeLabel, ccbConfig, builtTagOrBranch, target, compilerCon
             ws(ccbConfig)
             {   
                 checkoutBranch(builtTagOrBranch)
-
-                // debug
-                devMessage("reached mark")
 
                 dir(CHECKOUT_FOLDER)
                 {
