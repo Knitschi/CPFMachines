@@ -24,7 +24,7 @@ def repository = parts[0] + ':' + parts[1] + parts[2]
 
 stage('Test')
 {
-    def myNode = node('Windows-10-0.0.0-0')
+    def myNode1 = node('Windows-10-0.0.0-0')
         {
             // acquiering an extra workspace seems to be necessary to prevent interaction between
             // the parallel run nodes, although node() should already create an own workspace.
@@ -35,9 +35,9 @@ stage('Test')
             }
         }
 
-    parallelNodes['Windows-10-0.0.0-0'] = myNode
+    parallelNodes['Windows-10-0.0.0-0'] = myNode1
 
-    myNode = node('Windows-10-0.0.0-1')
+    myNode2 = node('Windows-10-0.0.0-1')
     {
         // acquiering an extra workspace seems to be necessary to prevent interaction between
         // the parallel run nodes, although node() should already create an own workspace.
@@ -48,7 +48,7 @@ stage('Test')
         }
     }
 
-    parallelNodes['Windows-10-0.0.0-1'] = myNode
+    parallelNodes['Windows-10-0.0.0-1'] = myNode2
 
 
     // run the nodes
@@ -192,7 +192,6 @@ def addPipelineStage( ccbConfigs, repository, tempBranch, target)
         parallelNodes.failFast = true
         
         // add nodes for building the pipeline
-        /*
         def nodeIndex = 0
         for(config in ccbConfigs)
         {
@@ -203,7 +202,7 @@ def addPipelineStage( ccbConfigs, repository, tempBranch, target)
             parallelNodes[nodeLabel] = myNode
             nodeIndex++
         }
-        */
+
         // run the nodes
         parallel parallelNodes
     }
