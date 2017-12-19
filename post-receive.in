@@ -29,7 +29,7 @@ function triggerJenkinsJob()
     filterPattern="^.*-int-.*$"
 
     if [[ "$branch" =~ $filterPattern ]]; then 
-        echo "Trigger jenkins job" $jenkinsJobName "for branch" $branch
+        echo "Trigger integration jenkins job" $jenkinsJobName "for branch" $branch
 
         # Trigger the parameterized build-job and pass it the branch name as argument.
         set -x
@@ -37,6 +37,17 @@ function triggerJenkinsJob()
         --user $jenkinsUser:$jenkinsPassword \
         --header $jenkinsCrumb \
         --data-urlencode json='{"parameter": [{"name":"branchOrTag", "value":"'$branch'"},{"name":"package", "value":"'$ccbPackage'"}]}'
+        set +x
+    
+    else
+        echo "Trigger jenkins job" $jenkinsJobName "for branch" $branch
+
+        # Trigger the parameterized build-job and pass it the branch name as argument.
+        set -x
+        curl $jenkinsUrl/job/$jenkinsJobName/build \
+        --user $jenkinsUser:$jenkinsPassword \
+        --header $jenkinsCrumb \
+        --data-urlencode json='{"parameter": [{"name":"branchOrTag", "value":"'$branch'"},{"name":"package", "value":"'$ccbPackage'"},{"name":"task", "value":"rebuild"}]}'
         set +x
     fi
 }
