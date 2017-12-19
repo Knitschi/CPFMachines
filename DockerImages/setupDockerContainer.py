@@ -19,7 +19,7 @@ import getpass
 import time
 import requests
 
-from . import CppCodeBaseMachines_version
+import CppCodeBaseMachines_version
 
 _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
