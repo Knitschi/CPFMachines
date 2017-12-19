@@ -755,7 +755,10 @@ def _set_jenkins_slaves(config_values):
     start_commands = []
 
     # create config file for the linux slave
-    linux_slave_start_command = _get_slave_start_command(_JENKINS_LINUX_SLAVE_CONTAINER_IP, 'jenkins', '~/bin')
+    linux_slave_start_command = _get_slave_start_command(
+        _JENKINS_LINUX_SLAVE_CONTAINER_IP,
+        'jenkins',
+        '~/bin')
     _configure_node_config_file(
         config_values,
         _FULL_LINUX_JENKINS_SLAVE_NAME,
@@ -768,7 +771,10 @@ def _set_jenkins_slaves(config_values):
 
     # create config file for the windows slave
     slave_workspace = 'C:/jenkins'
-    windows_slave_start_command = _get_slave_start_command(config_values['BuildSlaveWindowsMachine'], config_values['BuildSlaveWindowsMachineUser'], slave_workspace)
+    windows_slave_start_command = _get_slave_start_command(
+        config_values['BuildSlaveWindowsMachine'],
+        config_values['BuildSlaveWindowsMachineUser'],
+        slave_workspace)
     _configure_node_config_file(
         config_values,
         _FULL_WINDOWS_JENKINS_SLAVE_NAME,
