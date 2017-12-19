@@ -30,7 +30,7 @@ stage('Test')
             // the parallel run nodes, although node() should already create an own workspace.
             ws('TempWorkspace')
             {   
-                bat 'echo fuck yall'
+                bat 'echo fuck yall 1'
                 devMessage("reached mark " + nodeLabel)
             }
         }
@@ -43,7 +43,7 @@ stage('Test')
         // the parallel run nodes, although node() should already create an own workspace.
         ws('TempWorkspace')
         {   
-            bat 'echo fuck yall'
+            bat 'echo fuck yall 2'
             devMessage("reached mark " + nodeLabel)
         }
     }
