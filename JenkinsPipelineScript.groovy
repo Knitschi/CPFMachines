@@ -121,7 +121,7 @@ def checkoutBranch(branch)
     parts = params.buildRepository.split(':')
     def repo = parts[0] + ':' + parts[1] + parts[2]
 
-    def repo = 'ssh://admin@datenbunker/share/GitRepositories/BuildCppCodeBase.git'
+    repo = 'ssh://admin@datenbunker/share/GitRepositories/BuildCppCodeBase.git'
 
     checkout([$class: 'GitSCM',
             userRemoteConfigs: [[url: repo]],
