@@ -140,15 +140,10 @@ def checkoutBranch(repository, branch)
         ]
     )
     */
-    checkout([$class: 'GitSCM',
-        userRemoteConfigs: [[url: repository]],
-        branches: [[name: branch]],
-        extensions: [
-            [$class: 'CleanBeforeCheckout'],
-            [$class: 'RelativeTargetDirectory', 
-                relativeTargetDir: CHECKOUT_FOLDER],
-            ],
-    ])
+    deleteDir()
+    runCommand("git clone --recursive ${repository} ${CHECKOUT_FOLDER}")
+    runCommand("git checkout ${branch}")
+    runCommand("git submodule update")
 
     devMessage("checked out repo")
 }
@@ -361,7 +356,7 @@ def runXvfbWrappedPythonCommand(command)
 def cleanWorkspace()
 {
     echo 'Clean Workspace ...'
-    dir('CppCodeBase'){
+    dir('WS-CppCodeBase'){
         deleteDir()
     }
 }
