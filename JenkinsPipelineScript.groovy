@@ -42,7 +42,7 @@ if(params.task == 'integration')
 else if( params.task == 'rebuild' ) 
 {
     // Rebuild an existing tag.
-    def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
+    // def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
     
 
     stage('Test')
