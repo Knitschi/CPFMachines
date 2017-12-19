@@ -55,7 +55,7 @@ stage('Test')
     parallel parallelNodes
 }
 
-
+/*
 if(params.task == 'integration')
 {
     // Build a new commit and merge it into the main branch.
@@ -95,6 +95,7 @@ else
 {
     echo "Job parameter \"task\" has invalid value \"${params.task}\"."
 }
+*/
 
 //############################### FUNCTION SECTION ################################
 class Constants {
@@ -211,20 +212,9 @@ def addPipelineStage( ccbConfigs, repository, tempBranch, target)
 def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target, compilerConfig)
 {
     return { 
-        node('Windows-10-0.0.0-0')
-        {
-            // acquiering an extra workspace seems to be necessary to prevent interaction between
-            // the parallel run nodes, although node() should already create an own workspace.
-            ws('TempWorkspace')
-            {   
-                bat 'echo fuck yall'
-                devMessage("reached mark " + nodeLabel)
-            }
-        }
-
-        /*
         node(nodeLabel)
         {
+            /*
             ws(ccbConfig)
             {   
 
@@ -262,8 +252,8 @@ def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target,
                     echo "----- The pipeline finished successfully for configuration ${ccbConfig}. -----"
                 }
             }
+            */
         }
-        */
     }
 }
 
