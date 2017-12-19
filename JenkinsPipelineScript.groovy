@@ -24,6 +24,9 @@ def repository = parts[0] + ':' + parts[1] + parts[2]
 
 stage('Test')
 {
+    def parallelNodes = [:]
+    parallelNodes.failFast = true
+
     def myNode1 = node('Windows-10-0.0.0-0')
         {
             // acquiering an extra workspace seems to be necessary to prevent interaction between
