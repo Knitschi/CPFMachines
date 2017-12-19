@@ -230,9 +230,9 @@ def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target,
                     
                     echo "----- The pipeline finished successfully for configuration ${ccbConfig}. -----"
                 }
-                */
             }
         }
+        */
     }
 }
 
