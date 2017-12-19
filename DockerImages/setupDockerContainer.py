@@ -664,15 +664,16 @@ def _configure_jenkins_master(config_values, config_file, jenkins_admin_password
         _set_general_jenkins_options(config_values)
         _set_jenkins_users(config_values, config_file)
         _set_jenkins_jobs(config_values, config_file)
+        slaveStartCommands = _set_jenkins_slaves(config_values)
 
         # restart jenkins to make sure it as the desired configuration
-        # this is required because setting the slaves requires jenkins to be
+        # this is required because approveing the slaves scripts requires jenkins to be
         # up and running.
         _stop_docker_container(_JENINS_MASTER_CONTAINER)
         _start_docker_container(_JENINS_MASTER_CONTAINER)
         _wait_for_jenkins_master_to_come_online(config_values, jenkins_admin_password)
 
-        _set_jenkins_slaves(config_values, jenkins_admin_password)
+        _approve_node_start_scripts(config_values, jenkins_admin_password, slaveStartCommands)
 
 
     else:
@@ -694,14 +695,14 @@ def _set_jenkins_users(config_values, config_file):
     """
     Copy user config xml files to user/<username>/config.xml
     """
-    _copy_jenkins_config_files(config_values, config_file, 'users', 'JenkinsAccountconfig_files')
+    _copy_jenkins_config_files(config_values, config_file, 'users', 'JenkinsAccountConfigFiles')
 
 
 def _set_jenkins_jobs(config_values, config_file):
     """
     copy job config xml files to jobs/<jobname>/config.xml
     """
-    _copy_jenkins_config_files(config_values, config_file, 'jobs', 'JenkinsJobconfig_files')
+    _copy_jenkins_config_files(config_values, config_file, 'jobs', 'JenkinsJobConfigFiles')
 
 
 def _copy_jenkins_config_files(config_values, config_file, config_dir, files_config_key):
@@ -743,43 +744,56 @@ def _wait_for_jenkins_master_to_come_online(config_values, jenkins_password):
         time.sleep(1)
 
 
-def _set_jenkins_slaves(config_values, jenkins_admin_password):
+def _set_jenkins_slaves(config_values):
     """
     Create config files for the slave nodes.
     All slave nodes are based on the ssh command execution start scheme from
     the command-launcher plugin.
     """
     print("----- Configure jenkins slave nodes")
+
+    start_commands = []
+
     # create config file for the linux slave
+    linux_slave_start_command = _get_slave_start_command(_JENKINS_LINUX_SLAVE_CONTAINER_IP, 'jenkins', '~/bin')
     _configure_node_config_file(
         config_values,
-        jenkins_admin_password,
         _FULL_LINUX_JENKINS_SLAVE_NAME,
         'A Debinan 8.9 build slave based on a docker container.',
         '/home/jenkins/workspaces',
-        _JENKINS_LINUX_SLAVE_CONTAINER_IP,
-        'jenkins',
-        '~/bin',
+        linux_slave_start_command,
         _get_slave_labels_string('Debian-8.9', 10)
     )
+    start_commands.append(linux_slave_start_command)
 
     # create config file for the windows slave
     slave_workspace = 'C:/jenkins'
+    windows_slave_start_command = _get_slave_start_command(config_values['BuildSlaveWindowsMachine'], config_values['BuildSlaveWindowsMachineUser'], slave_workspace)
     _configure_node_config_file(
         config_values,
-        jenkins_admin_password,
         _FULL_WINDOWS_JENKINS_SLAVE_NAME,
         'A Windows 10 build slave based on a virtual machine.',
         slave_workspace,
-        config_values['BuildSlaveWindowsMachine'],
-        config_values['BuildSlaveWindowsMachineUser'],
-        slave_workspace,
+        windows_slave_start_command,
         _get_slave_labels_string('Windows-10', 10)
     )
+    start_commands.append(windows_slave_start_command)
+
+    return start_commands
+
+
+def _get_slave_start_command(slave_machine, slave_machine_user, slave_jar_dir):
+    """
+    defines the command that is used to start the slaves via ssh.
+    """
+    start_command = (
+        'ssh {0}@{1} java -jar {2}/slave.jar'
+        ).format(slave_machine_user, slave_machine, slave_jar_dir)
+    return start_command
 
 
 def _get_slave_labels_string(base_label_name, max_index):
-    labels = [base_label_name]
+    labels = []
     # We add multiple labels with indexes, because the jenkins pipeline model
     # requires a label for each node-name and node-names need to be different
     # for nodes that are run in parallel.
@@ -792,27 +806,21 @@ def _get_slave_labels_string(base_label_name, max_index):
 
 def _configure_node_config_file(
         config_values,
-        jenkins_admin_password,
         slave_name,
         description,
         slave_workspace_dir,
-        slave_machine,
-        slave_machine_user,
-        slave_jar_dir,
+        start_command,
         slave_labels):
     """
     Uses a template file to create a config.xml file for a jenkins node that the master
     controls via ssh.
     """
-    nodes_dir = _SCRIPT_DIR + '/JenkinsConfig/nodes'
+    nodes_dir = config_values['HostJenkinsMasterShare'] + '/nodes'
     node_dir = nodes_dir + '/' + slave_name
     clear_directory(node_dir)
 
     createdconfig_file = node_dir + '/config.xml'
     config_template_file = _SCRIPT_DIR + '/jenkinsSlaveNodeConfig.xml.in'
-    start_command = (
-        'ssh {0}@{1} java -jar {2}/slave.jar'
-        ).format(slave_machine_user, slave_machine, slave_jar_dir)
 
     # create the config file in nodes
     configure_file(config_template_file, createdconfig_file, {
@@ -823,10 +831,18 @@ def _configure_node_config_file(
         '$LABELS' : slave_labels
     })
 
-    # Approve the start commands via jenkins groovy script console
+
+def _approve_node_start_scripts(config_values, jenkins_admin_password, slave_start_commands):
+    """
+    Approve the start scripts of all slave nodes.
+    """
+    print("----- Approve the slave node start scripts")
+
     jenkins_user = config_values['JenkinsAdminUser']
     jenkins_crumb = _get_jenkins_crumb(jenkins_user, jenkins_admin_password)
-    _approve_jenkins_script(jenkins_user, jenkins_admin_password, jenkins_crumb, start_command)
+
+    for start_command in slave_start_commands:
+        _approve_jenkins_script(jenkins_user, jenkins_admin_password, jenkins_crumb, start_command)
 
 
 def _get_jenkins_crumb(jenkins_user, jenkins_password):

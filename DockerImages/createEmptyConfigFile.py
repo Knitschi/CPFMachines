@@ -22,8 +22,8 @@ def main():
                                                     # This is useful when no previously made settings exist.
         'JenkinsAdminUser' : '',                    # The name of an initial jenkins user with administrative rights.
         'JenkinsAdminUserPassword' : '',            # An optionally provided password for the JenkinsAdminUserName. If none is provided, you will be prompted to enter one during script execution.
-        'JenkinsAccountconfig_files' : {},           # A map with user names as keys and the location of their config.xml account configuration files, relative to the generated config file.
-        'JenkinsJobsconfig_files' : {}               # A map with jenkins job names as keys and the location of their config.xml job configuration files, relative to the generated config file.
+        'JenkinsAccountConfigFiles' : {},           # A map with user names as keys and the location of their config.xml account configuration files, relative to the generated config file.
+        'JenkinsJobConfigFiles' : {}               # A map with jenkins job names as keys and the location of their config.xml job configuration files, relative to the generated config file.
     }
     config_values = collections.OrderedDict(sorted(configDict.items(), key=lambda t: t[0]))
 
