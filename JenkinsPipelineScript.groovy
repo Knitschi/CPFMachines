@@ -134,7 +134,7 @@ def checkoutBranch(branch)
                     parentCredentials: false, 
                     recursiveSubmodules: true, 
                     reference: '', 
-                    trackingSubmodules: false ]],
+                    trackingSubmodules: true ]],
             submoduleCfg: []
         ]
     )
