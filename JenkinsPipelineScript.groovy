@@ -142,7 +142,7 @@ def checkoutBranch(repository, branch)
     */
     deleteDir()
     runCommand("git clone --recursive ${repository} \"${CHECKOUT_FOLDER}\"")
-    
+
     dir(CHECKOUT_FOLDER){
         runCommand("git checkout ${branch}")
         runCommand("git submodule update")
@@ -184,7 +184,8 @@ def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target,
             // the parallel run nodes, although node() should already create an own workspace.
             ws(ccbConfig)
             {   
-                checkoutBranch(repository, builtTagOrBranch)
+                // checkoutBranch(repository, builtTagOrBranch)
+                runCommand('echo fuck yall')
                 
                 dir(CHECKOUT_FOLDER)
                 {
