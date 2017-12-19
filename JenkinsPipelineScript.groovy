@@ -187,6 +187,7 @@ def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target,
                 // checkoutBranch(repository, builtTagOrBranch)
                 runCommand('echo fuck yall')
                 
+                
                 dir(CHECKOUT_FOLDER)
                 {
                     // Make the python scripts available in the root directory
