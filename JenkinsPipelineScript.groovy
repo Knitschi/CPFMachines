@@ -116,6 +116,8 @@ def addRepositoryOperationsStage( mainBranch, createTempBranch, developer)
 
 def checkoutBranch(branch)
 {
+    echo params.buildRepository
+    
     checkout([$class: 'GitSCM',
             userRemoteConfigs: [[url: params.buildRepository]],
             //userRemoteConfigs: [[url: 'ssh://admin@datenbunker/share/GitRepositories/BuildCppCodeBase']],
