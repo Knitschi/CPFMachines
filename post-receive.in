@@ -18,7 +18,7 @@ jenkinsJobName=@JENKINS_JOB_NAME@
 # The name of the package in the build repository to which this hook belongs
 ccbPackage=@CCB_PACKAGE@
 
-jenkinsCrumb=$(curl --user $jenkinsUser:$jenkinsPassword '$jenkinsUrl/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)' )
+jenkinsCrumb=$(curl --user $jenkinsUser:$jenkinsPassword "$jenkinsUrl/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,\":\",//crumb)" )
 echo $jenkinsCrumb
 
 function triggerJenkinsJob()
