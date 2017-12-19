@@ -164,7 +164,7 @@ def createBuildNode( nodeLabel, ccbConfig, builtTagOrBranch, target, compilerCon
 {
     return { 
         devMessage("reached mark pre-node")
-        node('Windows-10-0.0.0-0')
+        node(nodeLabel)
         {
             devMessage("reached mark post-node")
             // acquiering an extra workspace seems to be necessary to prevent interaction between
