@@ -132,9 +132,9 @@ def checkoutBranch(repository, branch)
                 [$class: 'SubmoduleOption', 
                     disableSubmodules: false, 
                     parentCredentials: false, 
-                    recursiveSubmodules: true, 
+                    recursiveSubmodules: false, 
                     reference: '', 
-                    trackingSubmodules: true ]],
+                    trackingSubmodules: false ]],
             submoduleCfg: []
         ]
     )
