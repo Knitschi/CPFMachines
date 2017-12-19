@@ -162,6 +162,7 @@ def addPipelineStage( ccbConfigs, repository, tempBranch, target)
         
         // add nodes for building the pipeline
         def nodeIndex = 0
+        def configs = [ConfigName:Windows, BuildSlaveLabel:Windows-10-0.0.0, CompilerConfig:Release]
         for(config in ccbConfigs)
         {
             echo "Create build node " + config
@@ -180,19 +181,22 @@ def addPipelineStage( ccbConfigs, repository, tempBranch, target)
 def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target, compilerConfig)
 {
     return { 
-        node(nodeLabel)
+        node('Windows-10-0.0.0-0')
         {
             // acquiering an extra workspace seems to be necessary to prevent interaction between
             // the parallel run nodes, although node() should already create an own workspace.
+            ws('TempWorkspace')
+            {   
+                bat 'echo fuck yall'
+                devMessage("reached mark " + nodeLabel)
+            }
+        }
+
+        /*
+        node(nodeLabel)
+        {
             ws(ccbConfig)
             {   
-                try {
-                    bat 'echo fuck yall'
-                } catch(err) {
-                    println err
-                }
-
-                devMessage("reached mark " + nodeLabel)
 
                 checkoutBranch(repository, builtTagOrBranch)
 
@@ -227,6 +231,7 @@ def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target,
                     
                     echo "----- The pipeline finished successfully for configuration ${ccbConfig}. -----"
                 }
+                */
             }
         }
     }
