@@ -320,7 +320,7 @@ def getPythonCommand(os)
 {
     pythonVersion = sh(returnStdout: true, script: 'python --version').trim()
     def pythonCmd = 'python'
-    if(!version.matches(~'^3\..*$'))
+    if(!version.matches(~'^3\\..*$'))
     {
         pythonCmd = 'python3'
     }
