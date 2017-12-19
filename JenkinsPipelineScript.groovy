@@ -143,6 +143,12 @@ def checkoutBranch(repository, branch)
     checkout([$class: 'GitSCM',
         userRemoteConfigs: [[url: repository]],
         branches: [[name: branch]],
+        extensions: [
+            [$class: 'CleanBeforeCheckout'],
+            // We checkout to a subdirectory so the folders for the test files that lie parallel to the repository are still within the workspace.
+            [$class: 'RelativeTargetDirectory', 
+                relativeTargetDir: CHECKOUT_FOLDER],
+            ]
     ])
 
     devMessage("checked out repo")
