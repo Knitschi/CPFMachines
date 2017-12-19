@@ -145,7 +145,6 @@ def checkoutBranch(repository, branch)
         branches: [[name: branch]],
         extensions: [
             [$class: 'CleanBeforeCheckout'],
-            // We checkout to a subdirectory so the folders for the test files that lie parallel to the repository are still within the workspace.
             [$class: 'RelativeTargetDirectory', 
                 relativeTargetDir: CHECKOUT_FOLDER],
             ],
