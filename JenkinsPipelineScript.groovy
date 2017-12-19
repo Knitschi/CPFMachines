@@ -21,6 +21,27 @@ if( params.target == '')
 parts = params.buildRepository.split(':')
 def repository = parts[0] + ':' + parts[1] + parts[2]
 
+
+stage('Test')
+{
+    def myNode = node('MyNode')
+        {
+            // acquiering an extra workspace seems to be necessary to prevent interaction between
+            // the parallel run nodes, although node() should already create an own workspace.
+            ws('TempWorkspace')
+            {   
+                bat 'echo fuck yall'
+                devMessage("reached mark " + nodeLabel)
+            }
+        }
+
+    parallelNodes['Windows-10-0.0.0-0'] = myNode
+
+    // run the nodes
+    parallel parallelNodes
+}
+
+
 if(params.task == 'integration')
 {
     // Build a new commit and merge it into the main branch.
@@ -111,8 +132,6 @@ def addRepositoryOperationsStage( repository, mainBranch, createTempBranch, deve
                     usedConfigurations = configurations
                 }
 
-                devMessage(usedConfigurations)
-
                 return usedConfigurations
             }
         }
@@ -171,19 +190,6 @@ def addPipelineStage( ccbConfigs, repository, tempBranch, target)
             nodeIndex++
         }
         */
-        def myNode = node('Windows-10-0.0.0-0')
-            {
-                // acquiering an extra workspace seems to be necessary to prevent interaction between
-                // the parallel run nodes, although node() should already create an own workspace.
-                ws('TempWorkspace')
-                {   
-                    bat 'echo fuck yall'
-                    devMessage("reached mark " + nodeLabel)
-                }
-            }
-
-        parallelNodes['Windows-10-0.0.0-0'] = myNode
-
         // run the nodes
         parallel parallelNodes
     }
