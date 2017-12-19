@@ -175,12 +175,11 @@ def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target,
             // the parallel run nodes, although node() should already create an own workspace.
             ws(ccbConfig)
             {   
+                devMessage("reached mark")
                 checkoutBranch(repository, builtTagOrBranch)
                 
                 dir(CHECKOUT_FOLDER)
                 {
-                    devMessage("reached mark")
-
                     // Make the python scripts available in the root directory
                     runPythonCommand("Sources/CppCodeBaseBuildscripts/0_CopyScripts.py")
 
