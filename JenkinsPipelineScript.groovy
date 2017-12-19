@@ -156,7 +156,7 @@ def addPipelineStage( ccbConfigs, repository, tempBranch, target)
             echo "Create build node " + config
             def nodeLabel = config.BuildSlaveLabel + '-' + nodeIndex
             echo "Build ${config.ConfigName} under label ${nodeLabel}"
-            def myNode = createBuildNode( nodeLabel, config.ConfigName, 'ssh://admin@datenbunker/share/GitRepositories/CppCodeBaseJenkinsjob.git', tempBranch, target, config?.CompilerConfig)
+            def myNode = createBuildNode( nodeLabel, config.ConfigName, repository, tempBranch, target, config?.CompilerConfig)
             parallelNodes[nodeLabel] = myNode
             nodeIndex++
         }
