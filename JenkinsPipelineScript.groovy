@@ -37,7 +37,7 @@ if(params.task == 'integration')
 else if( params.task == 'rebuild' ) 
 {
     // Rebuild an existing tag.
-    def configurations = addRepositoryOperationsStage( mainBranch, false, '')
+    def configurations = addRepositoryOperationsStage( params.branchOrTag, false, '')
     addPipelineStage(configurations, params.branchOrTag, params.target)
     addUpdateWebPageStage(configurations, params.branchOrTag)
 }
