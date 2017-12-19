@@ -66,7 +66,7 @@ else if( params.task == 'rebuild' )
             ws('TempWorkspace')
             {   
                 bat 'echo fuck yall 1'
-                println usedConfigurations
+                //println usedConfigurations
             }
         }
     }
