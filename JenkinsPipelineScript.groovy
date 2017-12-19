@@ -46,15 +46,40 @@ else if( params.task == 'rebuild' )
     
     addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
 
-
-    def configurations = getBuildConfigurations()
+    def usedConfigurations = []
+    stage('Get information')
+    {
+        node('master'){
+            ws('WS-CppCodeBase')
+            {   
+                // read the CiBuiltConfigurations.json file
+                def fileContent = readFile(file:"${CHECKOUT_FOLDER}/Sources/CIBuildConfigurations.json")
+                def configurations = new JsonSlurper().parseText(fileContent)
+                if( params.ccbConfiguration != '')
+                {
+                    for(config in configurations)
+                    {
+                        if(config.ConfigName == params.ccbConfiguration)
+                        {
+                            usedConfigurations.add(config)
+                        }
+                    }
+                }
+                else
+                {
+                    usedConfigurations = configurations
+                }
+            }
+        }
+    }
 
     stage('Use information')
     {
-        node('Windows-10-0.0.0-0'){
+        node('Windows-10-0.0.0-1'){
             ws('TempWorkspace')
             {   
                 bat 'echo fuck yall 1'
+                echo usedConfigurations
             }
         }
     }
