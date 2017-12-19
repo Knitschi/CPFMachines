@@ -165,8 +165,8 @@ def addPipelineStage( ccbConfigs, tempBranch, target)
 
 def createBuildNode( nodeLabel, ccbConfig, builtTagOrBranch, target)
 {
-    devMessage("run python command")
     return { 
+        devMessage("reached mark")
         node(nodeLabel)
         {
             // acquiering an extra workspace seems to be necessary to prevent interaction between
@@ -177,8 +177,6 @@ def createBuildNode( nodeLabel, ccbConfig, builtTagOrBranch, target)
 
                 dir(CHECKOUT_FOLDER)
                 {
-                    devMessage("run python command")
-
                     // Make the python scripts available in the root directory
                     runPythonCommand("Sources/CppCodeBaseBuildscripts/0_CopyScripts.py")
 
