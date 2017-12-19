@@ -42,36 +42,21 @@ if(params.task == 'integration')
 else if( params.task == 'rebuild' ) 
 {
     // Rebuild an existing tag.
-    // def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
+    def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
     
-    addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
+    //addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
 
-    stage('Test')
+
+
+
+    stage('Use information')
     {
-        def parallelNodes = [:]
-        parallelNodes.failFast = true
-
-        parallelNodes['Job a'] = { node('Windows-10-0.0.0-0'){
-                ws('TempWorkspace')
-                {   
-                    bat 'echo fuck yall 1'
-                }
+        node('Windows-10-0.0.0-0'){
+            ws('TempWorkspace')
+            {   
+                bat 'echo fuck yall 1'
             }
         }
-
-        parallelNodes['Job b'] = { node('Windows-10-0.0.0-1'){
-                ws('TempWorkspace')
-                {   
-                    bat 'echo fuck yall 2'
-                }
-            }
-        }
-
-        println parallelNodes
-
-
-        // run the nodes
-        parallel parallelNodes
     }
 
     /*
@@ -145,7 +130,7 @@ def addRepositoryOperationsStage( repository, mainBranch, createTempBranch, deve
                     usedConfigurations = configurations
                 }
 
-                // return usedConfigurations
+                return usedConfigurations
             }
         }
     }
