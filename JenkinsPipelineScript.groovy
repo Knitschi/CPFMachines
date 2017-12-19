@@ -37,6 +37,20 @@ stage('Test')
 
     parallelNodes['Windows-10-0.0.0-0'] = myNode
 
+    myNode = node('Windows-10-0.0.0-1')
+    {
+        // acquiering an extra workspace seems to be necessary to prevent interaction between
+        // the parallel run nodes, although node() should already create an own workspace.
+        ws('TempWorkspace')
+        {   
+            bat 'echo fuck yall'
+            devMessage("reached mark " + nodeLabel)
+        }
+    }
+
+    parallelNodes['Windows-10-0.0.0-1'] = myNode
+
+
     // run the nodes
     parallel parallelNodes
 }
