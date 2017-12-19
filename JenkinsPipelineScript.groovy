@@ -119,7 +119,8 @@ def addRepositoryOperationsStage( mainBranch, createTempBranch, developer)
 def checkoutBranch(branch)
 {
     checkout([$class: 'GitSCM',
-            userRemoteConfigs: [[url: params.buildRepository]],
+            //userRemoteConfigs: [[url: params.buildRepository]],
+            userRemoteConfigs: [[url: 'ssh://admin@datenbunker/share/GitRepositories/BuildCppCodeBase']],
             branches: [[name: branch]],
             // We checkout to a subdirectory so the folders for the test files that lie parallel to the repository are still within the workspace.
             extensions: [
