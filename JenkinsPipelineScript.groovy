@@ -16,6 +16,11 @@ if( params.target == '')
     params.target = pipeline
 )
 
+// For unknown reasons, the repo url can not contain the second : after the machine name
+// when used with the GitSCM class. So we remove it here.
+parts = params.buildRepository.split(':')
+def repository = parts[0] + ':' + parts[1] + parts[2]
+
 if(params.task == 'integration')
 {
     // Build a new commit and merge it into the main branch.
@@ -29,7 +34,7 @@ if(params.task == 'integration')
     def tempBranch = parts[0] + '-tmp-' + parts[1]
     def developer = parts[0]
 
-    def configurations = addRepositoryOperationsStage(  mainBranch, true, developer)
+    def configurations = addRepositoryOperationsStage(repository, mainBranch, true, developer)
     addPipelineStage(configurations, tempBranch, params.target)
     addUpdateMainBranchStage( developer, mainBranch, tempBranch)
     addUpdateWebPageStage(configurations, params.branchOrTag)
@@ -37,7 +42,7 @@ if(params.task == 'integration')
 else if( params.task == 'rebuild' ) 
 {
     // Rebuild an existing tag.
-    def configurations = addRepositoryOperationsStage( params.branchOrTag, false, '')
+    def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
     addPipelineStage(configurations, params.branchOrTag, params.target)
     addUpdateWebPageStage(configurations, params.branchOrTag)
 }
@@ -47,7 +52,7 @@ else if( params.task == 'incrementMajor' || params.task == 'incrementMinor' || p
     def pathParts = params.branchOrTag.split('/')
     def branchName = pathParts.last()
 
-    def configurations = addCreateReleaseTagStage( params.task, branchName)
+    def configurations = addCreateReleaseTagStage(repository, params.task, branchName)
     addPipelineStage(configurations, branchName, params.target)
     addUpdateWebPageStage(configurations, params.branchOrTag)
 }
@@ -70,7 +75,7 @@ class Constants {
 // Create a temporary branch that contains the the latest revision of the
 // main branch (e.g. master) and merge the revisions into it that were pushed to
 // the developer branch.
-def addRepositoryOperationsStage( mainBranch, createTempBranch, developer)
+def addRepositoryOperationsStage( repository, mainBranch, createTempBranch, developer)
 {
     stage('Create Tmp Branch')
     {
@@ -78,7 +83,7 @@ def addRepositoryOperationsStage( mainBranch, createTempBranch, developer)
         {
             ws('WS-CppCodeBase')
             {
-                checkoutBranch(params.branchOrTag)
+                checkoutBranch(repository, params.branchOrTag)
 
                 if(createTempBranch)
                 {
@@ -114,19 +119,14 @@ def addRepositoryOperationsStage( mainBranch, createTempBranch, developer)
     }
 }
 
-def checkoutBranch(branch)
+def checkoutBranch(repository, branch)
 {
-    // For unknown reasons, the repo url can not contain the second : after the machine name.
-    // So we remove it here.
-    parts = params.buildRepository.split(':')
-    def repo = parts[0] + ':' + parts[1] + parts[2]
-
     checkout([$class: 'GitSCM',
-            userRemoteConfigs: [[url: repo]],
+            userRemoteConfigs: [[url: repository]],
             branches: [[name: branch]],
-            // We checkout to a subdirectory so the folders for the test files that lie parallel to the repository are still within the workspace.
             extensions: [
                 [$class: 'CleanBeforeCheckout'],
+                // We checkout to a subdirectory so the folders for the test files that lie parallel to the repository are still within the workspace.
                 [$class: 'RelativeTargetDirectory', 
                     relativeTargetDir: CHECKOUT_FOLDER],
                 [$class: 'SubmoduleOption', 
@@ -156,7 +156,7 @@ def addPipelineStage( ccbConfigs, tempBranch, target)
             echo "Create build node " + config
             def nodeLabel = config.BuildSlaveLabel + '-' + nodeIndex
             echo "Build ${config.ConfigName} under label ${nodeLabel}"
-            def myNode = createBuildNode( nodeLabel, config.ConfigName, tempBranch, target, config?.CompilerConfig)
+            def myNode = createBuildNode( nodeLabel, config.ConfigName, 'ssh://admin@datenbunker/share/GitRepositories/CppCodeBaseJenkinsjob.git', tempBranch, target, config?.CompilerConfig)
             parallelNodes[nodeLabel] = myNode
             nodeIndex++
         }
@@ -166,7 +166,7 @@ def addPipelineStage( ccbConfigs, tempBranch, target)
     }
 }
 
-def createBuildNode( nodeLabel, ccbConfig, builtTagOrBranch, target, compilerConfig)
+def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target, compilerConfig)
 {
     return { 
         node(nodeLabel)
@@ -175,7 +175,7 @@ def createBuildNode( nodeLabel, ccbConfig, builtTagOrBranch, target, compilerCon
             // the parallel run nodes, although node() should already create an own workspace.
             ws(ccbConfig)
             {   
-                checkoutBranch(builtTagOrBranch)
+                checkoutBranch(repository, builtTagOrBranch)
 
                 dir(CHECKOUT_FOLDER)
                 {
@@ -213,7 +213,7 @@ def createBuildNode( nodeLabel, ccbConfig, builtTagOrBranch, target, compilerCon
     }
 }
 
-def addUpdateMainBranchStage( developer, mainBranch, tempBranch)
+def addUpdateMainBranchStage( repository, developer, mainBranch, tempBranch)
 {
     stage('Integrate Tmp Branch')
     {
@@ -221,7 +221,7 @@ def addUpdateMainBranchStage( developer, mainBranch, tempBranch)
         {
             ws('WS-CppCodeBase')
             {
-                checkoutBranch(tempBranch)
+                checkoutBranch(repository, tempBranch)
                 dir(CHECKOUT_FOLDER)
                 {
                     // TODO Add format target, build it and commit the changes.
@@ -236,7 +236,7 @@ def addUpdateMainBranchStage( developer, mainBranch, tempBranch)
     }
 }
 
-def addUpdateWebPageStage(ccbConfigs, branchOrTag)
+def addUpdateWebPageStage(repository, ccbConfigs, branchOrTag)
 {
     stage('Update Project Web-Page')
     {
@@ -244,7 +244,7 @@ def addUpdateWebPageStage(ccbConfigs, branchOrTag)
         {
             ws('WS-CppCodeBase')
             {
-                checkoutBranch(branchOrTag) // get the scripts
+                checkoutBranch(repository, branchOrTag) // get the scripts
 
                 def serverHtmlDir = '$PWD/html-on-server'
                 def tempHtmlDir = '$PWD/html'
@@ -278,7 +278,7 @@ def addUpdateWebPageStage(ccbConfigs, branchOrTag)
     }
 }
 
-def addCreateReleaseTagStage( incrementTaskType, branch)
+def addCreateReleaseTagStage(repository, incrementTaskType, branch)
 {
     stage('Create Release Tag')
     {
@@ -286,7 +286,7 @@ def addCreateReleaseTagStage( incrementTaskType, branch)
         {
             ws('WS-CppCodeBase')
             {
-                checkoutBranch(branch)
+                checkoutBranch(repository, branch)
 
                 // execute the cmake script that does the git operations
                 sh "cmake -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -DBRANCH=${branch} -DDIGIT_OPTION=${incrementTaskType} -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPPCODEBASECMAKE_DIR}/Scripts/incrementVersionNumber.cmake\""
