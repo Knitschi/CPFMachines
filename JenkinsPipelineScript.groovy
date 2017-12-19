@@ -142,8 +142,11 @@ def checkoutBranch(repository, branch)
     */
     deleteDir()
     runCommand("git clone --recursive ${repository} \"${CHECKOUT_FOLDER}\"")
-    runCommand("git checkout ${branch}")
-    runCommand("git submodule update")
+    
+    dir(CHECKOUT_FOLDER){
+        runCommand("git checkout ${branch}")
+        runCommand("git submodule update")
+    }
 
     devMessage("checked out repo")
 }
