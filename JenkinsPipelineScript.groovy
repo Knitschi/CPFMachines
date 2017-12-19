@@ -42,12 +42,12 @@ if(params.task == 'integration')
 else if( params.task == 'rebuild' ) 
 {
     // Rebuild an existing tag.
-    def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
+    //def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
     
-    //addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
+    addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
 
 
-
+    def configurations = getBuildConfigurations()
 
     stage('Use information')
     {
@@ -110,29 +110,35 @@ def addRepositoryOperationsStage( repository, mainBranch, createTempBranch, deve
                     echo 'Create temporary build branch'
                     sh "cmake -DDEVELOPER=${developer} -DMAIN_BRANCH=${mainBranch} -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPPCODEBASECMAKE_DIR}/Scripts/prepareTmpBranch.cmake\""
                 }
-
-                // read the CiBuiltConfigurations.json file
-                def fileContent = readFile(file:"${CHECKOUT_FOLDER}/Sources/CIBuildConfigurations.json")
-                def configurations = new JsonSlurper().parseText(fileContent)
-                def usedConfigurations = []
-                if( params.ccbConfiguration != '')
-                {
-                    for(config in configurations)
-                    {
-                        if(config.ConfigName == params.ccbConfiguration)
-                        {
-                            usedConfigurations.add(config)
-                        }
-                    }
-                }
-                else
-                {
-                    usedConfigurations = configurations
-                }
-
-                return usedConfigurations
             }
         }
+    }
+}
+
+def getBuildConfigurations()
+{
+    ws('WS-CppCodeBase')
+    {
+        // read the CiBuiltConfigurations.json file
+        def fileContent = readFile(file:"${CHECKOUT_FOLDER}/Sources/CIBuildConfigurations.json")
+        def configurations = new JsonSlurper().parseText(fileContent)
+        def usedConfigurations = []
+        if( params.ccbConfiguration != '')
+        {
+            for(config in configurations)
+            {
+                if(config.ConfigName == params.ccbConfiguration)
+                {
+                    usedConfigurations.add(config)
+                }
+            }
+        }
+        else
+        {
+            usedConfigurations = configurations
+        }
+
+        return usedConfigurations
     }
 }
 
