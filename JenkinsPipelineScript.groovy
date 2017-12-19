@@ -116,12 +116,15 @@ def addRepositoryOperationsStage( mainBranch, createTempBranch, developer)
 
 def checkoutBranch(branch)
 {
-    def repo = params.buildRepository
+    // For unknown reasons, the repo url can not contain the second : after the machine name.
+    // So we remove it here.
+    ssh, machine, directory = params.buildRepository.split(':')
+    def repo = ssh + ':' + machine + directory
     echo repo
 
     checkout([$class: 'GitSCM',
-            //userRemoteConfigs: [[url: repo]],
-            userRemoteConfigs: [[url: 'ssh://admin@datenbunker/share/GitRepositories/BuildCppCodeBase.git']],
+            userRemoteConfigs: [[url: repo]],
+            //userRemoteConfigs: [[url: 'ssh://admin@datenbunker/share/GitRepositories/BuildCppCodeBase.git']],
             branches: [[name: branch]],
             // We checkout to a subdirectory so the folders for the test files that lie parallel to the repository are still within the workspace.
             extensions: [
