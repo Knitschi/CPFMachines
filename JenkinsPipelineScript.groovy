@@ -148,9 +148,6 @@ def addPipelineStage( ccbConfigs, tempBranch, target)
         for(config in ccbConfigs)
         {
             echo "Create build node " + config
-            devMessage(config.BuildSlaveLabel)
-
-
             def nodeLabel = config.BuildSlaveLabel + '-' + nodeIndex
             echo "Build ${config.ConfigName} under label ${nodeLabel}"
             def myNode = createBuildNode( nodeLabel, config.ConfigName, config.CompilerConfig, tempBranch, target)
@@ -176,6 +173,8 @@ def createBuildNode( nodeLabel, ccbConfig, compilerConfig, builtTagOrBranch, tar
 
                 dir(CHECKOUT_FOLDER)
                 {
+                    devMessage("run python command")
+
                     // Make the python scripts available in the root directory
                     runPythonCommand("Sources/CppCodeBaseBuildscripts/0_CopyScripts.py")
 
