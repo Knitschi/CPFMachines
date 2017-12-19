@@ -171,8 +171,9 @@ def createBuildNode( nodeLabel, ccbConfig, builtTagOrBranch, target, compilerCon
             {   
                 checkoutBranch(builtTagOrBranch)
 
+                // debug
                 devMessage("reached mark")
-                
+
                 dir(CHECKOUT_FOLDER)
                 {
                     // Make the python scripts available in the root directory
