@@ -46,8 +46,9 @@ else if( params.task == 'rebuild' )
     
     addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
 
-    /*
     def usedConfigurations = []
+    
+    /*
     stage('Get information')
     {
         node('master'){
