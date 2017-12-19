@@ -150,7 +150,9 @@ def addPipelineStage( ccbConfigs, tempBranch, target)
             echo "Create build node " + config
             def nodeLabel = config.BuildSlaveLabel + '-' + nodeIndex
             echo "Build ${config.ConfigName} under label ${nodeLabel}"
-            def myNode = createBuildNode( nodeLabel, config.ConfigName, config.CompilerConfig, tempBranch, target)
+            if()
+            
+            def myNode = createBuildNode( nodeLabel, config.ConfigName, config?.CompilerConfig, tempBranch, target)
             parallelNodes[nodeLabel] = myNode
             nodeIndex++
         }
