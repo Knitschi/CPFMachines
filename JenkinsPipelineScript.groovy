@@ -130,12 +130,12 @@ def checkoutBranch(repository, branch)
                 [$class: 'RelativeTargetDirectory', 
                     relativeTargetDir: CHECKOUT_FOLDER],
                 [$class: 'SubmoduleOption', 
-                    disableSubmodules: true, 
+                    disableSubmodules: false, 
                     parentCredentials: false, 
                     recursiveSubmodules: false, 
                     reference: '', 
                     trackingSubmodules: false ]],
-            submoduleCfg: [],
+            submoduleCfg: []
         ]
     )
 
@@ -176,7 +176,7 @@ def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target,
             ws(ccbConfig)
             {   
                 devMessage("reached mark")
-                checkoutBranch(repository, builtTagOrBranch)
+                checkoutBranch('ssh://admin@datenbunker:/share/GitRepositories/CppCodeBaseJenkinsjob.git', builtTagOrBranch)
                 
                 dir(CHECKOUT_FOLDER)
                 {
