@@ -46,6 +46,7 @@ else if( params.task == 'rebuild' )
     
     addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
 
+    /*
     def usedConfigurations = []
     stage('Get information')
     {
@@ -72,6 +73,7 @@ else if( params.task == 'rebuild' )
             }
         }
     }
+    */
 
     stage('Use information')
     {
