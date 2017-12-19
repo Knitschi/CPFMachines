@@ -130,7 +130,7 @@ def checkoutBranch(repository, branch)
                 [$class: 'RelativeTargetDirectory', 
                     relativeTargetDir: CHECKOUT_FOLDER],
                 [$class: 'SubmoduleOption', 
-                    disableSubmodules: false, 
+                    disableSubmodules: true, 
                     parentCredentials: false, 
                     recursiveSubmodules: false, 
                     reference: '', 
