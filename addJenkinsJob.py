@@ -5,7 +5,7 @@ import os
 import io
 import sys
 
-import CppCodeBaseJenkinsjob_version
+from . import CppCodeBaseJenkinsjob_version
 
 # locations
 _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
