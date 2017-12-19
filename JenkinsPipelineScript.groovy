@@ -25,7 +25,7 @@ def repository = parts[0] + ':' + parts[1] + parts[2]
 stage('Test')
 {
     def parallelNodes = [:]
-    parallelNodes.failFast = true
+    //parallelNodes.failFast = true
 
     def myNode1 = node('Windows-10-0.0.0-0')
         {
