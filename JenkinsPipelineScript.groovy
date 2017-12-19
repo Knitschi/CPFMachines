@@ -43,7 +43,7 @@ else if( params.task == 'rebuild' )
 {
     // Rebuild an existing tag.
     def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
-    addPipelineStage(configurations, params.branchOrTag, params.target)
+    addPipelineStage(configurations, repository, params.branchOrTag, params.target)
     addUpdateWebPageStage(configurations, params.branchOrTag)
 }
 else if( params.task == 'incrementMajor' || params.task == 'incrementMinor' || params.task == 'incrementPatch' )
@@ -142,7 +142,7 @@ def checkoutBranch(repository, branch)
     devMessage("checked out repo")
 }
 
-def addPipelineStage( ccbConfigs, tempBranch, target)
+def addPipelineStage( ccbConfigs, repository, tempBranch, target)
 {
     stage('Build Pipeline')
     {
