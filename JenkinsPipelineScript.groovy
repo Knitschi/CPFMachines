@@ -152,7 +152,7 @@ def addPipelineStage( ccbConfigs, tempBranch, target)
             echo "Build ${config.ConfigName} under label ${nodeLabel}"
 
             def compilerConfig = config?.CompilerConfig
-            devMessage("dereferenced compiler config")
+            devMessage("dereferenced compiler config which is" + compilerConfig )
             def myNode = createBuildNode( nodeLabel, config.ConfigName, compilerConfig, tempBranch, target)
             parallelNodes[nodeLabel] = myNode
             nodeIndex++
