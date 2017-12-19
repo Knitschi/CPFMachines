@@ -69,9 +69,6 @@ class Constants {
     static final HTML_STASH = "html"
 }
 
-def createTempBranch( developer, mainBranch)
-
-
 // Create a temporary branch that contains the the latest revision of the
 // main branch (e.g. master) and merge the revisions into it that were pushed to
 // the developer branch.
