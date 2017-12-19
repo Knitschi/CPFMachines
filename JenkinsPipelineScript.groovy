@@ -25,7 +25,7 @@ def repository = parts[0] + ':' + parts[1] + parts[2]
 stage('Test')
 {
     def parallelNodes = [:]
-    //parallelNodes.failFast = true
+    parallelNodes.failFast = true
 
     def myNode1 = node('Windows-10-0.0.0-0')
         {
@@ -39,7 +39,7 @@ stage('Test')
 
     parallelNodes['Windows-10-0.0.0-0'] = myNode1
 
-    myNode2 = node('Windows-10-0.0.0-1')
+    def myNode2 = node('Windows-10-0.0.0-1')
     {
         // acquiering an extra workspace seems to be necessary to prevent interaction between
         // the parallel run nodes, although node() should already create an own workspace.
