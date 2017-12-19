@@ -94,6 +94,8 @@ def addRepositoryOperationsStage( mainBranch, createTempBranch, developer)
                 // read the CiBuiltConfigurations.json file
                 def fileContent = readFile(file:"${CHECKOUT_FOLDER}/Sources/CIBuildConfigurations.json")
                 def configurations = new JsonSlurper().parseText(fileContent)
+                devMessage(configurations)
+                
                 def usedConfigurations = []
                 if( params.ccbConfiguration != '')
                 {
