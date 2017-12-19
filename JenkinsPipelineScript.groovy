@@ -41,6 +41,8 @@ stage('Test')
             }
         }
 
+    println parallelNodes
+
 
     // run the nodes
     parallel parallelNodes
