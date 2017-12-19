@@ -27,29 +27,19 @@ stage('Test')
     def parallelNodes = [:]
     parallelNodes.failFast = true
 
-    def myNode1 = node('Windows-10-0.0.0-0')
-        {
-            // acquiering an extra workspace seems to be necessary to prevent interaction between
-            // the parallel run nodes, although node() should already create an own workspace.
+    parallelNodes['A'] = node('Windows-10-0.0.0-0'){
             ws('TempWorkspace')
             {   
                 bat 'echo fuck yall 1'
             }
         }
 
-    parallelNodes['A'] = myNode1
-
-    def myNode2 = node('Windows-10-0.0.0-1')
-    {
-        // acquiering an extra workspace seems to be necessary to prevent interaction between
-        // the parallel run nodes, although node() should already create an own workspace.
-        ws('TempWorkspace')
-        {   
-            bat 'echo fuck yall 2'
+    parallelNodes['B'] = node('Windows-10-0.0.0-1'){
+            ws('TempWorkspace')
+            {   
+                bat 'echo fuck yall 2'
+            }
         }
-    }
-
-    parallelNodes['B'] = myNode2
 
 
     // run the nodes
