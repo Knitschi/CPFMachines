@@ -148,7 +148,7 @@ def checkoutBranch(repository, branch)
             // We checkout to a subdirectory so the folders for the test files that lie parallel to the repository are still within the workspace.
             [$class: 'RelativeTargetDirectory', 
                 relativeTargetDir: CHECKOUT_FOLDER],
-            ]
+            ],
     ])
 
     devMessage("checked out repo")
@@ -187,9 +187,6 @@ def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target,
             // the parallel run nodes, although node() should already create an own workspace.
             ws(ccbConfig)
             {   
-                devMessage(repository)
-                devMessage(builtTagOrBranch)
-
                 checkoutBranch(repository, builtTagOrBranch)
                 
                 dir(CHECKOUT_FOLDER)
