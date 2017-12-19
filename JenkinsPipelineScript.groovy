@@ -60,6 +60,7 @@ else if( params.task == 'rebuild' )
         }
     }
 
+    /*
     stage('Use information')
     {
         node('Windows-10-0.0.0-1'){
@@ -70,6 +71,7 @@ else if( params.task == 'rebuild' )
             }
         }
     }
+    */
 
     /*
     addPipelineStage(configurations, repository, params.branchOrTag, params.target)
