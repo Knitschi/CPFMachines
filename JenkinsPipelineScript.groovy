@@ -135,7 +135,7 @@ def checkoutBranch(repository, branch)
                     recursiveSubmodules: false, 
                     reference: '', 
                     trackingSubmodules: false ]],
-            submoduleCfg: []
+            submoduleCfg: [],
         ]
     )
 
