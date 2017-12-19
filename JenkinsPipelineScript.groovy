@@ -117,31 +117,28 @@ def addRepositoryOperationsStage( repository, mainBranch, createTempBranch, deve
 
 def getBuildConfigurations()
 {
-    node('master')
+    dir('WS-CppCodeBase')
     {
-        ws('WS-CppCodeBase')
+        // read the CiBuiltConfigurations.json file
+        def fileContent = readFile(file:"${CHECKOUT_FOLDER}/Sources/CIBuildConfigurations.json")
+        def configurations = new JsonSlurper().parseText(fileContent)
+        def usedConfigurations = []
+        if( params.ccbConfiguration != '')
         {
-            // read the CiBuiltConfigurations.json file
-            def fileContent = readFile(file:"${CHECKOUT_FOLDER}/Sources/CIBuildConfigurations.json")
-            def configurations = new JsonSlurper().parseText(fileContent)
-            def usedConfigurations = []
-            if( params.ccbConfiguration != '')
+            for(config in configurations)
             {
-                for(config in configurations)
+                if(config.ConfigName == params.ccbConfiguration)
                 {
-                    if(config.ConfigName == params.ccbConfiguration)
-                    {
-                        usedConfigurations.add(config)
-                    }
+                    usedConfigurations.add(config)
                 }
             }
-            else
-            {
-                usedConfigurations = configurations
-            }
-
-            return usedConfigurations
         }
+        else
+        {
+            usedConfigurations = configurations
+        }
+
+        return usedConfigurations
     }
 }
 
