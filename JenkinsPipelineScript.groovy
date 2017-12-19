@@ -16,6 +16,10 @@ if( params.target == '')
     params.target = pipeline
 )
 
+// debug
+devMessage(params.buildRepository)
+
+
 if(params.task == 'integration')
 {
     // Build a new commit and merge it into the main branch.
@@ -110,6 +114,27 @@ def addRepositoryOperationsStage( mainBranch, createTempBranch, developer)
             }
         }
     }
+}
+
+def checkoutBranch(branch)
+{
+    checkout([$class: 'GitSCM',
+            userRemoteConfigs: [[url: params.buildRepository]],
+            branches: [[name: branch]],
+            // We checkout to a subdirectory so the folders for the test files that lie parallel to the repository are still within the workspace.
+            extensions: [
+                [$class: 'CleanBeforeCheckout'],
+                [$class: 'RelativeTargetDirectory', 
+                    relativeTargetDir: CHECKOUT_FOLDER],
+                [$class: 'SubmoduleOption', 
+                    diableSubmodules: false, 
+                    parentCredentials: false, 
+                    recursiveSubmodules: true, 
+                    reference: '', 
+                    trackingSubmodules: false ]],
+            submoduleCfg: []
+        ]
+    )
 }
 
 def addPipelineStage( ccbConfigs, tempBranch, target)
@@ -277,27 +302,6 @@ def addCreateReleaseTagStage( incrementTaskType, branch)
     }
 }
 
-def checkoutBranch(branch)
-{
-    checkout([$class: 'GitSCM',
-            userRemoteConfigs: [[url: params.buildRepository]],
-            branches: [[name: branch]],
-            // We checkout to a subdirectory so the folders for the test files that lie parallel to the repository are still within the workspace.
-            extensions: [
-                [$class: 'CleanBeforeCheckout'],
-                [$class: 'RelativeTargetDirectory', 
-                    relativeTargetDir: CHECKOUT_FOLDER],
-                [$class: 'SubmoduleOption', 
-                    diableSubmodules: false, 
-                    parentCredentials: false, 
-                    recursiveSubmodules: true, 
-                    reference: '', 
-                    trackingSubmodules: false ]],
-            submoduleCfg: []
-        ]
-    )
-}
-
 def unstashFiles(String stashName, String toolchain)
 {
     def fullStashName = stashName + toolchain
@@ -368,4 +372,9 @@ def showTree()
     {
         bat 'tree /F /A'
     }
+}
+
+def devMessage(message)
+{
+    println '------------------------ ' + message
 }
