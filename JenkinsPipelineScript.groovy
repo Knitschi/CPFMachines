@@ -121,7 +121,7 @@ def addRepositoryOperationsStage( repository, mainBranch, createTempBranch, deve
 
 def checkoutBranch(repository, branch)
 {
-    /**
+
     checkout([$class: 'GitSCM',
             userRemoteConfigs: [[url: repository]],
             branches: [[name: branch]],
@@ -139,7 +139,8 @@ def checkoutBranch(repository, branch)
             submoduleCfg: []
         ]
     )
-    */
+
+    /*
     deleteDir()
     runCommand("git clone --recursive ${repository} \"${CHECKOUT_FOLDER}\"")
 
@@ -147,6 +148,7 @@ def checkoutBranch(repository, branch)
         runCommand("git checkout ${branch}")
         runCommand("git submodule update")
     }
+    */
 
     devMessage("checked out repo")
 }
@@ -184,15 +186,15 @@ def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target,
             // the parallel run nodes, although node() should already create an own workspace.
             ws(ccbConfig)
             {   
-                // checkoutBranch(repository, builtTagOrBranch)
-                // runCommand('echo fuck yall')
                 try {
                     bat 'echo fuck yall'
                 } catch(err) {
                     println err
                 }
 
-                devMessage("reached mark")
+                devMessage("reached mark " + nodeLabel)
+
+                checkoutBranch(repository, builtTagOrBranch)
 
                 dir(CHECKOUT_FOLDER)
                 {
