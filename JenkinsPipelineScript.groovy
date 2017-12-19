@@ -120,9 +120,7 @@ def checkoutBranch(branch)
     // So we remove it here.
     parts = params.buildRepository.split(':')
     def repo = parts[0] + ':' + parts[1] + parts[2]
-
-    repo = 'ssh://admin@datenbunker/share/GitRepositories/CppCodeBaseJenkinsjob.git'
-
+    
     checkout([$class: 'GitSCM',
             userRemoteConfigs: [[url: repo]],
             branches: [[name: branch]],
