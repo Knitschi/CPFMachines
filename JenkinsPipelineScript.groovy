@@ -44,6 +44,7 @@ else if( params.task == 'rebuild' )
     // Rebuild an existing tag.
     // def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
     
+    addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
 
     stage('Test')
     {
@@ -144,7 +145,7 @@ def addRepositoryOperationsStage( repository, mainBranch, createTempBranch, deve
                     usedConfigurations = configurations
                 }
 
-                return usedConfigurations
+                // return usedConfigurations
             }
         }
     }
