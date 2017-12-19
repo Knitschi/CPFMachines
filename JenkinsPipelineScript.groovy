@@ -16,10 +16,6 @@ if( params.target == '')
     params.target = pipeline
 )
 
-// debug
-devMessage(params.buildRepository)
-
-
 if(params.task == 'integration')
 {
     // Build a new commit and merge it into the main branch.
@@ -94,8 +90,6 @@ def addRepositoryOperationsStage( mainBranch, createTempBranch, developer)
                 // read the CiBuiltConfigurations.json file
                 def fileContent = readFile(file:"${CHECKOUT_FOLDER}/Sources/CIBuildConfigurations.json")
                 def configurations = new JsonSlurper().parseText(fileContent)
-                devMessage(configurations)
-                
                 def usedConfigurations = []
                 if( params.ccbConfiguration != '')
                 {
@@ -154,6 +148,9 @@ def addPipelineStage( ccbConfigs, tempBranch, target)
         for(config in ccbConfigs)
         {
             echo "Create build node " + config
+            devMessage(config.BuildSlaveLabel)
+
+
             def nodeLabel = config.BuildSlaveLabel + '-' + nodeIndex
             echo "Build ${config.ConfigName} under label ${nodeLabel}"
             def myNode = createBuildNode( nodeLabel, config.ConfigName, config.CompilerConfig, tempBranch, target)
