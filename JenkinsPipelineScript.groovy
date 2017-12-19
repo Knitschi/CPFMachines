@@ -186,7 +186,11 @@ def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target,
             {   
                 // checkoutBranch(repository, builtTagOrBranch)
                 // runCommand('echo fuck yall')
-                bat 'echo fuck yall'
+                try {
+                    bat 'echo fuck yall'
+                } catch(err) {
+                    println err
+                }
 
                 dir(CHECKOUT_FOLDER)
                 {
