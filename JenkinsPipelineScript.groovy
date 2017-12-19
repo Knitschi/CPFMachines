@@ -175,8 +175,10 @@ def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target,
             // the parallel run nodes, although node() should already create an own workspace.
             ws(ccbConfig)
             {   
-                devMessage("reached mark")
-                checkoutBranch('ssh://admin@datenbunker:/share/GitRepositories/CppCodeBaseJenkinsjob.git', builtTagOrBranch)
+                devMessage(repository)
+                devMessage(builtTagOrBranch)
+
+                checkoutBranch(repository, builtTagOrBranch)
                 
                 dir(CHECKOUT_FOLDER)
                 {
