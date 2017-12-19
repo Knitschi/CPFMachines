@@ -163,9 +163,10 @@ def addPipelineStage( ccbConfigs, tempBranch, target)
 def createBuildNode( nodeLabel, ccbConfig, builtTagOrBranch, target, compilerConfig)
 {
     return { 
-        devMessage("reached mark " + nodeLabel)
-        node(nodeLabel)
+        devMessage("reached mark pre-node")
+        node('Windows-10-0.0.0-0')
         {
+            devMessage("reached mark post-node")
             // acquiering an extra workspace seems to be necessary to prevent interaction between
             // the parallel run nodes, although node() should already create an own workspace.
             ws(ccbConfig)
