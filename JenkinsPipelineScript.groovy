@@ -24,7 +24,7 @@ def repository = parts[0] + ':' + parts[1] + parts[2]
 
 stage('Test')
 {
-    def myNode = node('MyNode')
+    def myNode = node('Windows-10-0.0.0-0')
         {
             // acquiering an extra workspace seems to be necessary to prevent interaction between
             // the parallel run nodes, although node() should already create an own workspace.
