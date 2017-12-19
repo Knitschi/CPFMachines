@@ -120,8 +120,8 @@ def checkoutBranch(branch)
     echo repo
 
     checkout([$class: 'GitSCM',
-            userRemoteConfigs: [[url: repo]],
-            //userRemoteConfigs: [[url: 'ssh://admin@datenbunker/share/GitRepositories/BuildCppCodeBase']],
+            //userRemoteConfigs: [[url: repo]],
+            userRemoteConfigs: [[url: 'ssh://admin@datenbunker:/share/GitRepositories/BuildCppCodeBase.git']],
             branches: [[name: branch]],
             // We checkout to a subdirectory so the folders for the test files that lie parallel to the repository are still within the workspace.
             extensions: [
