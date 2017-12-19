@@ -152,8 +152,8 @@ def addPipelineStage( ccbConfigs, tempBranch, target)
             echo "Build ${config.ConfigName} under label ${nodeLabel}"
 
             def compilerConfig = config?.CompilerConfig
-            devMessage("dereferenced compiler config which is" + compilerConfig )
-            def myNode = createBuildNode( nodeLabel, config.ConfigName, compilerConfig, tempBranch, target)
+            devMessage("dereferenced compiler config which is " + compilerConfig )
+            def myNode = createBuildNode( nodeLabel, config.ConfigName, tempBranch, target)
             parallelNodes[nodeLabel] = myNode
             nodeIndex++
         }
@@ -163,8 +163,9 @@ def addPipelineStage( ccbConfigs, tempBranch, target)
     }
 }
 
-def createBuildNode( nodeLabel, ccbConfig, compilerConfig, builtTagOrBranch, target)
+def createBuildNode( nodeLabel, ccbConfig, builtTagOrBranch, target)
 {
+    devMessage("run python command")
     return { 
         node(nodeLabel)
         {
@@ -192,7 +193,8 @@ def createBuildNode( nodeLabel, ccbConfig, compilerConfig, builtTagOrBranch, tar
 
                     // build the pipeline target
                     def configOption = ''
-                    if( compilerConfig != '') // The build config option is only needed for multi-config generators.
+                    def compilerConfig = false
+                    if( compilerConfig ) // The build config option is only needed for multi-config generators.
                     {
                         configOption = "--config ${compilerConfig}"
                     }
