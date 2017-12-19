@@ -149,8 +149,6 @@ def checkoutBranch(repository, branch)
         runCommand("git submodule update")
     }
     */
-
-    devMessage("checked out repo")
 }
 
 def addPipelineStage( ccbConfigs, repository, tempBranch, target)
@@ -161,6 +159,7 @@ def addPipelineStage( ccbConfigs, repository, tempBranch, target)
         parallelNodes.failFast = true
         
         // add nodes for building the pipeline
+        /*
         def nodeIndex = 0
         for(config in ccbConfigs)
         {
@@ -171,6 +170,19 @@ def addPipelineStage( ccbConfigs, repository, tempBranch, target)
             parallelNodes[nodeLabel] = myNode
             nodeIndex++
         }
+        */
+        def myNode = node('Windows-10-0.0.0-0')
+            {
+                // acquiering an extra workspace seems to be necessary to prevent interaction between
+                // the parallel run nodes, although node() should already create an own workspace.
+                ws('TempWorkspace')
+                {   
+                    bat 'echo fuck yall'
+                    devMessage("reached mark " + nodeLabel)
+                }
+            }
+
+        parallelNodes['Windows-10-0.0.0-0'] = myNode
 
         // run the nodes
         parallel parallelNodes
