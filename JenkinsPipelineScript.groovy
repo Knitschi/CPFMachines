@@ -55,21 +55,7 @@ else if( params.task == 'rebuild' )
             {   
                 // read the CiBuiltConfigurations.json file
                 def fileContent = readFile(file:"${CHECKOUT_FOLDER}/Sources/CIBuildConfigurations.json")
-                def configurations = new JsonSlurper().parseText(fileContent)
-                if( params.ccbConfiguration != '')
-                {
-                    for(config in configurations)
-                    {
-                        if(config.ConfigName == params.ccbConfiguration)
-                        {
-                            usedConfigurations.add(config)
-                        }
-                    }
-                }
-                else
-                {
-                    usedConfigurations = configurations
-                }
+                usedConfigurations = new JsonSlurper().parseText(fileContent)
             }
         }
     }
