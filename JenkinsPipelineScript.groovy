@@ -21,36 +21,6 @@ if( params.target == '')
 parts = params.buildRepository.split(':')
 def repository = parts[0] + ':' + parts[1] + parts[2]
 
-
-stage('Test')
-{
-    def parallelNodes = [:]
-    parallelNodes.failFast = true
-
-    parallelNodes['A'] = { node('Windows-10-0.0.0-0'){
-            ws('TempWorkspace')
-            {   
-                bat 'echo fuck yall 1'
-            }
-        }
-    }
-
-    parallelNodes['B'] = { node('Windows-10-0.0.0-1'){
-            ws('TempWorkspace')
-            {   
-                bat 'echo fuck yall 2'
-            }
-        }
-    }
-
-    println parallelNodes
-
-
-    // run the nodes
-    parallel parallelNodes
-}
-
-/*
 if(params.task == 'integration')
 {
     // Build a new commit and merge it into the main branch.
@@ -73,8 +43,40 @@ else if( params.task == 'rebuild' )
 {
     // Rebuild an existing tag.
     def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
+    
+
+    stage('Test')
+    {
+        def parallelNodes = [:]
+        parallelNodes.failFast = true
+
+        parallelNodes['Job a'] = { node('Windows-10-0.0.0-0'){
+                ws('TempWorkspace')
+                {   
+                    bat 'echo fuck yall 1'
+                }
+            }
+        }
+
+        parallelNodes['Job b'] = { node('Windows-10-0.0.0-1'){
+                ws('TempWorkspace')
+                {   
+                    bat 'echo fuck yall 2'
+                }
+            }
+        }
+
+        println parallelNodes
+
+
+        // run the nodes
+        parallel parallelNodes
+    }
+
+    /*
     addPipelineStage(configurations, repository, params.branchOrTag, params.target)
     addUpdateWebPageStage(configurations, params.branchOrTag)
+    */
 }
 else if( params.task == 'incrementMajor' || params.task == 'incrementMinor' || params.task == 'incrementPatch' )
 {
@@ -90,7 +92,7 @@ else
 {
     echo "Job parameter \"task\" has invalid value \"${params.task}\"."
 }
-*/
+
 
 //############################### FUNCTION SECTION ################################
 class Constants {
