@@ -119,11 +119,9 @@ def addRepositoryOperationsStage( repository, mainBranch, createTempBranch, deve
     }
 }
 
-def checkoutBranch(repo, bra)
+def checkoutBranch(repository, branch)
 {
-    def branch = 'master'
-    def repository = 'ssh://admin@datenbunker/share/GitRepositories/BuildCppCodeBase.git'
-
+    /**
     checkout([$class: 'GitSCM',
             userRemoteConfigs: [[url: repository]],
             branches: [[name: branch]],
@@ -141,6 +139,11 @@ def checkoutBranch(repo, bra)
             submoduleCfg: []
         ]
     )
+    */
+    checkout([$class: 'GitSCM',
+        userRemoteConfigs: [[url: repository]],
+        branches: [[name: branch]],
+    ])
 
     devMessage("checked out repo")
 }
