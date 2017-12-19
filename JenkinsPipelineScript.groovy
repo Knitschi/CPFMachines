@@ -162,7 +162,6 @@ def addPipelineStage( ccbConfigs, repository, tempBranch, target)
         
         // add nodes for building the pipeline
         def nodeIndex = 0
-        def configs = [ConfigName:Windows, BuildSlaveLabel:Windows-10-0.0.0, CompilerConfig:Release]
         for(config in ccbConfigs)
         {
             echo "Create build node " + config
