@@ -176,7 +176,7 @@ def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target,
             ws(ccbConfig)
             {   
                 devMessage("about to check out")
-                checkoutBranch(repository, builtTagOrBranch)
+                //checkoutBranch(repository, builtTagOrBranch)
 
                 dir(CHECKOUT_FOLDER)
                 {
