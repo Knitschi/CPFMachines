@@ -47,7 +47,7 @@ else if( params.task == 'rebuild' )
     //addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
 
     //def usedConfigurations = []
-    
+    def usedConfigurations
     stage('Get information')
     {
         node('master'){
@@ -55,7 +55,7 @@ else if( params.task == 'rebuild' )
             {   
                 // read the CiBuiltConfigurations.json file
                 def fileContent = readFile(file:"${CHECKOUT_FOLDER}/Sources/CIBuildConfigurations.json")
-                def usedConfigurations = new JsonSlurper().parseText(fileContent)
+                usedConfigurations = new JsonSlurper().parseText(fileContent)
             }
         }
     }
