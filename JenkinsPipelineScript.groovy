@@ -44,11 +44,10 @@ else if( params.task == 'rebuild' )
     // Rebuild an existing tag.
     //def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
     
-    addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
+    //addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
 
     def usedConfigurations = []
     
-    /*
     stage('Get information')
     {
         node('master'){
@@ -74,7 +73,6 @@ else if( params.task == 'rebuild' )
             }
         }
     }
-    */
 
     stage('Use information')
     {
