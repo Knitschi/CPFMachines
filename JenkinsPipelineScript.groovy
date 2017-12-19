@@ -31,7 +31,6 @@ stage('Test')
             ws('TempWorkspace')
             {   
                 bat 'echo fuck yall 1'
-                devMessage("reached mark " + nodeLabel)
             }
         }
 
@@ -44,7 +43,6 @@ stage('Test')
         ws('TempWorkspace')
         {   
             bat 'echo fuck yall 2'
-            devMessage("reached mark " + nodeLabel)
         }
     }
 
