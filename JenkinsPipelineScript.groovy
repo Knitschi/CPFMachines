@@ -37,7 +37,7 @@ stage('Test')
             }
         }
 
-    parallelNodes['Windows-10-0.0.0-0'] = myNode1
+    parallelNodes['A'] = myNode1
 
     def myNode2 = node('Windows-10-0.0.0-1')
     {
@@ -49,7 +49,7 @@ stage('Test')
         }
     }
 
-    parallelNodes['Windows-10-0.0.0-1'] = myNode2
+    parallelNodes['B'] = myNode2
 
 
     // run the nodes
