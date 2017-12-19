@@ -175,7 +175,7 @@ def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target,
             // the parallel run nodes, although node() should already create an own workspace.
             ws(ccbConfig)
             {   
-                //checkoutBranch(repository, builtTagOrBranch)
+                checkoutBranch(repository, builtTagOrBranch)
                 
                 dir(CHECKOUT_FOLDER)
                 {
