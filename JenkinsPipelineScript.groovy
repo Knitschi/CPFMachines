@@ -117,8 +117,8 @@ def addRepositoryOperationsStage( mainBranch, createTempBranch, developer)
 def checkoutBranch(branch)
 {
     checkout([$class: 'GitSCM',
-            //userRemoteConfigs: [[url: params.buildRepository]],
-            userRemoteConfigs: [[url: 'ssh://admin@datenbunker/share/GitRepositories/BuildCppCodeBase']],
+            userRemoteConfigs: [[url: params.buildRepository]],
+            //userRemoteConfigs: [[url: 'ssh://admin@datenbunker/share/GitRepositories/BuildCppCodeBase']],
             branches: [[name: branch]],
             // We checkout to a subdirectory so the folders for the test files that lie parallel to the repository are still within the workspace.
             extensions: [
@@ -169,10 +169,10 @@ def createBuildNode( nodeLabel, ccbConfig, builtTagOrBranch, target, compilerCon
             // the parallel run nodes, although node() should already create an own workspace.
             ws(ccbConfig)
             {   
-                devMessage("reached mark")
-
                 checkoutBranch(builtTagOrBranch)
 
+                devMessage("reached mark")
+                
                 dir(CHECKOUT_FOLDER)
                 {
                     // Make the python scripts available in the root directory
