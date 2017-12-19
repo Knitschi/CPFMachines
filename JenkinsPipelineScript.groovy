@@ -163,7 +163,7 @@ def addPipelineStage( ccbConfigs, tempBranch, target)
 def createBuildNode( nodeLabel, ccbConfig, builtTagOrBranch, target, compilerConfig)
 {
     return { 
-        devMessage("reached mark ")
+        devMessage("reached mark " + nodeLabel)
         node(nodeLabel)
         {
             // acquiering an extra workspace seems to be necessary to prevent interaction between
