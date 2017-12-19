@@ -119,7 +119,7 @@ def addRepositoryOperationsStage( repository, mainBranch, createTempBranch, deve
     }
 }
 
-def checkoutBranch(repository, branch)
+def checkoutBranch(repo, bra)
 {
     def branch = 'master'
     def repository = 'ssh://admin@datenbunker/share/GitRepositories/BuildCppCodeBase.git'
