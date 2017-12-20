@@ -15,6 +15,7 @@ import json
 import pprint
 
 import addJenkinsJob
+import setup_docker_container_with_ccb_jobs
 
 _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -46,7 +47,7 @@ def main():
             '@JENKINS_URL@' : jenkins_url,
             '@JENKINS_USER@' : jenkins_user,
             '@JENKINS_PASSWORD@' : jenkins_password,
-            '@JENKINS_JOB_NAME@' : addJenkinsJob.get_job_name(jenkins_job_base_name),
+            '@JENKINS_JOB_NAME@' : setup_docker_container_with_ccb_jobs.get_job_name(jenkins_job_base_name),
             '@CCB_PACKAGE@' : package
         }
         temp_script = _SCRIPT_DIR + '/post-receive_' + package
