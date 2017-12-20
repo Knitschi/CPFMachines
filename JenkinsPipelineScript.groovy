@@ -134,7 +134,7 @@ def getBuildConfigurations()
 {
     // read the CiBuiltConfigurations.json file
     def fileContent = readFile(file:"${CHECKOUT_FOLDER}/Sources/CIBuildConfigurations.json")
-    def configurations = new JsonSlurper().parseText(fileContent)
+    def configurations = new JsonSlurperClassic().parseText(fileContent)
     def usedConfigurations = []
     if( params.ccbConfiguration != '')
     {
