@@ -60,6 +60,7 @@ else if( params.task == 'rebuild' )
         }
     }
 
+
     /*
     stage('Use information')
     {
