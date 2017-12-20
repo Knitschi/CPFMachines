@@ -43,22 +43,8 @@ else if( params.task == 'rebuild' )
 {
     // Rebuild an existing tag.
     def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
-    
-    stage('Use information')
-    {
-        node('Windows-10-0.0.0-1'){
-            ws('TempWorkspace')
-            {   
-                bat 'echo fuck yall 1'
-                //println usedConfigurations
-            }
-        }
-    }
-
-    /*
     addPipelineStage(configurations, repository, params.branchOrTag, params.target)
     addUpdateWebPageStage(configurations, params.branchOrTag)
-    */
 }
 else if( params.task == 'incrementMajor' || params.task == 'incrementMinor' || params.task == 'incrementPatch' )
 {
@@ -205,7 +191,7 @@ def addPipelineStage( ccbConfigs, repository, tempBranch, target)
             def nodeLabel = config.BuildSlaveLabel + '-' + nodeIndex
             echo "Build ${config.ConfigName} under label ${nodeLabel}"
             def myNode = createBuildNode( nodeLabel, config.ConfigName, repository, tempBranch, target, config?.CompilerConfig)
-            parallelNodes[nodeLabel] = myNode
+            parallelNodes[config.ConfigName] = myNode
             nodeIndex++
         }
 
@@ -219,10 +205,8 @@ def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target,
     return { 
         node(nodeLabel)
         {
-            /*
             ws(ccbConfig)
             {   
-
                 checkoutBranch(repository, builtTagOrBranch)
 
                 dir(CHECKOUT_FOLDER)
@@ -257,7 +241,6 @@ def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target,
                     echo "----- The pipeline finished successfully for configuration ${ccbConfig}. -----"
                 }
             }
-            */
         }
     }
 }
