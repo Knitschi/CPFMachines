@@ -23,7 +23,7 @@ import os
 import json
 import shutil
 
-from ..CppCodeBaseMachines import setupdDockerContainer
+from ..CppCodeBaseMachines import setupDockerContainer
 
 from . import CppCodeBaseJenkinsjob_version
 
