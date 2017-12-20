@@ -42,26 +42,8 @@ if(params.task == 'integration')
 else if( params.task == 'rebuild' ) 
 {
     // Rebuild an existing tag.
-    //def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
+    def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
     
-    //addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
-
-    //def usedConfigurations = []
-    def usedConfigurations
-    stage('Get information')
-    {
-        node('master'){
-            ws('WS-CppCodeBase')
-            {   
-                // read the CiBuiltConfigurations.json file
-                def fileContent = readFile(file:"${CHECKOUT_FOLDER}/Sources/CIBuildConfigurations.json")
-                usedConfigurations = new JsonSlurperClassic().parseText(fileContent)
-            }
-        }
-    }
-
-
-    /*
     stage('Use information')
     {
         node('Windows-10-0.0.0-1'){
@@ -72,7 +54,6 @@ else if( params.task == 'rebuild' )
             }
         }
     }
-    */
 
     /*
     addPipelineStage(configurations, repository, params.branchOrTag, params.target)
@@ -111,6 +92,8 @@ class Constants {
 // the developer branch.
 def addRepositoryOperationsStage( repository, mainBranch, createTempBranch, developer)
 {
+    def usedConfigurations = []
+
     stage('Create Tmp Branch')
     {
         node('master')
@@ -125,9 +108,30 @@ def addRepositoryOperationsStage( repository, mainBranch, createTempBranch, deve
                     echo 'Create temporary build branch'
                     sh "cmake -DDEVELOPER=${developer} -DMAIN_BRANCH=${mainBranch} -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPPCODEBASECMAKE_DIR}/Scripts/prepareTmpBranch.cmake\""
                 }
+
+                // read the CiBuiltConfigurations.json file
+                def fileContent = readFile(file:"${CHECKOUT_FOLDER}/Sources/CIBuildConfigurations.json")
+                def configurations = new JsonSlurperClassic().parseText(fileContent)
+                
+                if( params.ccbConfiguration != '')
+                {
+                    for(config in configurations)
+                    {
+                        if(config.ConfigName == params.ccbConfiguration)
+                        {
+                            usedConfigurations.add(config)
+                        }
+                    }
+                }
+                else
+                {
+                    usedConfigurations = configurations
+                }
             }
         }
     }
+
+    return usedConfigurations
 }
 
 def getBuildConfigurations()
