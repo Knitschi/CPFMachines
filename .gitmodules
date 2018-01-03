@@ -1,3 +1,4 @@
 [submodule "DockerImages/DockerfileJenkinsBase"]
 	path = DockerImages/DockerfileJenkinsBase
 	url = https://github.com/jenkinsci/docker.git
+    branch = master

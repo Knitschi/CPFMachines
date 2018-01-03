@@ -1,11 +1,11 @@
-
 import sys
 import json
-import io
 import collections
 
 def main():
-    
+    """
+    Entry point of the script.
+    """
     # create an empty dictionary with all possible config values.
 
     configDict = {
@@ -23,15 +23,14 @@ def main():
         'JenkinsAdminUser' : '',                    # The name of an initial jenkins user with administrative rights.
         'JenkinsAdminUserPassword' : '',            # An optionally provided password for the JenkinsAdminUserName. If none is provided, you will be prompted to enter one during script execution.
         'JenkinsAccountConfigFiles' : {},           # A map with user names as keys and the location of their config.xml account configuration files, relative to the generated config file.
-        'JenkinsJobsConfigFiles' : {}               # A map with jenkins job names as keys and the location of their config.xml job configuration files, relative to the generated config file.
+        'JenkinsJobConfigFiles' : {}               # A map with jenkins job names as keys and the location of their config.xml job configuration files, relative to the generated config file.
     }
-    configValues = collections.OrderedDict(sorted(configDict.items(), key=lambda t: t[0]))
+    config_values = collections.OrderedDict(sorted(configDict.items(), key=lambda t: t[0]))
 
-    configFile = 'EmptyConfig.json'
-    with open(configFile, 'w') as file:
-        json.dump(configValues, file, indent=2)
+    config_file = 'EmptyConfig.json'
+    with open(config_file, 'w') as file:
+        json.dump(config_values, file, indent=2)
 
 
 if __name__ == '__main__':
     sys.exit(main())
-
