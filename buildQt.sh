@@ -5,12 +5,13 @@ set -e
 
 echo -------------- Build Qt base ---------------
 
-VERSION=5.5.1
+VERSION=5.9.1
+VERSION_SHORT=5.9
 PACKAGE_NAME=qtbase-opensource-src-$VERSION
 
 
 # Install dependencies
-apt-get install -y \
+apt-get update && apt-get install -y \
 wget \
 libgl1-mesa-dev \
 libfontconfig1-dev \
@@ -35,16 +36,16 @@ libxcb-render-util0-dev
 
 
 # get source package
-wget http://download.qt.io/archive/qt/5.5/5.5.1/submodules/$PACKAGE_NAME.tar.gz
-gunzip $PACKAGE_NAME.tar.gz    # uncompress the archive
-tar xf $PACKAGE_NAME.tar       # unpack it
+wget http://download.qt.io/archive/qt/$VERSION_SHORT/$VERSION/submodules/$PACKAGE_NAME.tar.xz
+tar xf $PACKAGE_NAME.tar.xz    # uncompress the archive
+#tar xf $PACKAGE_NAME.tar       # unpack it
 
 # build and install doxygen
 cd $PACKAGE_NAME
 
 # compile and install release version
-./configure -prefix /usr/local/Qt-5.5.1/release -release -opensource -confirm-license -c++11 -no-qml-debug -nomake examples -nomake tests 
-make -j4
+./configure -prefix /usr/local/Qt-$VERSION/release -release -opensource -confirm-license -c++std c++11 -no-qml-debug -nomake examples -nomake tests -qt-xcb
+make -j$(nproc)
 make install
 
 # compile and install debug version
@@ -52,11 +53,14 @@ make install
 # clean the build dir
 cd ..
 rm -rf $PACKAGE_NAME
-tar xf $PACKAGE_NAME.tar
+tar xf $PACKAGE_NAME.tar.xz
 cd $PACKAGE_NAME
 
-./configure -prefix /usr/local/Qt-5.5.1/debug -debug -opensource -confirm-license -c++11 -no-qml-debug -nomake examples -nomake tests
-make -j4
+./configure -prefix /usr/local/Qt-$VERSION/debug -debug -opensource -confirm-license -c++std c++11 -no-qml-debug -nomake examples -nomake tests -qt-xcb
+make -j$(nproc) 
 make install
 
 cd ..
+
+rm -rf $PACKAGE_NAME
+rm $PACKAGE_NAME.tar.xz
