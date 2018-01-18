@@ -19,7 +19,7 @@ import getpass
 import time
 import requests
 
-import CppCodeBaseMachines_version
+from . import cppcodebasemachines_version
 
 _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -333,8 +333,8 @@ def _build_and_start_jenkins_master(config_values):
     jenkins_base_image = 'jenkins-image-' + _JENKINS_VERSION
     _build_docker_image(
         jenkins_base_image,
-        _SCRIPT_DIR + '/DockerfileJenkinsBase/Dockerfile',
-        _SCRIPT_DIR + '/DockerfileJenkinsBase',
+        _SCRIPT_DIR + '/../JenkinsciDocker/Dockerfile',
+        _SCRIPT_DIR + '/../JenkinsciDocker',
         ['JENKINS_VERSION=' + _JENKINS_VERSION, 'JENKINS_SHA=' + _JENKINS_SHA256])
 
     # Create the container image
@@ -673,8 +673,14 @@ def _configure_jenkins_master(config_values, config_file, jenkins_admin_password
         _start_docker_container(_JENINS_MASTER_CONTAINER)
         _wait_for_jenkins_master_to_come_online(config_values, jenkins_admin_password)
 
-        _approve_node_start_scripts(config_values, jenkins_admin_password, slaveStartCommands)
+        # Approve system commands
+        system_commands = config_values['JenkinsApprovedSystemCommands']
+        system_commands.extend(slaveStartCommands)
+        _approve_jenkins_system_commands(config_values, jenkins_admin_password, system_commands)
 
+        # Approve script signatures
+        script_signatures = config_values['JenkinsApprovedScriptSignatures']
+        _approve_jenkins_script_signatures(config_values, jenkins_admin_password, script_signatures)
 
     else:
         print(
@@ -806,7 +812,7 @@ def _get_slave_labels_string(base_label_name, max_index):
     for i in range(max_index + 1):
         # The version must be in the label, to make sure that we can change
         # the nodes and still build old versions of a package no the old nodes.
-        labels.append(base_label_name + '-' + CppCodeBaseMachines_version.CPPCODEBASEMACHINES_VERSION + '-' + str(i))
+        labels.append(base_label_name + '-' + cppcodebasemachines_version.CPPCODEBASEMACHINES_VERSION + '-' + str(i))
     return ' '.join(labels)
 
 
@@ -838,17 +844,18 @@ def _configure_node_config_file(
     })
 
 
-def _approve_node_start_scripts(config_values, jenkins_admin_password, slave_start_commands):
+def _approve_jenkins_system_commands(config_values, jenkins_admin_password, commands):
     """
-    Approve the start scripts of all slave nodes.
+    Approve system commands that are required by the jenkins configuration.
     """
-    print("----- Approve the slave node start scripts")
+    print("----- Approve system-commands")
+    pprint.pprint(commands)
 
     jenkins_user = config_values['JenkinsAdminUser']
     jenkins_crumb = _get_jenkins_crumb(jenkins_user, jenkins_admin_password)
 
-    for start_command in slave_start_commands:
-        _approve_jenkins_script(jenkins_user, jenkins_admin_password, jenkins_crumb, start_command)
+    for command in commands:
+        _approve_jenkins_system_command(jenkins_user, jenkins_admin_password, jenkins_crumb, command)
 
 
 def _get_jenkins_crumb(jenkins_user, jenkins_password):
@@ -859,23 +866,58 @@ def _get_jenkins_crumb(jenkins_user, jenkins_password):
     return request.text
 
 
-def _approve_jenkins_script(jenkins_user, jenkins_password, jenkins_crumb, approved_script_text):
+def _approve_jenkins_system_command(jenkins_user, jenkins_password, jenkins_crumb, approved_script_text):
     """
-    Runs a groovy script over the jenkins groovy console, that approves the commands
-    that are used to start the slaves.
+    Runs a groovy script over the jenkins groovy console, that approves system-command
+    scipts.
+    """
+
+    groovy_script = (
+        "def scriptApproval = Jenkins.instance.getExtensionList('org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval')[0];" +
+        "scriptApproval.approveScript(scriptApproval.hash('{0}', 'system-command'))"
+        ).format(approved_script_text)
+    _run_jenkins_groovy_script(jenkins_user, jenkins_password, jenkins_crumb, groovy_script)
+
+
+def _run_jenkins_groovy_script(jenkins_user, jenkins_password, jenkins_crumb, script):
+    """
+    Runs the given script in the jenkins script console.
     """
     url = 'http://localhost:8080/scriptText'
     auth = (jenkins_user, jenkins_password)
     crumb_parts = jenkins_crumb.split(':')
     crumb_header = {crumb_parts[0] : crumb_parts[1]}
-    groovy_script = (
-        "def scriptApproval = Jenkins.instance.getExtensionList('org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval')[0];" +
-        "scriptApproval.approveScript(scriptApproval.hash('{0}', 'system-command'))"
-        ).format(approved_script_text)
-    script_data = {'script' : groovy_script}
+    script_data = {'script' : script}
 
     response = requests.post(url, auth=auth, headers=crumb_header, data=script_data)
     response.raise_for_status()
+
+
+def _approve_jenkins_script_signatures(config_values, jenkins_admin_password, script_signatures):
+    """
+    Approve script signatures that are required by the pipeline scripts.
+    """
+    print("----- Approve script signatures")
+    pprint.pprint(script_signatures)
+
+    jenkins_user = config_values['JenkinsAdminUser']
+    jenkins_crumb = _get_jenkins_crumb(jenkins_user, jenkins_admin_password)
+
+    for script_signature in script_signatures:
+        _approve_jenkins_script_signature(jenkins_user, jenkins_admin_password, jenkins_crumb, script_signature)
+
+
+def _approve_jenkins_script_signature(jenkins_user, jenkins_password, jenkins_crumb, approved_script_text):
+    """
+    Runs a groovy script over the jenkins groovy console, that approves the commands
+    that are used to start the slaves.
+    """
+    groovy_script = (
+        "def signature = '{0}';" +
+        "org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval.get().approveSignature(signature)"
+    ).format(approved_script_text)
+    _run_jenkins_groovy_script(jenkins_user, jenkins_password, jenkins_crumb, groovy_script)
+
 
 
 if __name__ == '__main__':
