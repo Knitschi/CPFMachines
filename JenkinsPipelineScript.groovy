@@ -337,10 +337,10 @@ def unstashFiles(String stashName, String toolchain)
 def runPythonCommand(command)
 {
     def pythonCmd = getPythonCommand()
-    runCommand(os, pythonCmd + ' ' + command)
+    runCommand(pythonCmd + ' ' + command)
 }
 
-def getPythonCommand(os)
+def getPythonCommand()
 {
     pythonVersion = sh(returnStdout: true, script: 'python --version').trim()
     def pythonCmd = 'python'
