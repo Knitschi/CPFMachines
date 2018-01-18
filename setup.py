@@ -73,6 +73,7 @@ def main(config_file):
     approved_script_signatures = [
         'new groovy.json.JsonSlurperClassic',
         'method groovy.json.JsonSlurperClassic parseText java.lang.String',
+        'staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods matches java.lang.String java.util.regex.Pattern'
     ]
     config_values['JenkinsApprovedScriptSignatures'].extend(approved_script_signatures)
     
