@@ -22,19 +22,27 @@ import sys
 import os
 import json
 import shutil
+import pprint
+import io
 
-from ..CppCodeBaseMachines import setupDockerContainer
+from ..CppCodeBaseMachines import setup
 
-from . import CppCodeBaseJenkinsjob_version
+from . import cppcodebasejenkinsjob_version
 
 _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+
+
 
 # The address of the official CppCodeBaseJenkinsjob repository.
 # Is it good enough to have this hardcoded here?
 _JENKINSJOB_REPOSITORY = 'ssh://admin@datenbunker/share/GitRepositories/CppCodeBaseJenkinsjob.git'
+_TEMPLATE_FILE = _SCRIPT_DIR + '/config.xml.in'
 
 
 def main(config_file):
+
+    if not os.path.isabs(config_file):
+        config_file = os.getcwd() + '/' + config_file
 
     # read .json config file
     config_values = _readconfig_file(config_file)
@@ -46,13 +54,15 @@ def main(config_file):
     ccb_jobs_dict = config_values['CppCodeBaseJobs']
     temp_dir = 'temp'
     abs_temp_dir = config_file_dir + '/' + temp_dir
-    os.makedirs(abs_temp_dir)
+    if not os.path.exists(abs_temp_dir):
+        os.makedirs(abs_temp_dir)
     job_dict = {}
     for job_base_name, build_repository in ccb_jobs_dict.items():
+        job_name = get_job_name(job_base_name)
         xml_file = job_name + '.xml'
         xml_file_path = temp_dir + '/' + xml_file
         abs_xml_file_path = abs_temp_dir + '/' + xml_file
-        job_dict[get_job_name(job_base_name)] = xml_file_path
+        job_dict[job_name] = xml_file_path
         configure_job_config_file(abs_xml_file_path, job_name, build_repository, _JENKINSJOB_REPOSITORY)
 
     # Extend the config values with the generated jobs.
@@ -60,18 +70,18 @@ def main(config_file):
 
     # Extend the config values with the scripts that need to
     # be approved to run the jenkinsfile.
-    approved_scripts = [
-        "new groovy.json.JsonSlurperClassic",
-        "method groovy.json.JsonSlurperClassic parseText java.lang.String"
+    approved_script_signatures = [
+        'new groovy.json.JsonSlurperClassic',
+        'method groovy.json.JsonSlurperClassic parseText java.lang.String',
     ]
-    config_values['JenkinsApprovedScripts'].extend(approved_scripts)
+    config_values['JenkinsApprovedScriptSignatures'].extend(approved_script_signatures)
     
     # Write extended config to a temporary config file for the setup script from CppCodeBaseMachines.
     with open(abs_temp_config_file, 'w') as outfile:
         json.dump(config_values, outfile)
 
     # run the setup script from CppCodeBaseMachines
-    CppCodeBaseMachines.main(temp_config_file)
+    setup.main(temp_config_file)
 
     # clean up the temporary files
     shutil.rmtree(abs_temp_dir)
@@ -82,7 +92,7 @@ def get_job_name(job_base_name):
     """
     Add the version to the base name.
     """
-    return job_base_name + '-' + CppCodeBaseJenkinsjob_version.PACKAGE_VERSION
+    return job_base_name + '-' + cppcodebasejenkinsjob_version.PACKAGE_VERSION
 
 
 def configure_job_config_file(xml_file_path, job_name, build_repository_address, jenkinsjob_repository_address):

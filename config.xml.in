@@ -86,17 +86,17 @@ target:                   The target you are interested in or a fast to build ta
           <name>branchOrTag</name>
           <description>Determines the git reference that will be build. This can be a branch or a tag.
 Examples:
-Branch: origin/Knitschi-int-master
+Branch: origin/Hans-int-master
 Tag: 0.1.3
 </description>
-          <defaultValue>origin/Knitschi-int-master</defaultValue>
+          <defaultValue>origin/master</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>task</name>
           <description>Determines the operation that the job will do (see job description). 
 Possible values are: integration, rebuild, incrementMajor, incrementMinor, incrementPatch
 </description>
-          <defaultValue>integration</defaultValue>
+          <defaultValue>rebuild</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>package</name>

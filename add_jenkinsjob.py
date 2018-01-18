@@ -9,7 +9,6 @@ from . import setup_docker_container_with_ccb_jobs
 
 # locations
 _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-_TEMPLATE_FILE = _SCRIPT_DIR + '/config.xml.in'
 
 
 def add_cppcodebase_job(job_base_name, jenkins_directory, build_repository_address, jenkinsjob_repository_address ):
