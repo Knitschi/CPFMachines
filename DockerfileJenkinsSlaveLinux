@@ -3,7 +3,7 @@
 # 
 # It is a debian container that has the necessary tools installed to execute the CppCodeBase build-pipeline.
 
-FROM debian:8.9
+FROM debian:9.3
 
 
 # ----------------------- ADD USER JENKINS -------------------------------
@@ -33,13 +33,14 @@ xvfb \
 graphviz \
 valgrind \
 ninja-build \
-abi-compliance-checker
+abi-compliance-checker \
+doxygen
 
 
 # ------------------- CLANG TOOLS ---------------------
 COPY installClangTools.sh installClangTools.sh
-RUN /bin/bash installClangTools.sh
-    
+RUN /bin/bash installClangTools.sh 
+
     
 # ------------------- GCC --------------------
 COPY installGcc.sh installGcc.sh
@@ -108,10 +109,12 @@ RUN chown -R jenkins:jenkins /home/jenkins/bin
   
 # ----------------- JAVA ----------------------
 # Install JDK 8 (latest edition) 
-RUN echo "deb http://debian.netcologne.de/debian jessie-backports main" | tee --append /etc/apt/sources.list &&\
-      apt-get update &&\
-      apt-get install -y -t jessie-backports openjdk-8-jdk
-  
+#RUN echo "deb http://debian.netcologne.de/debian jessie-backports main" | tee --append /etc/apt/sources.list &&\
+#      apt-get update &&\
+#      apt-get install -y -t jessie-backports openjdk-8-jdk
+
+RUN apt-get update &&\
+    apt-get install -y openjdk-8-jdk
     
 # Run the sshd server as command to keep the container alive.
 CMD ["/usr/sbin/sshd", "-D"]

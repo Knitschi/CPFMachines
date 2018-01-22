@@ -29,7 +29,7 @@ cd $BUILD_DIR
 
 make configure
 ./configure --prefix=/usr
-make all -j4
+make all -j$(nproc)
 make install
 
 # clean the build dir

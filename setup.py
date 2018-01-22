@@ -261,7 +261,7 @@ def _run_command(command, print_output=False, print_command=False, ignore_return
     while process.poll() is None:
         for line in lines_iterator:
             nline = line.rstrip()
-            line_string = nline.decode("utf-8")
+            line_string = nline.decode("ISO-8859-1")
             output += line_string + "\r\n"
             if print_output:
                 print(line_string, end="\r\n", flush=True) # yield line
@@ -605,7 +605,7 @@ def _grant_jenkins_master_ssh_access_to_jenkins_windows_slave(config_values, jen
         jenkins_slave_machine_windows_password,
     )
     try:
-        _run_command(call_script_command)
+        _run_command(call_script_command, print_command=True, print_output=True)
     except Exception as err:
         print(
             "Error: Updating the authorized ssh keys on "

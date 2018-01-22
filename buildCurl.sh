@@ -17,7 +17,7 @@ tar xf curl-$CURL_VERSION.tar       # unpack it
 # build and install doxygen
 cd curl-$CURL_VERSION
 ./configure --with-ssl
-make -j4
+make -j$(nproc)
 make install
 cd ..
 # rm -r curl-$CURL_VERSION

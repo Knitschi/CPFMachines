@@ -24,7 +24,7 @@ git checkout v3.10.0
 
 # hunter needs the --system-curl option to enable downloading with https.
 ./bootstrap --system-curl
-make -j4 # could I use $(nproc) instead of the fixed 4?
+make -j$(nproc)
 make install
 cd ..
 rm -r $CMAKE_BUILD_DIR

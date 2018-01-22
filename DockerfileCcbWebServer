@@ -7,7 +7,7 @@
 # The information is provided by external sources over the shared mounted volume /var/www/html
 # Refer to the CppCodeBase documentation on how to start the container.
 
-FROM debian:8.9
+FROM debian:9.3
 
 # INSTALL PACKAGES
 RUN apt-get -y update && apt-get install -y \
