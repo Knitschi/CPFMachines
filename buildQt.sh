@@ -32,7 +32,8 @@ libxcb-sync0-dev \
 libxcb-xfixes0-dev \
 libxcb-shape0-dev \
 libxcb-randr0-dev \
-libxcb-render-util0-dev
+libxcb-render-util0-dev \
+libssl1.0-dev # qt 5.9 requries libssl1.0. vor later qt-versions the the newer default version libssl1.1 may work.
 
 
 # get source package
