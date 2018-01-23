@@ -19,7 +19,7 @@ import getpass
 import time
 import requests
 
-import cppcodebasemachines_version
+from . import cppcodebasemachines_version
 
 _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -323,11 +323,11 @@ def _guarantee_directory_exists(directory):
 
 
 def _create_docker_network(network):
-    _run_command('docker network create --subnet=172.19.0.0/16 ' + network)
+    _run_command('docker network create --driver bridge --subnet=172.19.0.0/16 ' + network)
 
 
 def _build_and_start_jenkins_master(config_values):
-    print("----- Build and start the docker MASTER container " + _JENINS_MASTER_CONTAINER)
+    print("----- Build and startping  the docker MASTER container " + _JENINS_MASTER_CONTAINER)
 
     # Create the jenkins base image. This is required to customize the jenkins version.
     jenkins_base_image = 'jenkins-image-' + _JENKINS_VERSION
@@ -370,9 +370,9 @@ def _build_and_start_jenkins_master(config_values):
         '--name ' + _JENINS_MASTER_CONTAINER + ' '
         '--net ' + _DOCKER_NETWORK_NAME + ' '
         '--ip ' + _JENINS_MASTER_CONTAINERIP + ' '
-        + container_image
+        + container_image 
     )
-    _run_command(command, print_output=True)
+    _run_command(command, print_command=True)
 
     # add global gitconfig after mounting the workspace volume, otherwise is gets deleted.
     _run_command_in_container(
@@ -420,7 +420,7 @@ def _build_and_start_web_server(config_values):
         '--ip ' + _WEBSERVER_CONTAINERIP + ' '
         + container_image
     )
-    _run_command(command, print_output=True)
+    _run_command(command, print_command=True)
 
     # copy the doxyserach.cgi to the html share
     _run_command_in_container(
@@ -458,7 +458,7 @@ def _build_and_start_jenkins_linux_slave():
         '--ip ' + _JENKINS_LINUX_SLAVE_CONTAINER_IP + ' '
         + container_image
     )
-    _run_command(command, print_output=True)
+    _run_command(command, print_command=True)
 
 
 def _create_rsa_key_file_pair_on_container(container_name, container_home_directory):
@@ -510,7 +510,7 @@ def _grant_container_ssh_access_to_repository(container_name, container_home_dir
 
     # Then copy it to the repository machine
     _run_command((
-        'scp {}/{} {}@{}.local:{}'
+        'scp {}/{} {}@{}:{}'
         ).format(
             temp_dir_host,
             public_key_file,
