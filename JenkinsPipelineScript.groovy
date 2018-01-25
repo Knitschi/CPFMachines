@@ -288,6 +288,7 @@ def addUpdateWebPageStage(repository, ccbConfigs, branchOrTag)
                 sh "cmake -E remove_directory \"${serverHtmlDir}\""
                 sh "mkdir \"${serverHtmlDir}\""
                 sh "cmake -E remove_directory \"${tempHtmlDir}\""
+                sh "mkdir \"${tempHtmlDir}\""
             
                 // collect all produced html content from the build-slaves
                 for(ccbConfig in ccbConfigs)
