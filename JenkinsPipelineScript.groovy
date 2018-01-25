@@ -96,23 +96,7 @@ def addRepositoryOperationsStage( repository, mainBranch, createTempBranch, deve
                 }
 
                 // read the CiBuiltConfigurations.json file
-                def fileContent = readFile(file:"${CHECKOUT_FOLDER}/Sources/CIBuildConfigurations.json")
-                def configurations = new JsonSlurperClassic().parseText(fileContent)
-                
-                if( params.ccbConfiguration != '')
-                {
-                    for(config in configurations)
-                    {
-                        if(config.ConfigName == params.ccbConfiguration)
-                        {
-                            usedConfigurations.add(config)
-                        }
-                    }
-                }
-                else
-                {
-                    usedConfigurations = configurations
-                }
+                return getBuildConfigurations()
             }
         }
     }
@@ -135,6 +119,7 @@ def getBuildConfigurations()
                 usedConfigurations.add(config)
             }
         }
+        assertConfigurationExists(configurations, params.ccbConfiguration)
     }
     else
     {
@@ -142,6 +127,17 @@ def getBuildConfigurations()
     }
 
     return usedConfigurations
+}
+
+def assertConfigurationExists(configurations, requestedConfig)
+{
+    if(!configurations.includes(requestedConfig))
+    {
+        echo "Requested configuration ${requestedConfig} is not contained in the CIBuildConfigurations.json file."
+        def configurationsString = configurations.join(', ')
+        echo "Available configurations are ${configurationsString}"
+        System.exit(0)
+    }
 }
 
 def checkoutBranch(repository, branch)
@@ -336,6 +332,8 @@ def addCreateReleaseTagStage(repository, incrementTaskType, branch)
 
                 // execute the cmake script that does the git operations
                 sh "cmake -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -DBRANCH=${branch} -DDIGIT_OPTION=${incrementTaskType} -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPPCODEBASECMAKE_DIR}/Scripts/incrementVersionNumber.cmake\""
+            
+                return getBuildConfigurations()
             }
         }
     }
