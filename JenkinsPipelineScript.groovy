@@ -131,7 +131,7 @@ def getBuildConfigurations()
 
 def assertConfigurationExists(configurations, requestedConfig)
 {
-    if(!configurations.includes(requestedConfig))
+    if(!configurations.contains(requestedConfig))
     {
         echo "Requested configuration ${requestedConfig} is not contained in the CIBuildConfigurations.json file."
         def configurationsString = configurations.join(', ')
