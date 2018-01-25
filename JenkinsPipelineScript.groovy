@@ -319,7 +319,7 @@ def getRepositoryName(repository)
     echo lastPart
     // remove the possible .git ending
     def name = lastPart.split('.')
-    echo name
+    echo name.join(";")
     return name
 }
 
