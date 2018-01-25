@@ -84,7 +84,7 @@ def addRepositoryOperationsStage( repository, mainBranch, createTempBranch, deve
     {
         node('master')
         {
-            ws('WS-CppCodeBase')
+            ws(getRepositoryName(repository))
             {
                 checkoutBranch(repository, params.branchOrTag)
 
@@ -205,8 +205,11 @@ def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target,
     return { 
         node(nodeLabel)
         {
-            ws(ccbConfig)
-            {   
+            // get the main name of repository
+
+            
+            ws("${getRepositoryName(repository)}-${ccbConfig}") 
+            { 
                 checkoutBranch(repository, builtTagOrBranch)
 
                 dir(CHECKOUT_FOLDER)
@@ -251,7 +254,7 @@ def addUpdateMainBranchStage( repository, developer, mainBranch, tempBranch)
     {
         node('Debian-8.9')
         {
-            ws('WS-CppCodeBase')
+            ws(getRepositoryName(repository))
             {
                 checkoutBranch(repository, tempBranch)
                 dir(CHECKOUT_FOLDER)
@@ -274,7 +277,7 @@ def addUpdateWebPageStage(repository, ccbConfigs, branchOrTag)
     {
         node('master')
         {
-            ws('WS-CppCodeBase')
+            ws(getRepositoryName(repository))
             {
                 checkoutBranch(repository, branchOrTag) // get the scripts
 
@@ -308,6 +311,13 @@ def addUpdateWebPageStage(repository, ccbConfigs, branchOrTag)
             }
         }
     }
+}
+
+def getRepositoryName(repository)
+{
+    lastPart = repository.split('/').last()
+    // remove the possible .git ending
+    return lastPart.split('.').first()
 }
 
 def addCreateReleaseTagStage(repository, incrementTaskType, branch)
