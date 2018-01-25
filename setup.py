@@ -542,7 +542,7 @@ def _grant_container_ssh_access_to_repository(container_name, container_home_dir
     # connect
     _run_command_in_container(
         container_name,
-        '/bin/bash '+ container_home_directory +'/' + _ADDKNOWNHOST_SCRIPT + ' '+repository_machine,
+        '/bin/bash '+ container_home_directory +'/' + _ADDKNOWNHOST_SCRIPT + ' ' + repository_machine,
         'jenkins')
 
 
