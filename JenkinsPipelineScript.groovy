@@ -37,14 +37,14 @@ if(params.task == 'integration')
     def configurations = addRepositoryOperationsStage(repository, mainBranch, true, developer)
     addPipelineStage(configurations, tempBranch, params.target)
     addUpdateMainBranchStage( developer, mainBranch, tempBranch)
-    addUpdateWebPageStage(configurations, params.branchOrTag)
+    addUpdateWebPageStage(repository, configurations, params.branchOrTag)
 }
 else if( params.task == 'rebuild' ) 
 {
     // Rebuild an existing tag.
     def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
     addPipelineStage(configurations, repository, params.branchOrTag, params.target)
-    addUpdateWebPageStage(configurations, params.branchOrTag)
+    addUpdateWebPageStage(repository, configurations, params.branchOrTag)
 }
 else if( params.task == 'incrementMajor' || params.task == 'incrementMinor' || params.task == 'incrementPatch' )
 {
@@ -54,7 +54,7 @@ else if( params.task == 'incrementMajor' || params.task == 'incrementMinor' || p
 
     def configurations = addCreateReleaseTagStage(repository, params.task, branchName)
     addPipelineStage(configurations, branchName, params.target)
-    addUpdateWebPageStage(configurations, params.branchOrTag)
+    addUpdateWebPageStage(repository, configurations, params.branchOrTag)
 }
 else
 {
@@ -320,7 +320,6 @@ def getRepositoryName(repository)
     {
         lastPart = lastPart[0..-5]
     }
-    echo lastPart
     return lastPart
 }
 
@@ -358,7 +357,6 @@ def getPythonCommand()
 {
     pythonVersion = sh(returnStdout: true, script: 'python --version').trim()
     def pythonCmd = 'python'
-    echo pythonVersion
     if(!pythonVersion.matches(~'^.*3\\..*$'))
     {
         pythonCmd = 'python3'
