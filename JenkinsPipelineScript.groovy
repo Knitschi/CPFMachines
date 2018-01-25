@@ -316,7 +316,7 @@ def addUpdateWebPageStage(repository, ccbConfigs, branchOrTag)
 def getRepositoryName(repository)
 {
     def lastPart = repository.split('/').last()
-    if(lastPart.matches(~'^.*\.git$') )
+    if(lastPart.matches(~'^.*\\.git$') )
     {
         lastPart = lastPart[-4..-1]
     }
