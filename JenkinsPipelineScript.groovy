@@ -318,7 +318,7 @@ def getRepositoryName(repository)
     def lastPart = repository.split('/').last()
     if(lastPart.matches(~'^.*\\.git$') )
     {
-        lastPart = lastPart[-4..-1]
+        lastPart = lastPart[0..-5]
     }
     echo lastPart
     return lastPart
@@ -330,7 +330,7 @@ def addCreateReleaseTagStage(repository, incrementTaskType, branch)
     {
         node('master')
         {
-            ws('WS-CppCodeBase')
+            ws(getRepositoryName(repository))
             {
                 checkoutBranch(repository, branch)
 
@@ -359,7 +359,7 @@ def getPythonCommand()
     pythonVersion = sh(returnStdout: true, script: 'python --version').trim()
     def pythonCmd = 'python'
     echo pythonVersion
-    if(!pythonVersion.matches(~'^3\\..*$'))
+    if(!pythonVersion.matches(~'^.*3\\..*$'))
     {
         pythonCmd = 'python3'
     }
