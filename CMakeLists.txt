@@ -9,42 +9,38 @@ ccbInitPackageProject(
 )
 
 set( sources
+    addKnownSSHHost.sh
+    buildCMake.sh
+    buildCurl.sh
+    buildDoxygen.sh
+    buildGit.sh
     BuildHostLinux/shutdownVms
     BuildHostLinux/shutdownVms.service
-    DockerImages/JenkinsConfig/jobs/CMakeProjectBuildJob/config.xml
-    DockerImages/JenkinsConfig/jobs/BuildCppCodeBaseAssistant/config.xml
-    DockerImages/JenkinsConfig/jobs/googletest-PackageTest/config.xml
-    DockerImages/JenkinsConfig/secrets/slave-to-master-security-kill-switch
-    DockerImages/JenkinsConfig/users/captaingithook/config.xml
-    DockerImages/JenkinsConfig/users/knitschi/config.xml
-    DockerImages/JenkinsConfig/config.xml
-    DockerImages/JenkinsConfig/org.jenkinsci.plugins.xvfb.Xvfb.xml
-    DockerImages/addKnownSSHHost.sh
-    DockerImages/buildCMake.sh
-    DockerImages/buildCurl.sh
-    DockerImages/buildDoxygen.sh
-    DockerImages/buildGit.sh
-    DockerImages/buildQt.sh
-    DockerImages/createSSHKeyFilePair.sh
-    DockerImages/DockerfileCcbWebServer
-    DockerImages/DockerfileJenkinsMaster
-    DockerImages/DockerfileJenkinsSlaveLinux
-    DockerImages/installAbiComplianceChecker.sh
-    DockerImages/installClangTools.sh
-    DockerImages/installCTags.sh
-    DockerImages/installGcc.sh
-    DockerImages/installLLVM.sh
-    DockerImages/post-receive
-    DockerImages/removeLLVM.sh
-    DockerImages/serve-cgi-bin.conf
-    DockerImages/setupDockerContainer.sh
-    DockerImages/slave.jar
-    DockerImages/ssh_config
-    DockerImages/supervisord.conf
-    DockerImages/triggerJenkinsJob.sh
-    DockerImages/setupDockerContainer.py
-    DockerImages/updatedAuthorizedKeysBivise.bat
-    DockerImages/jenkinsSlaveNodeConfig.xml.in
+    buildQt.sh
+    cppcodebasemachines_version.py
+    createEmptyConfigFile.py
+    createSSHKeyFilePair.sh
+    Doc_CppCodeBaseMachines.dox
+    DockerfileCcbWebServer
+    DockerfileJenkinsMaster
+    DockerfileJenkinsSlaveLinux
+    installAbiComplianceChecker.sh
+    installClangTools.sh
+    installCTags.sh
+    installGcc.sh
+    JenkinsConfig/secrets/slave-to-master-security-kill-switch
+    JenkinsConfig/config.xml
+    JenkinsConfig/jenkins.CLI.xml 
+    JenkinsConfig/jenkins.model.DownloadSettings.xml
+    JenkinsConfig/jenkins.security.UpdateSiteWarningsConfiguration.xml
+    JenkinsConfig/org.jenkinsci.plugins.xvfb.Xvfb.xml
+    jenkinsSlaveNodeConfig.xml.in
+    serve-cgi-bin.conf
+    setup.py
+    slave.jar
+    ssh_config
+    supervisord.conf
+    updateAuthorizedKeysBitvise.bat.in
 )
 
 add_custom_target( 
