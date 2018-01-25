@@ -131,14 +131,20 @@ def getBuildConfigurations()
 
 def assertConfigurationExists(configurations, requestedConfig)
 {
-    if(!configurations.contains(requestedConfig))
+    def configNames = []
+    for(config in configurations)
+    {
+        configNames.add(config.ConfigName)
+    }
+
+    if(!configNames.contains(requestedConfig))
     {
         echo "Error! Requested configuration ${requestedConfig} is not contained in the CIBuildConfigurations.json file."
-        def configurationsString = configurations.join(', ')
+        def configurationsString = configNames.join(', ')
         echo "Available configurations are ${configurationsString}"
         currentBuild.result = 'FAILURE'
 
-        throw new Exception('Bla')
+        throw new Exception('Invalid build configuration.')
     }
 }
 
