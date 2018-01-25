@@ -358,6 +358,7 @@ def getPythonCommand()
 {
     pythonVersion = sh(returnStdout: true, script: 'python --version').trim()
     def pythonCmd = 'python'
+    echo pythonVersion
     if(!pythonVersion.matches(~'^3\\..*$'))
     {
         pythonCmd = 'python3'
