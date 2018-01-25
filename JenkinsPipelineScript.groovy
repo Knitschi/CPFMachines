@@ -109,6 +109,12 @@ def getBuildConfigurations()
     // read the CiBuiltConfigurations.json file
     def fileContent = readFile(file:"${CHECKOUT_FOLDER}/Sources/CIBuildConfigurations.json")
     def configurations = new JsonSlurperClassic().parseText(fileContent)
+    if(configurations.empty())
+    {
+        echo "Error! The CIBuildConfigurations.json file does not seem to contain any build configurations."
+        throw new Exception('No build configurations defined.')
+    }
+
     def usedConfigurations = []
     if( params.ccbConfiguration != '')
     {
@@ -125,6 +131,9 @@ def getBuildConfigurations()
     {
         usedConfigurations = configurations
     }
+
+    def configs = configurations.join(';')
+    echo configs
 
     return usedConfigurations
 }
