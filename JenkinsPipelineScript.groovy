@@ -43,6 +43,11 @@ else if( params.task == 'rebuild' )
 {
     // Rebuild an existing tag.
     def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
+
+    def configStrings = configurations.join(';')
+    echo configStrings
+
+
     addPipelineStage(configurations, repository, params.branchOrTag, params.target)
     addUpdateWebPageStage(repository, configurations, params.branchOrTag)
 }
@@ -131,9 +136,6 @@ def getBuildConfigurations()
     {
         usedConfigurations = configurations
     }
-
-    def configs = configurations.join(';')
-    echo configs
 
     return usedConfigurations
 }
