@@ -101,7 +101,7 @@ def addRepositoryOperationsStage( repository, mainBranch, createTempBranch, deve
                 }
 
                 // read the CiBuiltConfigurations.json file
-                return getBuildConfigurations()
+                usedConfigurations = getBuildConfigurations()
             }
         }
     }
@@ -341,6 +341,8 @@ def getRepositoryName(repository)
 
 def addCreateReleaseTagStage(repository, incrementTaskType, branch)
 {
+    def usedConfigurations = []
+
     stage('Create Release Tag')
     {
         node('master')
@@ -352,10 +354,12 @@ def addCreateReleaseTagStage(repository, incrementTaskType, branch)
                 // execute the cmake script that does the git operations
                 sh "cmake -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -DBRANCH=${branch} -DDIGIT_OPTION=${incrementTaskType} -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPPCODEBASECMAKE_DIR}/Scripts/incrementVersionNumber.cmake\""
             
-                return getBuildConfigurations()
+                usedConfigurations = getBuildConfigurations()
             }
         }
     }
+
+    return usedConfigurations
 }
 
 def unstashFiles(String stashName, String toolchain)
