@@ -315,10 +315,12 @@ def addUpdateWebPageStage(repository, ccbConfigs, branchOrTag)
 
 def getRepositoryName(repository)
 {
-    lastPart = repository.split('/').last()
+    def lastPart = repository.split('/').last()
     echo lastPart
     // remove the possible .git ending
-    return lastPart.split('.').first()
+    def name = lastPart.split('.')
+    echo name
+    return name
 }
 
 def addCreateReleaseTagStage(repository, incrementTaskType, branch)
