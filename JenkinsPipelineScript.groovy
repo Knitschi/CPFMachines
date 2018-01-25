@@ -133,10 +133,12 @@ def assertConfigurationExists(configurations, requestedConfig)
 {
     if(!configurations.contains(requestedConfig))
     {
-        echo "Requested configuration ${requestedConfig} is not contained in the CIBuildConfigurations.json file."
+        echo "Error! Requested configuration ${requestedConfig} is not contained in the CIBuildConfigurations.json file."
         def configurationsString = configurations.join(', ')
         echo "Available configurations are ${configurationsString}"
         currentBuild.result = 'FAILURE'
+
+        throw new Exception('Bla')
     }
 }
 
