@@ -93,7 +93,7 @@ def get_job_name(job_base_name):
     """
     Add the version to the base name.
     """
-    return job_base_name + '-' + cppcodebasejenkinsjob_version.PACKAGE_VERSION
+    return job_base_name + '-' + cppcodebasejenkinsjob_version.CPPCODEBASEJENKINSJOB_VERSION
 
 
 def configure_job_config_file(xml_file_path, job_name, build_repository_address, jenkinsjob_repository_address):
