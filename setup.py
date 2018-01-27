@@ -79,6 +79,14 @@ _JENKINS_HOME_JENKINS_SLAVE_CONTAINER = '/home/jenkins'
 # directories on ccb-web-server
 _HTML_SHARE_WEB_SERVER_CONTAINER = '/var/www/html'
 
+class SshLoginData:
+    """Objects of this class hold the information that is required for an ssh login"""
+
+    def __init__(self):
+        self.machine_name = ''
+        self.user_name = ''
+        self.password = ''
+
 
 def clear_directory(directory):
     """
