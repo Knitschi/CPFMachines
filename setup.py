@@ -15,11 +15,11 @@ import shutil
 import io
 import json
 import pprint
-import getpass
 import time
 import requests
 
 from . import cppcodebasemachines_version
+from . import config_file_utils
 
 _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -79,13 +79,8 @@ _JENKINS_HOME_JENKINS_SLAVE_CONTAINER = '/home/jenkins'
 # directories on ccb-web-server
 _HTML_SHARE_WEB_SERVER_CONTAINER = '/var/www/html'
 
-class SshLoginData:
-    """Objects of this class hold the information that is required for an ssh login"""
 
-    def __init__(self):
-        self.machine_name = ''
-        self.user_name = ''
-        self.password = ''
+
 
 
 def clear_directory(directory):
@@ -120,7 +115,10 @@ def main(config_file):
     Entry point of the scrpit.
     """
     # read configuration
-    config_values = _readconfig_file(config_file)
+    config_values = config_file_utils.readconfig_file(config_file)
+
+    machine_login_data = get_login_data(config_values)
+
 
     # Get some passwords at the beginning, to prevent interuptions in the middle when the user may
     # be doing something else because of long execution times.
@@ -184,6 +182,11 @@ def main(config_file):
     print('Successfully startet jenkins master, build slaves and the documentation server.')
 
 
+def get_login_data(config_values):
+    """Returns a map that has machine-ids as keys and SshLoginData objects as values."""
+    login_data_map = config_values[""]
+
+
 def dev_message(text):
     """
     Print function emphasizes the printed string with some dashes.
@@ -191,13 +194,6 @@ def dev_message(text):
     """
     print('--------------- ' + str(text))
 
-
-def _readconfig_file(config_file):
-    print('----- Read configuration file ' + config_file)
-    with open(config_file) as file:
-        data = json.load(file)
-    pprint.pprint(data)
-    return data
 
 def _get_password(config_values, config_key_password, prompt_message):
     password = config_values[config_key_password]
