@@ -80,9 +80,6 @@ _JENKINS_HOME_JENKINS_SLAVE_CONTAINER = '/home/jenkins'
 _HTML_SHARE_WEB_SERVER_CONTAINER = '/var/www/html'
 
 
-
-
-
 def clear_directory(directory):
     """
     This functions deletes the given directory and all its content and recreates it.
@@ -115,7 +112,7 @@ def main(config_file):
     Entry point of the scrpit.
     """
     # read configuration
-    config_values = config_file_utils.readconfig_file(config_file)
+    config_values = config_file_utils.read_config_file(config_file)
 
     machine_login_data = get_login_data(config_values)
 
