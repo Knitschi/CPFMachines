@@ -20,7 +20,7 @@ import requests
 import paramiko
 
 from . import cppcodebasemachines_version
-from . import config_file_utils
+from . import config_data
 
 _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -95,20 +95,16 @@ def main(config_file):
     """
     # read configuration file
     print('----- Read configuration file ' + config_file)
-    config_values = config_file_utils.read_json_file(config_file)
-    config_file_utils.check_file_version(config_values)
-    ssh_connections = config_file_utils.get_host_machine_connections(config_values)
-    jenkins_master_and_web_host_config = config_file_utils.get_master_and_web_host_config(config_values)
-    jenkins_slave_configs = config_file_utils.get_jenkins_slave_configs(config_values)
-    repository_host_config = config_file_utils.get_repository_host_config(config_values)
-    jenkins_config = config_file_utils.get_jenkins_config(config_values)
+
+    config_dict = config_data.read_config_file(config_file)
+    config = config_data.ConfigData(config_dict)
 
 
-    jenkins_master_and_web_host_config, jenkins_slave_configs = set_container_names_and_ips(jenkins_master_and_web_host_config, jenkins_slave_configs)
+
 
     # prepare environment
     print('----- Cleanup existing container')
-    _clear_docker(ssh_connections, jenkins_slave_configs, jenkins_master_and_web_host_config)
+    _clear_docker(config)
     """
     clear_directory(config_values['HostJenkinsMasterShare'])
     # we do not clear this to preserve the accumulated web content.
@@ -149,16 +145,8 @@ def main(config_file):
 
     print('Successfully startet jenkins master, build slaves and the documentation server.')
 
-def _set_container_names_and_ips(jenkins_master_and_web_host_config, jenkins_slave_configs):
-    """
-    Sets values to the member variables that hold container names and ips.
-    """
-    jenkins_master_and_web_host_config.web_server_container_name = 'ccb-web-server'
-    jenkins_master_and_web_host_config..web_server_container_ip = '172.19.0.2'
-    jenkins_master_and_web_host_config.jenkins_master_container_name = 'jenkins-master'
-    jenkins_master_and_web_host_config.jenkins_master_container_ip = '172.19.0.3'
 
-    
+
 
 
 def dev_message(text):

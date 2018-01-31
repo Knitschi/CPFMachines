@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 This module defines the structure of the config file that is used by the setup script.
 It also offers utilities create empty config files and read the contents of the file into
@@ -19,17 +20,19 @@ from . import cppcodebasemachines_version
 # define config file keys
 KEY_VERSION = 'CppCodeBaseMachinesVersion'
 
-KEY_LOGIN_DATA = 'MachineLoginData'
-KEY_MACHINE_NAME = 'MachineName'
+KEY_LOGIN_DATA = 'HostMachines'
+KEY_MACHINE_ID = 'MachineID'
+KEY_MACHINE_NAME = 'HostNameOrIP'
 KEY_USER = 'User'
 KEY_PASSWORD = 'Password'
 KEY_OSTYPE = 'OSType'
 
-KEY_MASTER_AND_WEB_SERVER_HOST = 'JenkinsMasterAndWebServerHost'
-KEY_MACHINE_ID = 'MachineID'
-KEY_HOST_HTML_SHARE = 'HostHTMLShare'
+KEY_JENKINS_MASTER_HOST = 'JenkinsMasterHost'
 KEY_HOST_JENKINS_MASTER_SHARE = 'HostJenkinsMasterShare'
 KEY_HOST_TEMP_DIR = 'HostTempDir'
+
+KEY_WEB_SERVER_HOST = 'WebServerHost'
+KEY_HOST_HTML_SHARE = 'HostHTMLShare'
 
 KEY_REPOSITORY_HOST = 'RepositoryHost'
 KEY_SSH_DIR = 'SSHDir'
@@ -49,6 +52,267 @@ KEY_JENKINS_APPROVED_SYSTEM_COMMANDS = 'JenkinsApprovedSystemCommands'
 KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES = 'JenkinsApprovedScriptSignatures'
 
 
+class ConfigData:
+    """
+    This class holds all the information from a CppCodeBaseMachines config file.
+    """
+    def __init__(self, config_dict):
+        # objects that contain the config data
+        self.file_version = ''
+        self.host_machine_connections = []
+        self.jenkins_master_host_config = JenkinsMasterHostConfig()
+        self.web_server_host_config = WebserverHostConfig()
+        self.repository_host_config = RepositoryHostConfig()
+        self.jenkins_slave_configs = []
+        self.jenkins_config = JenkinsConfig()
+
+        # internal
+        self._config_file_dict = config_dict
+
+        # fill data members and check validity
+        self._import_config_data()
+        self._check_data_validity()
+        self._set_container_names_and_ips()
+
+
+    def _import_config_data(self):
+        """
+        Fills the object with data from the file and derived values.
+        This also does validity checks on the data.
+        """
+        self.file_version = self._config_file_dict[KEY_VERSION]
+        self._read_host_machine_data()
+        self._read_jenkins_master_host_config()
+        self._read_web_server_host_config()
+        self._read_repository_host_config()
+        self._read_jenkins_slave_configs()
+        self._read_jenkins_master_config()
+
+
+    def _read_host_machine_data(self):
+        """
+        Reads the information under the KEY_LOGIN_DATA key.
+        """
+        host_machines = _get_checked_value(self._config_file_dict, KEY_LOGIN_DATA)
+        for machine_dict in host_machines:
+            machine = HostMachineConnection()
+            machine.machine_id = _get_checked_value(machine_dict, KEY_MACHINE_ID)
+            machine.host_name = _get_checked_value(machine_dict, KEY_MACHINE_NAME)
+            machine.user_name = _get_checked_value(machine_dict, KEY_USER)
+            machine.user_password = machine_dict[KEY_PASSWORD] # password is optional
+            machine.os_type = _get_checked_value(machine_dict, KEY_OSTYPE)
+
+            self.host_machine_connections.append(machine)
+
+
+    def _read_jenkins_master_host_config(self):
+        """
+        Reads the information under the 
+        """
+        config_dict = _get_checked_value(self._config_file_dict, KEY_JENKINS_MASTER_HOST)
+
+        self.jenkins_master_host_config.machine_id = _get_checked_value(config_dict, KEY_MACHINE_ID)
+        self.jenkins_master_host_config.jenkins_home_share = _get_checked_value(config_dict, KEY_HOST_JENKINS_MASTER_SHARE)
+        self.jenkins_master_host_config.host_temp_dir = _get_checked_value(config_dict, KEY_HOST_TEMP_DIR)
+
+
+    def _read_web_server_host_config(self):
+        """
+        Reads the information under the KEY_WEB_SERVER_HOST key.
+        """
+        config_dict = _get_checked_value(self._config_file_dict, KEY_WEB_SERVER_HOST)
+
+        self.web_server_host_config.machine_id = _get_checked_value(config_dict, KEY_MACHINE_ID)
+        self.web_server_host_config.host_html_share_dir = _get_checked_value(config_dict, KEY_HOST_HTML_SHARE)
+
+
+    def _read_repository_host_config(self):
+        """
+        Reads the information under the KEY_REPOSITORY_HOST key.
+        """
+        config_dict = _get_checked_value(self._config_file_dict, KEY_REPOSITORY_HOST)
+
+        self.repository_host_config.machine_id = _get_checked_value(config_dict, KEY_MACHINE_ID)
+        self.repository_host_config.ssh_dir = _get_checked_value(config_dict, KEY_SSH_DIR)
+
+
+    def _read_jenkins_slave_configs(self):
+        """
+        Reads the information under the KEY_JENKINS_SLAVES key.
+        """
+        config_dict_list = _get_checked_value(self._config_file_dict, KEY_JENKINS_SLAVES)
+
+        for config_dict in config_dict_list:
+            slave_config = JenkinsSlaveConfig()
+            slave_config.machine_id = _get_checked_value(config_dict, KEY_MACHINE_ID)
+            slave_config.executors = int(_get_checked_value(config_dict, KEY_EXECUTORS))
+
+            self.jenkins_slave_configs.append(slave_config)
+
+
+    def _read_jenkins_master_config(self):
+        """
+        Reads the information under the KEY_JENKINS_CONFIG key.
+        """
+        config_dict = _get_checked_value(self._config_file_dict, KEY_JENKINS_CONFIG)
+
+        self.jenkins_config.use_unconfigured_jenkins = _get_checked_value(config_dict, KEY_USE_UNCONFIGURED_JENKINS)
+        self.jenkins_config.admin_user = _get_checked_value(config_dict, KEY_JENKINS_ADMIN_USER)
+        self.jenkins_config.admin_user_password = _get_checked_value(config_dict, KEY_JENKINS_ADMIN_USER_PASSWORD)
+        
+        account_config_dict = _get_checked_value(config_dict, KEY_JENKINS_ACCOUNT_CONFIG_FILES)
+        for key, value in account_config_dict.items():
+            self.jenkins_config.account_config_files.append(JenkinsAccountConfig(key, value))
+
+        job_config_dict = _get_checked_value(config_dict, KEY_JENKINS_JOB_CONFIG_FILES)
+        for key, value in job_config_dict.items():
+            self.jenkins_config.job_config_files.append(JenkinsJobConfig(key, value))
+
+        ccb_jobs_config_dict = _get_checked_value(config_dict, KEY_CPP_CODE_BASE_JOBS)
+        for key, value in ccb_jobs_config_dict.items():
+            self.jenkins_config.cpp_codebase_jobs.append(CppCodeBaseJobConfig(key, value))
+
+        self.jenkins_config.approved_system_commands = config_dict[KEY_JENKINS_APPROVED_SYSTEM_COMMANDS]
+        self.jenkins_config.approved_script_signatures = config_dict[KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES]
+
+
+    def _check_data_validity(self):
+        """
+        Checks if the data from the config file makes sence.
+        """
+        self._check_file_version()
+        self._check_one_linux_machine_available()
+        self._check_master_and_webserver_use_linux_machines()
+        self._check_all_hosts_are_in_use()
+        self._check_host_ids_are_unique()
+        self._check_accounts_are_unique()
+        self._check_jenkins_slave_executor_number()
+
+
+    def _check_file_version(self):
+        """
+        Checks that the version of the file and of the version of the library are the same.
+        """
+        file_version = _get_checked_value(self._config_file_dict, KEY_VERSION)
+        if not file_version == cppcodebasemachines_version.CPPCODEBASEMACHINES_VERSION:
+            raise Exception("Config file Error! The version of the config file ({0}) does not fit the version of the CppCodeBaseMachines package ({1})."
+                            .format(file_version, cppcodebasemachines_version.CPPCODEBASEMACHINES_VERSION))
+
+    
+    def _check_one_linux_machine_available(self):
+        """
+        Checks that at least on of the host machines is a linux machine.
+        """
+        for data in self.host_machine_connections:
+            if data.os_type == "Linux":
+                return
+        raise Exception("Config file Error! The CppCodeBaseMachines configuration must at least contain one Linux host machine.")
+        
+
+    def _check_master_and_webserver_use_linux_machines(self):
+        """
+        These to machines are currently implemented as docker containers and therefor need a linux host.
+        """
+        connection  = self.get_host_machine_connection(self.jenkins_master_host_config.machine_id)
+        if connection.os_type != "Linux":
+            raise Exception("Config file Error! The host for the jenkins master must be a Linux machine.")
+
+        connection  = self.get_host_machine_connection(self.web_server_host_config.machine_id)
+        if connection.os_type != "Linux":
+            raise Exception("Config file Error! The host for the web server must be a Linux machine.")
+
+
+    def _check_all_hosts_are_in_use(self):
+        """
+        Make sure no unused hosts are in the file which is probably an error.
+        """
+        # get all machines that are in use
+        used_machines = []
+        used_machines.append(self.jenkins_master_host_config.machine_id)
+        used_machines.append(self.web_server_host_config.machine_id)
+        used_machines.append(self.repository_host_config)
+        for slave_config in self.jenkins_slave_configs:
+            used_machines.append(slave_config.machine_id)
+
+        # now check if all defined hosts are within the used machines list
+        for host_config in self.host_machine_connections:
+            found = next((x for x in used_machines if x == host_config.machine_id ), None)
+            if found is None:
+                raise Exception("Config file Error! The host machine with id {0} is not used.".format(host_config.machine_id))
+
+
+    def _check_host_ids_are_unique(self):
+        host_ids = []
+        for host_config in self.host_machine_connections:
+            host_ids.append(host_config.machine_id)
+        
+        if len(host_ids) > len(set(host_ids)):
+            raise Exception("Config file Error! The host machine ids need to be unique in the {0} list.".format(KEY_LOGIN_DATA))
+
+
+    def _check_accounts_are_unique(self):
+        """
+        Make sure that each combination of user and host machine only occurs once in the host config data.
+        """
+        accounts = []
+        for host_config in self.host_machine_connections:
+            accounts.append( host_config.user_name + host_config.host_name)
+
+        if len(accounts) > len(set(accounts)):
+            raise Exception("Config file Error! The host machine accounts ({0} + {1}) need to be unique in the {2} list.".format(KEY_MACHINE_NAME, KEY_USER, KEY_LOGIN_DATA) )
+
+
+    def _check_jenkins_slave_executor_number(self):
+        for slave_config in self.jenkins_slave_configs:
+            if slave_config.executors < 1:
+                raise  Exception("Config file Error! Values for key {0} must be larger than zero.".format(KEY_EXECUTORS) )
+
+
+    def get_host_machine_connection(self, machine_id):
+        """
+        Get the connection data for a certain host machine.
+        """
+        return next((x for x in self.host_machine_connections if x.machine_id == machine_id), None)
+
+
+    def _set_container_names_and_ips(self):
+        """
+        Sets values to the member variables that hold container names and ips.
+        """
+        self.web_server_host_config.container_name = 'ccb-web-server'
+        self.web_server_host_config.container_ip = '172.19.0.2'
+        self.jenkins_master_host_config.container_name = 'jenkins-master'
+        self.jenkins_master_host_config.container_ip = '172.19.0.3'
+
+
+    def establish_host_machine_connections(self):
+        """
+        Reads the machine login date from a config file dictionary.
+        Returns a map that contains machine ids as keys and HostMachineConnection objects as values.
+        """
+        login_data_object_map = {}
+        login_data_dict = _get_checked_value(self._config_file_dict, KEY_LOGIN_DATA)
+        for key, value in login_data_dict.items():
+            login_data = HostMachineConnection()
+            login_data.machine_name = _get_checked_value(value, KEY_MACHINE_NAME)
+            login_data.user_name = _get_checked_value(value, KEY_USER)
+            login_data.os_type = _get_checked_value(value, KEY_OSTYPE)
+
+            # The password is optional so we do not check for it.
+            password = value[KEY_PASSWORD]
+            if not password:
+                prompt_message = "Please enter the password for account {0}@{1}.".format(login_data.user_name, login_data.machine_name)
+                password = getpass.getpass(prompt_message)
+
+            # make the connection
+            login_data.ssh_client.load_system_host_keys()
+            login_data.ssh_client.set_missing_host_key_policy(paramiko.WarningPolicy)
+            login_data.ssh_client.connect(login_data.machine_name, port=22, username=login_data.user_name, password=password)
+
+            login_data_object_map[key] = login_data
+
+        return login_data_object_map
+
 
 
 class HostMachineConnection:
@@ -57,25 +321,36 @@ class HostMachineConnection:
     """
 
     def __init__(self):
-        self.machine_name = ''
+        self.machine_id = ''
+        self.host_name = ''
         self.user_name = ''
+        self.user_password = ''
         self.os_type = ''
         self.ssh_client = paramiko.SSHClient()
 
 
-class MasterAndWebServerHostConfig:
+class JenkinsMasterHostConfig:
     """
     Data class that holds the information from the KEY_MASTER_AND_WEB_SERVER_HOST key.
     """
     def __init__(self):
         self.machine_id = ''
-        self.host_html_share_dir = ''
-        self.host_jenkins_master_share = ''
+        self.jenkins_home_share = ''
         self.host_temp_dir = ''
-        self.web_server_container_name = ''
-        self.web_server_container_ip = ''
-        self.jenkins_master_container_name = ''
-        self.jenkins_master_container_ip = ''
+        self.container_name = ''
+        self.container_ip = ''
+
+
+class WebserverHostConfig:
+    """
+    Data class that holds the configuration of the web-server host machine.
+    """
+    def __init__(self):
+        self.machine_id = ''
+        self.host_html_share_dir = ''
+        self.container_name = ''
+        self.container_ip = ''
+
 
 class RepositoryHostConfig:
     """
@@ -144,44 +419,56 @@ def write_example_config_file(file_path):
     This function creates a small CppCodeBaseMachines config file for documentation purposes.
     """
     # create an empty dictionary with all possible config values.
+    config_dict = get_example_config_dict()
+    _write_json_file(config_dict, file_path)
 
+
+def get_example_config_dict():
+    """
+    Returns a dictionary that contains the data of a valid example configuration.
+    """
     config_dict = {
         KEY_VERSION : cppcodebasemachines_version.CPPCODEBASEMACHINES_VERSION,
-        KEY_LOGIN_DATA : {
-            'MyMasterMachine' : {
-                KEY_MACHINE_NAME : 'mastermachine',
+        KEY_LOGIN_DATA : [
+            {
+                KEY_MACHINE_ID : 'MyMaster',
+                KEY_MACHINE_NAME : 'lhost3',
                 KEY_USER : 'fritz',
                 KEY_PASSWORD : '1234password',
                 KEY_OSTYPE : 'Linux'
             },
-            'MyLinuxSlave' : {
-                KEY_MACHINE_NAME : 'linuxslave',
+            {
+                KEY_MACHINE_ID : 'MyLinuxSlave',
+                KEY_MACHINE_NAME : '192.168.0.5',
                 KEY_USER : 'fritz',
                 KEY_PASSWORD : '1234password',
                 KEY_OSTYPE : 'Linux'
             },
-            'MyWindowsSlave' : {
-                KEY_MACHINE_NAME : 'windowsslave',
+            {
+                KEY_MACHINE_ID : 'MyWindowsSlave',
+                KEY_MACHINE_NAME : 'whost12',
                 KEY_USER : 'fritz',
                 KEY_PASSWORD : '1234password',
                 KEY_OSTYPE : 'Windows'
             },
-        },
-        KEY_MASTER_AND_WEB_SERVER_HOST : {
-            KEY_MACHINE_ID : 'MyMasterMachine',
-            KEY_HOST_HTML_SHARE : '/home/fritz/ccb_html_share',
+        ],
+        KEY_JENKINS_MASTER_HOST : {
+            KEY_MACHINE_ID : 'MyMaster',
             KEY_HOST_JENKINS_MASTER_SHARE : '/home/fritz/jenkins_home',
             KEY_HOST_TEMP_DIR : '/home/fritz/temp'
         },
+        KEY_WEB_SERVER_HOST : {
+            KEY_MACHINE_ID : 'MyMaster',
+            KEY_HOST_HTML_SHARE : '/home/fritz/ccb_html_share',
+        },
         KEY_REPOSITORY_HOST : {
-            KEY_MACHINE_ID : 'MyMasterMachine',
+            KEY_MACHINE_ID : 'MyMaster',
             KEY_SSH_DIR : '/home/fritz/.ssh'
         },
         KEY_JENKINS_SLAVES : [
             {
                 KEY_MACHINE_ID : 'MyLinuxSlave',
                 KEY_EXECUTORS : '1'
-                KEY_CONTAINER_NAME : 'jenkins-slave-0'
             },
             {
                 KEY_MACHINE_ID : 'MyWindowsSlave',
@@ -193,7 +480,7 @@ def write_example_config_file(file_path):
             KEY_JENKINS_ADMIN_USER : 'fritz',
             KEY_JENKINS_ADMIN_USER_PASSWORD : '1234password',
             KEY_JENKINS_ACCOUNT_CONFIG_FILES : {
-                'fitz' : 'UserFritz.xml'
+                'hans' : 'UserHans.xml'
             },
             KEY_JENKINS_JOB_CONFIG_FILES : {
                 'MyCustomJob' : 'MyCustomJob.xml'
@@ -208,7 +495,13 @@ def write_example_config_file(file_path):
             ]
         }
     }
+    return config_dict
 
+
+def _write_json_file(config_dict, file_path):
+    """
+    Writes a dictionary to .json file.
+    """
     config_values = collections.OrderedDict(sorted(config_dict.items(), key=lambda t: t[0]))
 
     with open(file_path, 'w') as file:
@@ -222,45 +515,6 @@ def read_json_file(config_file):
     with open(config_file) as file:
         data = json.load(file)
     return data
-
-
-def check_file_version(config_dict):
-    """
-    Checks that the version of the file and of the version of the library are the same.
-    """
-    file_version = _get_checked_value(config_dict, KEY_VERSION)
-    if not file_version == cppcodebasemachines_version.CPPCODEBASEMACHINES_VERSION:
-        raise Exception("The version of the config file ({0}) does not fit the version of the CppCodeBaseMachines package ({1})."
-                        .format(file_version, cppcodebasemachines_version.CPPCODEBASEMACHINES_VERSION))
-
-
-def get_host_machine_connections(config_dict):
-    """
-    Reads the machine login date from a config file dictionary.
-    Returns a map that contains machine ids as keys and HostMachineConnection objects as values.
-    """
-    login_data_object_map = {}
-    login_data_dict = _get_checked_value(config_dict, KEY_LOGIN_DATA)
-    for key, value in login_data_dict.items():
-        login_data = HostMachineConnection()
-        login_data.machine_name = _get_checked_value(value, KEY_MACHINE_NAME)
-        login_data.user_name = _get_checked_value(value, KEY_USER)
-        login_data.os_type = _get_checked_value(value, KEY_OSTYPE)
-
-        # The password is optional so we do not check for it.
-        password = value[KEY_PASSWORD]
-        if not password:
-            prompt_message = "Please enter the password for account {0}@{1}.".format(login_data.user_name, login_data.machine_name)
-            password = getpass.getpass(prompt_message)
-
-        # make the connection
-        login_data.ssh_client.load_system_host_keys()
-        login_data.ssh_client.set_missing_host_key_policy(paramiko.WarningPolicy)
-        login_data.ssh_client.connect(login_data.machine_name, port=22, username=login_data.user_name, password=password)
-
-        login_data_object_map[key] = login_data
-
-    return login_data_object_map
 
 
 def _get_checked_value(dictionary, key):
@@ -278,89 +532,3 @@ def _get_checked_value(dictionary, key):
 
     raise Exception("The config file is missing an entry with key {0}".format(key))
 
-
-def get_master_and_web_host_config(config_dict):
-    """
-    Reads information from the config_file dictionary into an MasterAndWebServerHostConfig object and returns it.
-    """
-    config_data = MasterAndWebServerHostConfig()
-    host_config_dict = _get_checked_value(config_dict, KEY_MASTER_AND_WEB_SERVER_HOST)
-
-    config_data.machine_id = _get_checked_value(host_config_dict, KEY_MACHINE_ID)
-    config_data.host_html_share_dir = _get_checked_value(host_config_dict, KEY_HOST_HTML_SHARE)
-    config_data.host_jenkins_master_share = _get_checked_value(host_config_dict, KEY_HOST_JENKINS_MASTER_SHARE)
-    config_data.host_temp_dir = _get_checked_value(host_config_dict, KEY_HOST_TEMP_DIR)
-
-    return config_data
-
-
-def get_repository_host_config(config_dict):
-    """
-    Reads information from the config_file dictionary into an RepositoryHostConfig object and returns it.
-    """
-    config_data = RepositoryHostConfig()
-    host_config_dict = _get_checked_value(config_dict, KEY_REPOSITORY_HOST)
-
-    config_data.machine_id = _get_checked_value(host_config_dict, KEY_MACHINE_ID)
-    config_data.ssh_dir = _get_checked_value(host_config_dict, KEY_SSH_DIR)
-
-    return config_data
-
-
-def get_jenkins_slave_configs(config_dict):
-    """
-    Reads information from the config_file dictionary into a list of JenkinsSlaveConfig objects and returns it.
-    """
-    object_list = []
-    config_data_list = _get_checked_value(config_dict, KEY_JENKINS_SLAVES)
-    for slave_dict in config_data_list:
-        slave_data = JenkinsSlaveConfig()
-        slave_data.machine_id = _get_checked_value(slave_dict, KEY_MACHINE_ID)
-        slave_data.executors = _get_checked_value(slave_dict, KEY_EXECUTORS)
-        if slave_dict.contains(KEY_CONTAINER_NAME):
-            slave_data.container_name = slave_dict[KEY_CONTAINER_NAME]
-        object_list.append(slave_data)
-
-    return object_list
-
-
-def get_jenkins_config(config_dict):
-    """
-    Reads information from the config_file dictionary into an JenkinsConfig object and returns it.
-    """
-    config_data = JenkinsConfig()
-    jenkins_config_dict = _get_checked_value(config_dict, KEY_JENKINS_CONFIG)
-
-    config_data.use_unconfigured_jenkins = _get_checked_value(jenkins_config_dict, KEY_USE_UNCONFIGURED_JENKINS)
-    config_data.admin_user = _get_checked_value(jenkins_config_dict, KEY_JENKINS_ADMIN_USER)
-    config_data.admin_user_password = _get_checked_value(jenkins_config_dict, KEY_JENKINS_ADMIN_USER_PASSWORD)
-    
-    account_config_dict = _get_checked_value(jenkins_config_dict, KEY_JENKINS_ACCOUNT_CONFIG_FILES)
-    for key, value in account_config_dict.items():
-        config_data.account_config_files.append(JenkinsAccountConfig(key, value))
-
-    job_config_dict = _get_checked_value(jenkins_config_dict, KEY_JENKINS_JOB_CONFIG_FILES)
-    for key, value in job_config_dict.items():
-        config_data.account_config_files.append(JenkinsJobConfig(key, value))
-
-    ccb_jobs_config_dict = _get_checked_value(jenkins_config_dict, KEY_CPP_CODE_BASE_JOBS)
-    for key, value in ccb_jobs_config_dict.items():
-        config_data.account_config_files.append(CppCodeBaseJobConfig(key, value))
-
-    config_data.approved_system_commands = jenkins_config_dict[KEY_JENKINS_APPROVED_SYSTEM_COMMANDS]
-    config_data.approved_script_signatures = jenkins_config_dict[KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES]
-
-    return config_data
-
-
-def get_linux_jenkins_slaves(ssh_connections, slave_configs):
-    """
-    returns the machine ids for all slaves the belong to a linux host machine.
-    """
-    linux_machine_ids = []
-    for slave_config in slave_configs:
-        connection = ssh_connections[slave_config.machine_id]
-        if connection.os_type == 'Linux':
-            linux_machine_ids.append(connection.machine_id)
-
-    return linux_machine_ids
