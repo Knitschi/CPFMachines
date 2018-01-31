@@ -17,6 +17,7 @@ import json
 import pprint
 import time
 import requests
+import paramiko
 
 from . import cppcodebasemachines_version
 from . import config_file_utils
@@ -28,25 +29,6 @@ _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 _JENKINS_VERSION = '2.89.1'
 # The sha256 checksum of the jenkins.war package of the given jenkins version.
 _JENKINS_SHA256 = 'f9f363959042fce1615ada81ae812e08d79075218c398ed28e68e1302c4b272f'
-
-# container
-# The name of the container that hosts the web-server that hosts the documentation of a
-# CppCodeBase project.
-_WEBSERVER_CONTAINER = 'ccb-web-server'
-# The IP address of the _WEBSERVER_CONTAINER in the docker network.
-_WEBSERVER_CONTAINERIP = '172.19.0.2'
-
-# The name of the docker container that runs the jenkins CI server.
-_JENINS_MASTER_CONTAINER = 'jenkins-master'
-# The IP address of the _JENINS_MASTER_CONTAINER in the docker network.
-_JENINS_MASTER_CONTAINERIP = '172.19.0.3'
-
-# The base name of the linux based docker containers that are used as build-slaves.
-# The name is also used for the node in the jenkins configuration.
-# The final name adds '-<index>' to the base name.
-_LINUX_SLAVE_BASE_NAME = 'jenkins-slave-linux'
-# The ip address of the first and for now only linux slave container.
-_JENKINS_LINUX_SLAVE_CONTAINER_IP = '172.19.0.4'
 
 # docker network
 _DOCKER_NETWORK_NAME = 'CppCodeBaseNetwork'
@@ -111,35 +93,23 @@ def main(config_file):
     """
     Entry point of the scrpit.
     """
-    # read configuration
-    config_values = config_file_utils.read_config_file(config_file)
+    # read configuration file
+    print('----- Read configuration file ' + config_file)
+    config_values = config_file_utils.read_json_file(config_file)
+    config_file_utils.check_file_version(config_values)
+    ssh_connections = config_file_utils.get_host_machine_connections(config_values)
+    jenkins_master_and_web_host_config = config_file_utils.get_master_and_web_host_config(config_values)
+    jenkins_slave_configs = config_file_utils.get_jenkins_slave_configs(config_values)
+    repository_host_config = config_file_utils.get_repository_host_config(config_values)
+    jenkins_config = config_file_utils.get_jenkins_config(config_values)
 
-    machine_login_data = get_login_data(config_values)
 
-
-    # Get some passwords at the beginning, to prevent interuptions in the middle when the user may
-    # be doing something else because of long execution times.
-    # Get the password for the windows slave, because we need it to update the bitwise ssh server.
-    jenkins_slave_machine_windows_password = _get_password(
-        config_values,
-        'BuildSlaveWindowsMachinePassword',
-        "Enter the password for the windows account of user " +
-        config_values['BuildSlaveWindowsMachineUser'] +
-        ' on ' + config_values['BuildSlaveWindowsMachine'] + ': '
-        )
-    # Get the password for the jenkins admin user.
-    jenkins_admin_password = _get_password(
-        config_values,
-        'JenkinsAdminUserPassword',
-        "Enter the password for the jenkins account of user " +
-        config_values['JenkinsAdminUser'] + ': '
-        )
-
+    jenkins_master_and_web_host_config, jenkins_slave_configs = set_container_names_and_ips(jenkins_master_and_web_host_config, jenkins_slave_configs)
 
     # prepare environment
     print('----- Cleanup existing container')
-
-    _clear_docker()
+    _clear_docker(ssh_connections, jenkins_slave_configs, jenkins_master_and_web_host_config)
+    """
     clear_directory(config_values['HostJenkinsMasterShare'])
     # we do not clear this to preserve the accumulated web content.
     _guarantee_directory_exists(config_values['HostHTMLShare'])
@@ -175,13 +145,20 @@ def main(config_file):
         _JENKINS_HOME_JENKINS_SLAVE_CONTAINER, config_values)
 
     _configure_jenkins_master(config_values, config_file, jenkins_admin_password)
+    """
 
     print('Successfully startet jenkins master, build slaves and the documentation server.')
 
+def _set_container_names_and_ips(jenkins_master_and_web_host_config, jenkins_slave_configs):
+    """
+    Sets values to the member variables that hold container names and ips.
+    """
+    jenkins_master_and_web_host_config.web_server_container_name = 'ccb-web-server'
+    jenkins_master_and_web_host_config..web_server_container_ip = '172.19.0.2'
+    jenkins_master_and_web_host_config.jenkins_master_container_name = 'jenkins-master'
+    jenkins_master_and_web_host_config.jenkins_master_container_ip = '172.19.0.3'
 
-def get_login_data(config_values):
-    """Returns a map that has machine-ids as keys and SshLoginData objects as values."""
-    login_data_map = config_values[""]
+    
 
 
 def dev_message(text):
@@ -192,21 +169,19 @@ def dev_message(text):
     print('--------------- ' + str(text))
 
 
-def _get_password(config_values, config_key_password, prompt_message):
-    password = config_values[config_key_password]
-    if not password:
-        password = getpass.getpass(prompt_message)
-    return password
+def _clear_docker(ssh_connections, slave_configs, master_config):
+    
+    _stubbornly_remove_container(ssh_connections[master_config.machine_id].ssh_client, _WEBSERVER_CONTAINER)
+    _stubbornly_remove_container(ssh_connections[master_config.machine_id].ssh_client, _JENINS_MASTER_CONTAINER)
 
-def _clear_docker():
-    _stubbornly_remove_container(_WEBSERVER_CONTAINER)
-    _stubbornly_remove_container(_JENINS_MASTER_CONTAINER)
-    _stubbornly_remove_container(_FULL_LINUX_JENKINS_SLAVE_NAME)
+    linux_slave_machine_ids = config_file_utils.get_linux_jenkins_slaves(ssh_connections, slave_configs)
+    for machine_id in linux_slave_machine_ids:
+        _stubbornly_remove_container(ssh_connections[machine_id].ssh_client, _FULL_LINUX_JENKINS_SLAVE_NAME)
 
     _remove_docker_network(_DOCKER_NETWORK_NAME)
 
 
-def _stubbornly_remove_container(container):
+def _stubbornly_remove_container(ssh_client, container):
     """
     Removes a given docker container even if it is running.
     If the container does not exist, the function does nothing.
