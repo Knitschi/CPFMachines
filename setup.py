@@ -8,6 +8,9 @@
 
 
 import os
+import posixpath
+from pathlib import PureWindowsPath, PurePosixPath, PurePath
+import stat
 import sys
 import distutils.dir_util
 import subprocess
@@ -22,26 +25,17 @@ import paramiko
 from . import cppcodebasemachines_version
 from . import config_data
 
-_SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+_SCRIPT_DIR = PurePath(os.path.dirname(os.path.realpath(__file__)))
 
 # Constants
 # The version of the jenkins CI server that is installed on the jenkins-master machine.
 _JENKINS_VERSION = '2.89.1'
 # The sha256 checksum of the jenkins.war package of the given jenkins version.
 _JENKINS_SHA256 = 'f9f363959042fce1615ada81ae812e08d79075218c398ed28e68e1302c4b272f'
+_JENKINS_BASE_IMAGE = 'jenkins-image-' + _JENKINS_VERSION
 
 # docker network
 _DOCKER_NETWORK_NAME = 'CppCodeBaseNetwork'
-
-
-# derived constants
-# In the future there may be multiple slaves so the script provides the _LINUX_SLAVE_INDEX to
-# destinguish between them.
-_LINUX_SLAVE_INDEX = 0
-_WINDOWS_SLAVE_INDEX = 0
-_FULL_LINUX_JENKINS_SLAVE_NAME = _LINUX_SLAVE_BASE_NAME + '-' + str(_LINUX_SLAVE_INDEX)
-_FULL_WINDOWS_JENKINS_SLAVE_NAME = 'jenkins-slave-windows-' + str(_WINDOWS_SLAVE_INDEX)
-
 
 # Files
 _PUBLIC_KEY_FILE_POSTFIX = '_ssh_key.rsa.pub'
@@ -60,15 +54,6 @@ _JENKINS_HOME_JENKINS_SLAVE_CONTAINER = '/home/jenkins'
 
 # directories on ccb-web-server
 _HTML_SHARE_WEB_SERVER_CONTAINER = '/var/www/html'
-
-
-def clear_directory(directory):
-    """
-    This functions deletes the given directory and all its content and recreates it.
-    """
-    if os.path.isdir(directory):
-        shutil.rmtree(directory)
-    os.makedirs(directory)
 
 
 def configure_file(source_file, dest_file, replacement_dictionary):
@@ -95,28 +80,33 @@ def main(config_file):
     """
     # read configuration file
     print('----- Read configuration file ' + config_file)
-
-    config_dict = config_data.read_config_file(config_file)
+    config_dict = config_data.read_json_file(config_file)
     config = config_data.ConfigData(config_dict)
 
-
-
+    print('----- Establish ssh connections to host machines')
+    config.establish_host_machine_connections()
 
     # prepare environment
-    print('----- Cleanup existing container')
+    print('----- Cleanup existing docker container and networks')
     _clear_docker(config)
-    """
-    clear_directory(config_values['HostJenkinsMasterShare'])
+    _clear_host_directories(config)
     # we do not clear this to preserve the accumulated web content.
-    _guarantee_directory_exists(config_values['HostHTMLShare'])
-    _create_docker_network(_DOCKER_NETWORK_NAME)
+    _guarantee_directory_exists(config, config.web_server_host_config.machine_id, config.web_server_host_config.host_html_share_dir)
+    _create_docker_networks(config)
 
     # build container
-    _build_and_start_jenkins_master(config_values)
+    print("----- Build jenkins base image on host " + config.jenkins_master_host_config.machine_id)
+    _build_jenkins_base(config)
+    print("----- Build and start container {0} on host {1}".format(config.jenkins_master_host_config.container_name, config.jenkins_master_host_config.machine_id))
+    _build_and_start_jenkins_master(config)
+
+    """
     # The document server must be started before the jenkins slave is started because mounting
     # the shared volume here sets the owner of the share to root an only the jenkins container
     # can set it to jenkins.
+    print("----- Build and start the web-server container " + _WEBSERVER_CONTAINER)
     _build_and_start_web_server(config_values)
+    print("----- Build and start the docker SLAVE container " + _FULL_LINUX_JENKINS_SLAVE_NAME)
     _build_and_start_jenkins_linux_slave()
 
     # setup ssh accesses used by jenkins-master
@@ -146,9 +136,6 @@ def main(config_file):
     print('Successfully startet jenkins master, build slaves and the documentation server.')
 
 
-
-
-
 def dev_message(text):
     """
     Print function emphasizes the printed string with some dashes.
@@ -157,149 +144,231 @@ def dev_message(text):
     print('--------------- ' + str(text))
 
 
-def _clear_docker(ssh_connections, slave_configs, master_config):
-    
-    _stubbornly_remove_container(ssh_connections[master_config.machine_id].ssh_client, _WEBSERVER_CONTAINER)
-    _stubbornly_remove_container(ssh_connections[master_config.machine_id].ssh_client, _JENINS_MASTER_CONTAINER)
+def _clear_docker(config):
+    """
+    Removes docker containers and networks from previous runs.
+    Takes a config_data.ConfigData object as argument.
+    """
+    container_dict = config.get_container_machine_dictionary()
+    for container in container_dict:
+        _stubbornly_remove_container(config, container)
 
-    linux_slave_machine_ids = config_file_utils.get_linux_jenkins_slaves(ssh_connections, slave_configs)
-    for machine_id in linux_slave_machine_ids:
-        _stubbornly_remove_container(ssh_connections[machine_id].ssh_client, _FULL_LINUX_JENKINS_SLAVE_NAME)
-
-    _remove_docker_network(_DOCKER_NETWORK_NAME)
+    container_machines = set(container_dict.values())
+    for machine_id in container_machines:
+        _remove_docker_network(config, machine_id, _DOCKER_NETWORK_NAME)
 
 
-def _stubbornly_remove_container(ssh_client, container):
+def _stubbornly_remove_container(config, container):
     """
     Removes a given docker container even if it is running.
     If the container does not exist, the function does nothing.
     """
-    running_container = _get_running_docker_container()
-
-    if container in running_container:
-        _stop_docker_container(container)
-
-    all_container = _get_all_docker_container()
-    if container in all_container:
-        _remove_container(container)
+    if _container_exists(config, container):
+        if _container_is_running(config, container):
+            _stop_docker_container(config, container)
+        _remove_container(config, container)
 
 
-def _get_running_docker_container():
-    return _run_command_to_get_list("docker ps --format '{{.Names}}'")
-
-
-def _get_all_docker_container():
-    return _run_command_to_get_list("docker ps -a --format '{{.Names}}'")
-
-
-def _run_command_to_get_list(command):
+def _container_exists(config, container):
     """
-    The function assumes that the ouput of comand is a list with one element per line.
-    It returns that list as a python list.
+    Returns true if the container exists on the host.
     """
-    output = _run_command(command)
-    return output.splitlines()
+    connection = config.get_container_host_machine_connection(container)
+    all_container = _get_all_docker_container(connection)
+    return container in all_container
 
 
-def _run_command(command, print_output=False, print_command=False, ignore_return_code=False):
+def _get_all_docker_container(connection):
+    return connection.run_command("docker ps -a --format '{{.Names}}'")
+
+
+def _container_is_running(config, container):
     """
-    Runs the given command and returns its standard output.
-    The function throws if the command fails. In this case the output is always printed.
-
-    Problems:
-    This fails to return the complete output of "docker logs jenkins-master"
-    However when print_output is set to true, it prints everything on the command line.
+    Returns true if the container is running on its host.
     """
-    working_dir = os.getcwd()
-    process = subprocess.Popen(
-        command,
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        stdin=subprocess.PIPE,
-        cwd=working_dir)
-
-    # print output as soon as it is generated.
-    output = ''
-    lines_iterator = iter(process.stdout.readline, b"")
-    while process.poll() is None:
-        for line in lines_iterator:
-            nline = line.rstrip()
-            line_string = nline.decode("ISO-8859-1")
-            output += line_string + "\r\n"
-            if print_output:
-                print(line_string, end="\r\n", flush=True) # yield line
-
-    out, err = process.communicate()
-    retcode = process.returncode
-
-    if print_command:
-        output = command + '\n'
-
-    # the iso codec helped to fix a problem with the output when sshing on the windows container.
-    err_output = err.decode("ISO-8859-1")
-
-    if print_output:
-        print(output)
-        print(err_output)
-
-    if not ignore_return_code and retcode != 0:
-        if not print_output:                         # always print the output in case of an error
-            print(output)
-            print(err_output)
-        error = (
-            'Command "{0}" executed in directory "{1}" returned error code {2}.'
-            ).format(command, working_dir, str(retcode))
-        raise Exception(error)
-
-    return output
+    connection = config.get_container_host_machine_connection(container)
+    running_container = _get_running_docker_container(connection)
+    return container in running_container
 
 
-def _stop_docker_container(container):
-    _run_command('docker stop ' + container)
+def _get_running_docker_container(connection):
+    return connection.run_command("docker ps --format '{{.Names}}'")
+
+def _stop_docker_container(connection, container):
+    connection.run_command('docker stop ' + container)
 
 
-def _start_docker_container(container):
-    _run_command('docker start ' + container)
+def _start_docker_container(connection, container):
+    connection.run_command('docker start ' + container)
 
 
-def _remove_container(container):
+def _remove_container(connection, container):
     """
     This removes a given docker container and will fail if the container is running.
     """
-    _run_command('docker rm -f ' + container)
+    connection.run_command('docker rm -f ' + container)
 
 
-def _remove_docker_network(network):
-    network_lines = _run_command_to_get_list('docker network ls')
+def _remove_docker_network(config, machine_id, network):
+    connection = config.get_host_machine_connection(machine_id)
+    network_lines = connection.run_command('docker network ls')
     networks = []
     for line in network_lines:
         columns = line.split()
         networks.append(columns[1])
 
     if network in networks:
-        _run_command('docker network rm ' + _DOCKER_NETWORK_NAME)
+        connection.run_command('docker network rm ' + network)
 
 
-def _guarantee_directory_exists(directory):
-    if not os.path.isdir(directory):
-        os.makedirs(directory)
+def _clear_host_directories(config):
+    # the master share directory
+    _clear_directory(config, config.jenkins_master_host_config.machine_id, config.jenkins_master_host_config.jenkins_home_share)
+    # all temporary directories
+    for connection in config.host_machine_connections:
+        if connection.temp_dir:
+            _clear_directory(config, connection.machine_id, connection.temp_dir)
 
 
-def _create_docker_network(network):
-    _run_command('docker network create --driver bridge --subnet=172.19.0.0/16 ' + network)
+def _clear_directory(config, machine_id, directory):
+    """
+    This functions deletes the given directory and all its content and recreates it.
+    It does it on the given machine.
+    """
+    connection = config.get_host_machine_connection(machine_id)
+    with connection.ssh_client.open_sftp() as sftp_client:
+        if _rexists(sftp_client, directory):
+            _rrmtree(sftp_client, directory)
+        _rmakedirs(sftp_client, directory)
 
 
-def _build_and_start_jenkins_master(config_values):
-    print("----- Build and startping  the docker MASTER container " + _JENINS_MASTER_CONTAINER)
+def _rexists(sftp_client, path):
+    """
+    Returns true if the remote directory or file under path exists.
+    """
+    try:
+        sftp_client.stat(str(path))
+    except IOError as err:
+        if err.errno == 2:
+            return False
+        raise
+    else:
+        return True
+
+
+def _rrmtree(sftp_client, dir_path):
+    """
+    Removes the remote directory and its content.
+    """
+    for item in sftp_client.listdir_attr(str(dir_path)):
+        rpath = dir_path.join(item.filename)
+        if stat.S_ISDIR(item.st_mode):
+            _rrmtree(sftp_client, rpath)
+        else:
+            rpath = posixpath.join(dir_path, item.filename)
+            sftp_client.remove(rpath)
+
+    sftp_client.rmdir(str(dir_path))
+
+
+def _rmakedirs(sftp_client, dir_path):
+    """
+    Creates a remote directory and all its parent directories.
+    """
+    # create a list with all sub-pathes, where the longer ones come first.
+    pathes = [dir_path]
+    pathes.extend(dir_path.parents) 
+    # now create all sub-directories, starting with the shortest pathes
+    for parent in reversed(pathes): 
+        if not _rexists(sftp_client, parent):
+            sftp_client.mkdir(str(parent))
+    
+
+def _guarantee_directory_exists(config, machine_id, dir_path):
+    connection = config.get_host_machine_connection(machine_id)
+    with connection.ssh_client.open_sftp() as sftp_client:
+        if not _rexists(sftp_client, dir_path):
+            _rmakedirs(sftp_client, dir_path)
+
+
+def _create_docker_networks(config):
+    container_dict = config.get_container_machine_dictionary()
+    container_machines = set(container_dict.values())
+    for machine_id in container_machines:
+        _create_docker_network(config, machine_id, _DOCKER_NETWORK_NAME)
+
+
+def _create_docker_network(config, machine_id, network):
+    connection = config.get_host_machine_connection(machine_id)
+    connection.run_command("docker network create --driver bridge --subnet={0} {1}".format(config.get_docker_subnet(), network))
+
+
+def _build_jenkins_base(config):
+    """
+    This builds the base image of the jenkins-master container.
+    """
+    connection = config.get_host_machine_connection(config.jenkins_master_host_config.machine_id)
+
+    # crate the build-context on the host
+    files = [
+        '../JenkinsciDocker/Dockerfile',
+        '../JenkinsciDocker/tini_pub.gpg',
+        '../JenkinsciDocker/jenkins-support',
+        '../JenkinsciDocker/jenkins.sh',
+        '../JenkinsciDocker/plugins.sh',
+        '../JenkinsciDocker/install-plugins.sh',
+    ]
+    context_dir = _create_build_context_dir(config, connection,'jenkins-base', files)
 
     # Create the jenkins base image. This is required to customize the jenkins version.
-    jenkins_base_image = 'jenkins-image-' + _JENKINS_VERSION
     _build_docker_image(
-        jenkins_base_image,
+        _JENKINS_BASE_IMAGE,
         _SCRIPT_DIR + '/../JenkinsciDocker/Dockerfile',
         _SCRIPT_DIR + '/../JenkinsciDocker',
         ['JENKINS_VERSION=' + _JENKINS_VERSION, 'JENKINS_SHA=' + _JENKINS_SHA256])
+
+
+def _build_docker_image(image_name, docker_file, build_context_directory, build_args):
+    build_args_string = ''
+    for arg in build_args:
+        build_args_string += ' --build-arg ' + arg
+
+    command = (
+        'docker build' + build_args_string + ' -t ' + image_name +
+        ' -f ' + docker_file + ' ' + build_context_directory
+    )
+    _run_command(command, True)
+
+
+def _create_build_context_dir(config, connection, rel_context_dir, files):
+    with connection.ssh_client.open_sftp() as sftp_client:
+
+        context_dir = connection.temp_dir.join(rel_context_dir)
+        # copy files to the host
+        for file_path in files:
+            pupath = PurePath(file_path)
+            popath = PurePosixPath(file_path)
+            # make sure a directory for the target file exists
+            target_parent_path = context_dir.joinpath(popath).parent
+            _rmakedirs(sftp_client, target_parent_path)
+            # copy the file
+            sftp_client.put( _SCRIPT_DIR.joinpath(pupath), context_dir.joinpath(popath) )
+
+        return context_dir
+
+
+def _build_and_start_jenkins_master(config):
+
+    connection = config.get_host_machine_connection(config.jenkins_master_host_config.machine_id)
+
+    # create a directory on the host that contains all files that are needed for the container build
+    files = [
+        'DockerfileJenkinsMaster',
+        'installGcc.sh',
+        'buildGit.sh',
+        'buildCMake.sh',
+    ]
+    context_dir = _create_build_context_dir(config, connection, config.jenkins_master_host_config.container_name, files)
 
     # Create the container image
     container_image = _JENINS_MASTER_CONTAINER + '-image'
@@ -347,17 +416,6 @@ def _build_and_start_jenkins_master(config_values):
         'git config --global user.name jenkins')
 
 
-def _build_docker_image(image_name, docker_file, build_context_directory, build_args):
-    build_args_string = ''
-    for arg in build_args:
-        build_args_string += ' --build-arg ' + arg
-
-    command = (
-        'docker build' + build_args_string + ' -t ' + image_name +
-        ' -f ' + docker_file + ' ' + build_context_directory
-    )
-    _run_command(command, True)
-
 
 def _run_command_in_container(container, command, user=None):
     user_option = ''
@@ -369,8 +427,6 @@ def _run_command_in_container(container, command, user=None):
 
 
 def _build_and_start_web_server(config_values):
-    print("----- Build and start the web-server container " + _WEBSERVER_CONTAINER)
-
     container_image = _WEBSERVER_CONTAINER + '-image'
     _build_docker_image(container_image, _SCRIPT_DIR + '/DockerfileCcbWebServer', _SCRIPT_DIR, [])
 
@@ -407,8 +463,6 @@ def _build_and_start_web_server(config_values):
 
 def _build_and_start_jenkins_linux_slave():
     # Start the container.
-    print("----- Build and start the docker SLAVE container " + _FULL_LINUX_JENKINS_SLAVE_NAME)
-
     container_image = _LINUX_SLAVE_BASE_NAME + '-image'
     _build_docker_image(
         container_image, _SCRIPT_DIR + '/DockerfileJenkinsSlaveLinux',
@@ -793,7 +847,7 @@ def _configure_node_config_file(
     """
     nodes_dir = config_values['HostJenkinsMasterShare'] + '/nodes'
     node_dir = nodes_dir + '/' + slave_name
-    clear_directory(node_dir)
+    _clear_directory(node_dir)
 
     createdconfig_file = node_dir + '/config.xml'
     config_template_file = _SCRIPT_DIR + '/jenkinsSlaveNodeConfig.xml.in'

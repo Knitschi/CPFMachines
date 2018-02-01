@@ -31,29 +31,31 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.host_machine_connections[0].user_name, 'fritz' )
         self.assertEqual( sut.host_machine_connections[0].user_password, '1234password' )
         self.assertEqual( sut.host_machine_connections[0].os_type, 'Linux' )
+        self.assertEqual( str(sut.host_machine_connections[0].temp_dir), '/home/fritz/temp' )
 
         self.assertEqual( sut.host_machine_connections[1].machine_id, 'MyLinuxSlave' )
         self.assertEqual( sut.host_machine_connections[1].host_name, '192.168.0.5' )
         self.assertEqual( sut.host_machine_connections[1].user_name, 'fritz' )
         self.assertEqual( sut.host_machine_connections[1].user_password, '1234password' )
         self.assertEqual( sut.host_machine_connections[1].os_type, 'Linux' )
+        self.assertEqual( str(sut.host_machine_connections[1].temp_dir), '/home/fritz/temp' )
 
         self.assertEqual( sut.host_machine_connections[2].machine_id, 'MyWindowsSlave' )
         self.assertEqual( sut.host_machine_connections[2].host_name, 'whost12' )
         self.assertEqual( sut.host_machine_connections[2].user_name, 'fritz' )
-        self.assertEqual( sut.host_machine_connections[2].user_password, '1234password' )
+        self.assertEqual( sut.host_machine_connections[2].user_password, '' )
         self.assertEqual( sut.host_machine_connections[2].os_type, 'Windows' )
+        self.assertEqual( str(sut.host_machine_connections[2].temp_dir), '' )
 
         # jenkins master host data
         self.assertEqual( sut.jenkins_master_host_config.machine_id, 'MyMaster')
-        self.assertEqual( sut.jenkins_master_host_config.jenkins_home_share, '/home/fritz/jenkins_home')
-        self.assertEqual( sut.jenkins_master_host_config.host_temp_dir, '/home/fritz/temp')
+        self.assertEqual( str(sut.jenkins_master_host_config.jenkins_home_share), '/home/fritz/jenkins_home')
         self.assertEqual( sut.jenkins_master_host_config.container_name, 'jenkins-master')
         self.assertEqual( sut.jenkins_master_host_config.container_ip, '172.19.0.3')
 
         # web server host data
         self.assertEqual( sut.web_server_host_config.machine_id, 'MyMaster')
-        self.assertEqual( sut.web_server_host_config.host_html_share_dir, '/home/fritz/ccb_html_share')
+        self.assertEqual( str(sut.web_server_host_config.host_html_share_dir), '/home/fritz/ccb_html_share')
         self.assertEqual( sut.web_server_host_config.container_name, 'ccb-web-server')
         self.assertEqual( sut.web_server_host_config.container_ip, '172.19.0.2')
 
@@ -63,27 +65,63 @@ class TestConfigData(unittest.TestCase):
 
         # jenkins slave config
         self.assertEqual( sut.jenkins_slave_configs[0].machine_id , 'MyLinuxSlave')
-        self.assertEqual( sut.jenkins_slave_configs[0].executors , 1)
-        self.assertEqual( sut.jenkins_slave_configs[0].container_name , '')
-        self.assertEqual( sut.jenkins_slave_configs[0].container_ip , '')
+        self.assertEqual( sut.jenkins_slave_configs[0].executors , 2)
+        self.assertEqual( sut.jenkins_slave_configs[0].container_name , 'jenkins-slave-linux-0')
+        self.assertEqual( sut.jenkins_slave_configs[0].container_ip , '172.19.0.4')
 
-        self.assertEqual( sut.jenkins_slave_configs[1].machine_id , 'MyWindowsSlave')
+        self.assertEqual( sut.jenkins_slave_configs[1].machine_id , 'MyMaster')
         self.assertEqual( sut.jenkins_slave_configs[1].executors , 1)
-        self.assertEqual( sut.jenkins_slave_configs[1].container_name , '')
-        self.assertEqual( sut.jenkins_slave_configs[1].container_ip , '')
+        self.assertEqual( sut.jenkins_slave_configs[1].container_name , 'jenkins-slave-linux-1')
+        self.assertEqual( sut.jenkins_slave_configs[1].container_ip , '172.19.0.5')
+
+        self.assertEqual( sut.jenkins_slave_configs[2].machine_id , 'MyWindowsSlave')
+        self.assertEqual( sut.jenkins_slave_configs[2].executors , 1)
+        self.assertEqual( sut.jenkins_slave_configs[2].container_name , '')
+        self.assertEqual( sut.jenkins_slave_configs[2].container_ip , '')
 
         # jenkins master config
         self.assertEqual( sut.jenkins_config.use_unconfigured_jenkins , False)
         self.assertEqual( sut.jenkins_config.admin_user , 'fritz')
         self.assertEqual( sut.jenkins_config.admin_user_password , '1234password')
         self.assertEqual( sut.jenkins_config.account_config_files[0].user_name , 'hans')
-        self.assertEqual( sut.jenkins_config.account_config_files[0].xml_config_file , 'UserHans.xml')
+        self.assertEqual( str(sut.jenkins_config.account_config_files[0].xml_config_file) , 'UserHans.xml')
         self.assertEqual( sut.jenkins_config.job_config_files[0].job_name , 'MyCustomJob')
-        self.assertEqual( sut.jenkins_config.job_config_files[0].xml_config_file , 'MyCustomJob.xml')
+        self.assertEqual( str(sut.jenkins_config.job_config_files[0].xml_config_file) , 'MyCustomJob.xml')
         self.assertEqual( sut.jenkins_config.cpp_codebase_jobs[0].job_name , 'BuildMyCppCodeBase')
         self.assertEqual( sut.jenkins_config.cpp_codebase_jobs[0].repository , 'ssh://fritz@mastermachine:/home/fritz/repositories/BuildMyCppCodeBase.git')
         self.assertFalse( sut.jenkins_config.approved_system_commands )
         self.assertEqual( sut.jenkins_config.approved_script_signatures[0] , '<script signature from my MyCustomJob jenkinsfile>')
+
+
+    def test_get_host_machine_connection(self):
+        # setup
+        sut = ConfigData(get_example_config_dict())
+
+        # execute and verify
+        machine_ids = ['MyMaster','MyLinuxSlave','MyWindowsSlave']
+        for machine_id in machine_ids:
+            connection = sut.get_host_machine_connection(machine_id)
+            self.assertEqual(machine_id, connection.machine_id)
+
+
+    def test_get_container_machine_dictionary(self):
+        """
+        Verify the output is correct.
+        """
+        # setup
+        sut = ConfigData(get_example_config_dict())
+
+        # execute
+        machine_dict = sut.get_container_machine_dictionary()
+
+        # verify
+        expected_machine_dict = {
+            'ccb-web-server' : 'MyMaster',
+            'jenkins-master' : 'MyMaster',
+            'jenkins-slave-linux-0' : 'MyLinuxSlave',
+            'jenkins-slave-linux-1' : 'MyMaster',
+        }
+        self.assertEqual(machine_dict, expected_machine_dict)
 
 
     def test_validation_checks_version(self):
@@ -193,3 +231,14 @@ class TestConfigData(unittest.TestCase):
         # execute
         self.assertRaises(Exception, ConfigData, config_dict)
 
+
+    def test_validation_checks_that_container_hosts_have_temp_dir(self):
+        """
+        We need a temporary directory for the build-context when building
+        docker container.
+        """
+        config_dict = get_example_config_dict()
+        config_dict[KEY_LOGIN_DATA][1][KEY_TEMPDIR] = ''
+
+        # execute
+        self.assertRaises(Exception, ConfigData, config_dict)

@@ -14,6 +14,8 @@ import collections
 import pprint
 import getpass
 import paramiko
+import weakref
+from pathlib import PureWindowsPath, PurePosixPath, PurePath
 
 from . import cppcodebasemachines_version
 
@@ -26,10 +28,10 @@ KEY_MACHINE_NAME = 'HostNameOrIP'
 KEY_USER = 'User'
 KEY_PASSWORD = 'Password'
 KEY_OSTYPE = 'OSType'
+KEY_TEMPDIR = 'TemporaryDirectory'
 
 KEY_JENKINS_MASTER_HOST = 'JenkinsMasterHost'
 KEY_HOST_JENKINS_MASTER_SHARE = 'HostJenkinsMasterShare'
-KEY_HOST_TEMP_DIR = 'HostTempDir'
 
 KEY_WEB_SERVER_HOST = 'WebServerHost'
 KEY_HOST_HTML_SHARE = 'HostHTMLShare'
@@ -56,6 +58,8 @@ class ConfigData:
     """
     This class holds all the information from a CppCodeBaseMachines config file.
     """
+    _DOCKER_SUBNET_BASE_IP = '172.19.0'
+
     def __init__(self, config_dict):
         # objects that contain the config data
         self.file_version = ''
@@ -73,6 +77,68 @@ class ConfigData:
         self._import_config_data()
         self._check_data_validity()
         self._set_container_names_and_ips()
+        self._check_generated_data_validity()
+
+
+    def establish_host_machine_connections(self):
+        """
+        Reads the machine login date from a config file dictionary.
+        Returns a map that contains machine ids as keys and HostMachineConnection objects as values.
+        """
+        for connection in self.host_machine_connections:
+            # prompt for password if it was not provided in the file
+            if not connection.user_password:
+                prompt_message = "Please enter the password for account {0}@{1}.".format(connection.user_name, connection.host_name)
+                connection.user_password = getpass.getpass(prompt_message)
+
+            # make the connection
+            connection.ssh_client.load_system_host_keys()
+            #connection.ssh_client.set_missing_host_key_policy(paramiko.WarningPolicy)
+            connection.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            connection.ssh_client.connect(connection.host_name, port=22, username=connection.user_name, password=connection.user_password, timeout=2)
+
+            sftp_client = connection.ssh_client.open_sftp()
+
+
+    def get_host_machine_connection(self, machine_id):
+        """
+        Get the connection data for a certain host machine.
+        """
+        return next((x for x in self.host_machine_connections if x.machine_id == machine_id), None)
+
+
+    def get_container_host_machine_connection(self, container_name):
+        """
+        Returns the connection to the host machine that hosts the given container
+        or None if there is no such container.
+        """
+        id_dict = self.get_container_machine_dictionary()
+        if container_name in id_dict:
+            return self.get_host_machine_connection(id_dict[container_name])
+        return None
+
+
+    def is_linux_machine(self, machine_id):
+        connection  = self.get_host_machine_connection(machine_id)
+        return connection.os_type == 'Linux'
+
+
+    def get_container_machine_dictionary(self):
+        """
+        Returns a dictionary with all docker container as keys and
+        the associated host machine_ids as values.
+        """
+        id_dict = {}
+        id_dict[self.jenkins_master_host_config.container_name] = self.jenkins_master_host_config.machine_id
+        id_dict[self.web_server_host_config.container_name] = self.web_server_host_config.machine_id
+        for slave_config in self.jenkins_slave_configs:
+            if slave_config.container_name:
+                id_dict[slave_config.container_name] = slave_config.machine_id
+
+        return id_dict
+
+    def get_docker_subnet(self):
+        return self._DOCKER_SUBNET_BASE_IP + '.0/16'
 
 
     def _import_config_data(self):
@@ -99,8 +165,11 @@ class ConfigData:
             machine.machine_id = _get_checked_value(machine_dict, KEY_MACHINE_ID)
             machine.host_name = _get_checked_value(machine_dict, KEY_MACHINE_NAME)
             machine.user_name = _get_checked_value(machine_dict, KEY_USER)
-            machine.user_password = machine_dict[KEY_PASSWORD] # password is optional
+            if KEY_PASSWORD in machine_dict: # password is optional
+                machine.user_password = machine_dict[KEY_PASSWORD]
             machine.os_type = _get_checked_value(machine_dict, KEY_OSTYPE)
+            if KEY_TEMPDIR in machine_dict: # password is optional
+                machine.temp_dir = machine_dict[KEY_TEMPDIR]
 
             self.host_machine_connections.append(machine)
 
@@ -112,8 +181,7 @@ class ConfigData:
         config_dict = _get_checked_value(self._config_file_dict, KEY_JENKINS_MASTER_HOST)
 
         self.jenkins_master_host_config.machine_id = _get_checked_value(config_dict, KEY_MACHINE_ID)
-        self.jenkins_master_host_config.jenkins_home_share = _get_checked_value(config_dict, KEY_HOST_JENKINS_MASTER_SHARE)
-        self.jenkins_master_host_config.host_temp_dir = _get_checked_value(config_dict, KEY_HOST_TEMP_DIR)
+        self.jenkins_master_host_config.jenkins_home_share = PurePosixPath(_get_checked_value(config_dict, KEY_HOST_JENKINS_MASTER_SHARE))
 
 
     def _read_web_server_host_config(self):
@@ -123,7 +191,7 @@ class ConfigData:
         config_dict = _get_checked_value(self._config_file_dict, KEY_WEB_SERVER_HOST)
 
         self.web_server_host_config.machine_id = _get_checked_value(config_dict, KEY_MACHINE_ID)
-        self.web_server_host_config.host_html_share_dir = _get_checked_value(config_dict, KEY_HOST_HTML_SHARE)
+        self.web_server_host_config.host_html_share_dir = PurePosixPath(_get_checked_value(config_dict, KEY_HOST_HTML_SHARE))
 
 
     def _read_repository_host_config(self):
@@ -213,12 +281,10 @@ class ConfigData:
         """
         These to machines are currently implemented as docker containers and therefor need a linux host.
         """
-        connection  = self.get_host_machine_connection(self.jenkins_master_host_config.machine_id)
-        if connection.os_type != "Linux":
+        if not self.is_linux_machine(self.jenkins_master_host_config.machine_id):
             raise Exception("Config file Error! The host for the jenkins master must be a Linux machine.")
 
-        connection  = self.get_host_machine_connection(self.web_server_host_config.machine_id)
-        if connection.os_type != "Linux":
+        if not self.is_linux_machine(self.web_server_host_config.machine_id):
             raise Exception("Config file Error! The host for the web server must be a Linux machine.")
 
 
@@ -230,7 +296,7 @@ class ConfigData:
         used_machines = []
         used_machines.append(self.jenkins_master_host_config.machine_id)
         used_machines.append(self.web_server_host_config.machine_id)
-        used_machines.append(self.repository_host_config)
+        used_machines.append(self.repository_host_config.machine_id)
         for slave_config in self.jenkins_slave_configs:
             used_machines.append(slave_config.machine_id)
 
@@ -268,50 +334,41 @@ class ConfigData:
                 raise  Exception("Config file Error! Values for key {0} must be larger than zero.".format(KEY_EXECUTORS) )
 
 
-    def get_host_machine_connection(self, machine_id):
-        """
-        Get the connection data for a certain host machine.
-        """
-        return next((x for x in self.host_machine_connections if x.machine_id == machine_id), None)
-
-
     def _set_container_names_and_ips(self):
         """
         Sets values to the member variables that hold container names and ips.
         """
         self.web_server_host_config.container_name = 'ccb-web-server'
-        self.web_server_host_config.container_ip = '172.19.0.2'
+        self.web_server_host_config.container_ip = self._DOCKER_SUBNET_BASE_IP + '.2'
         self.jenkins_master_host_config.container_name = 'jenkins-master'
-        self.jenkins_master_host_config.container_ip = '172.19.0.3'
+        self.jenkins_master_host_config.container_ip = self._DOCKER_SUBNET_BASE_IP + '.3'
+
+        # set names and ips to linux 
+        ip_index = 4
+        name_index = 0
+        for slave_config in self.jenkins_slave_configs:
+            if self.is_linux_machine(slave_config.machine_id):
+                slave_config.container_name = "jenkins-slave-linux-{0}".format(name_index)
+                name_index += 1
+                slave_config.container_ip = "{0}.{1}".format(self._DOCKER_SUBNET_BASE_IP,ip_index)
+                ip_index += 1
 
 
-    def establish_host_machine_connections(self):
+    def _check_generated_data_validity(self):
         """
-        Reads the machine login date from a config file dictionary.
-        Returns a map that contains machine ids as keys and HostMachineConnection objects as values.
+        This function executes validity checks that require the generated data, like container names
+        to be available.
         """
-        login_data_object_map = {}
-        login_data_dict = _get_checked_value(self._config_file_dict, KEY_LOGIN_DATA)
-        for key, value in login_data_dict.items():
-            login_data = HostMachineConnection()
-            login_data.machine_name = _get_checked_value(value, KEY_MACHINE_NAME)
-            login_data.user_name = _get_checked_value(value, KEY_USER)
-            login_data.os_type = _get_checked_value(value, KEY_OSTYPE)
+        self._check_container_hosts_have_temp_dir()
+        
 
-            # The password is optional so we do not check for it.
-            password = value[KEY_PASSWORD]
-            if not password:
-                prompt_message = "Please enter the password for account {0}@{1}.".format(login_data.user_name, login_data.machine_name)
-                password = getpass.getpass(prompt_message)
+    def _check_container_hosts_have_temp_dir(self):
+        container_machines = set(self.get_container_machine_dictionary().values())
+        for machine_id in container_machines:
+            connection = self.get_host_machine_connection(machine_id)
+            if not connection.temp_dir:
+                raise Exception("Config file Error! Host machine {0} needs a temporary directory set under key {1}.".format(machine_id, KEY_TEMPDIR))
 
-            # make the connection
-            login_data.ssh_client.load_system_host_keys()
-            login_data.ssh_client.set_missing_host_key_policy(paramiko.WarningPolicy)
-            login_data.ssh_client.connect(login_data.machine_name, port=22, username=login_data.user_name, password=password)
-
-            login_data_object_map[key] = login_data
-
-        return login_data_object_map
 
 
 
@@ -326,7 +383,85 @@ class HostMachineConnection:
         self.user_name = ''
         self.user_password = ''
         self.os_type = ''
+        self.temp_dir = ''
         self.ssh_client = paramiko.SSHClient()
+
+        # object to close open connections when the object is destroyed
+        self._finalizer = weakref.finalize(self, self._close_connections)
+
+
+    def _close_connections(self):
+        self.ssh_client.close()
+
+
+    def remove(self):
+        self._finalizer()
+
+
+    @property
+    def removed(self):
+        return not self._finalizer.alive
+
+
+    def run_command(self, command, print_output=False, print_command=False, ignore_return_code=False):
+        """
+        The function runs a console command on the remote host machine via the paramiko ssh client.
+        The function returns the output of the command as a list of strings, where each element
+        in the list is a line in the output. 
+
+        The function throws if the return code is not zero and ignore_return_code is set to False.
+        """
+        stdin, stdout, stderr = self.ssh_client.exec_command(command, get_pty=True)
+
+        if print_command:
+            print(self._prepend_machine_id(command))
+
+        # print output as soon as it is produced
+        out_list = []
+        if print_output:
+            for line in iter(stdout.readline, ""):
+                out_list.append(line.rstrip()) # add the line without line separators
+                print(self._prepend_machine_id(line), end="")
+        else:
+            out_list = stdout.readlines()
+
+        err_list = stderr.readlines()
+        err_list = self._remove_line_separators(err_list)
+        retcode = stdout.channel.recv_exit_status()
+
+        if not ignore_return_code and retcode != 0:
+            if not print_output:                         # always print the output in case of an error
+                self._print_output(out_list, err_list)
+            error = 'Command "{0}" executed on host {1} returned error code {2}.'.format(command, self.machine_id, str(retcode))
+            raise Exception(error)
+
+        return out_list
+
+
+    def _remove_line_separators(self, stringlist):
+        new_list = []
+        for string in stringlist:
+            new_list.append(string.rstrip())
+        return new_list
+
+
+    def _print_output(self, out_list, err_list):
+        out_list = self._prepend_machine_ids(out_list)
+        _print_string_list(out_list)
+        err_list = self._prepend_machine_ids(err_list)
+        _print_string_list(err_list)
+
+
+    def _prepend_machine_ids(self, stringlist):
+        return [ (self._prepend_machine_id(string)) for string in stringlist]
+
+    def _prepend_machine_id(self, string):
+        return "[{0}] ".format(self.machine_id) + string
+
+
+def _print_string_list(list):
+    for string in list:
+        print(string)
 
 
 class JenkinsMasterHostConfig:
@@ -335,8 +470,7 @@ class JenkinsMasterHostConfig:
     """
     def __init__(self):
         self.machine_id = ''
-        self.jenkins_home_share = ''
-        self.host_temp_dir = ''
+        self.jenkins_home_share = PurePosixPath()
         self.container_name = ''
         self.container_ip = ''
 
@@ -347,7 +481,7 @@ class WebserverHostConfig:
     """
     def __init__(self):
         self.machine_id = ''
-        self.host_html_share_dir = ''
+        self.host_html_share_dir = PurePosixPath()
         self.container_name = ''
         self.container_ip = ''
 
@@ -393,7 +527,7 @@ class JenkinsAccountConfig:
     """
     def __init__(self, user_name_arg, xml_file):
         self.user_name = user_name_arg
-        self.xml_config_file = xml_file
+        self.xml_config_file = PurePath(xml_file)
 
 
 class JenkinsJobConfig:
@@ -402,7 +536,7 @@ class JenkinsJobConfig:
     """
     def __init__(self, job_name_arg, xml_file):
         self.job_name = job_name_arg
-        self.xml_config_file = xml_file
+        self.xml_config_file = PurePath(xml_file)
 
 
 class CppCodeBaseJobConfig:
@@ -423,6 +557,15 @@ def write_example_config_file(file_path):
     _write_json_file(config_dict, file_path)
 
 
+def read_json_file(config_file):
+    """
+    Returns the content of a json file as dictionary.
+    """
+    with open(config_file) as file:
+        data = json.load(file)
+    return data
+
+
 def get_example_config_dict():
     """
     Returns a dictionary that contains the data of a valid example configuration.
@@ -435,27 +578,27 @@ def get_example_config_dict():
                 KEY_MACHINE_NAME : 'lhost3',
                 KEY_USER : 'fritz',
                 KEY_PASSWORD : '1234password',
-                KEY_OSTYPE : 'Linux'
+                KEY_OSTYPE : 'Linux',
+                KEY_TEMPDIR : '/home/fritz/temp'
             },
             {
                 KEY_MACHINE_ID : 'MyLinuxSlave',
                 KEY_MACHINE_NAME : '192.168.0.5',
                 KEY_USER : 'fritz',
                 KEY_PASSWORD : '1234password',
-                KEY_OSTYPE : 'Linux'
+                KEY_OSTYPE : 'Linux',
+                KEY_TEMPDIR : '/home/fritz/temp'
             },
             {
                 KEY_MACHINE_ID : 'MyWindowsSlave',
                 KEY_MACHINE_NAME : 'whost12',
                 KEY_USER : 'fritz',
-                KEY_PASSWORD : '1234password',
                 KEY_OSTYPE : 'Windows'
             },
         ],
         KEY_JENKINS_MASTER_HOST : {
             KEY_MACHINE_ID : 'MyMaster',
-            KEY_HOST_JENKINS_MASTER_SHARE : '/home/fritz/jenkins_home',
-            KEY_HOST_TEMP_DIR : '/home/fritz/temp'
+            KEY_HOST_JENKINS_MASTER_SHARE : '/home/fritz/jenkins_home'
         },
         KEY_WEB_SERVER_HOST : {
             KEY_MACHINE_ID : 'MyMaster',
@@ -468,6 +611,10 @@ def get_example_config_dict():
         KEY_JENKINS_SLAVES : [
             {
                 KEY_MACHINE_ID : 'MyLinuxSlave',
+                KEY_EXECUTORS : '2'
+            },
+            {
+                KEY_MACHINE_ID : 'MyMaster',
                 KEY_EXECUTORS : '1'
             },
             {
@@ -506,15 +653,6 @@ def _write_json_file(config_dict, file_path):
 
     with open(file_path, 'w') as file:
         json.dump(config_values, file, indent=2)
-
-
-def read_json_file(config_file):
-    """
-    Returns the content of a json file as dictionary.
-    """
-    with open(config_file) as file:
-        data = json.load(file)
-    return data
 
 
 def _get_checked_value(dictionary, key):
