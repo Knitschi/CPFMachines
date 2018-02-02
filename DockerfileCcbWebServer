@@ -49,12 +49,5 @@ COPY serve-cgi-bin.conf /etc/apache2/conf-available
 RUN a2enmod cgi
 
 # -------------- START WEBSERVER AND SSHDAEMON VIA SUPERVISOR --------------
-# Start the ssh daemon and the apache webserver
-# To enable starting both services the command was packed into a script.
-#CMD ["/usr/sbin/apache2ctl","-DFOREGROUND"]
-
-#COPY startCcbWebServer.sh startCcbWebServer.sh
-#CMD ["./startCcbWebServer.sh","-DFOREGROUND"]
-
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 CMD ["/usr/bin/supervisord"]

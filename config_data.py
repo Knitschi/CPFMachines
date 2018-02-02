@@ -54,11 +54,14 @@ KEY_JENKINS_APPROVED_SYSTEM_COMMANDS = 'JenkinsApprovedSystemCommands'
 KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES = 'JenkinsApprovedScriptSignatures'
 
 
+
+
 class ConfigData:
     """
     This class holds all the information from a CppCodeBaseMachines config file.
     """
     _DOCKER_SUBNET_BASE_IP = '172.19.0'
+    _LINUX_SLAVE_BASE_NAME = 'jenkins-slave-linux'
 
     def __init__(self, config_dict):
         # objects that contain the config data
@@ -129,11 +132,11 @@ class ConfigData:
         the associated host machine_ids as values.
         """
         id_dict = {}
-        id_dict[self.jenkins_master_host_config.container_name] = self.jenkins_master_host_config.machine_id
-        id_dict[self.web_server_host_config.container_name] = self.web_server_host_config.machine_id
+        id_dict[self.jenkins_master_host_config.container_conf.container_name] = self.jenkins_master_host_config.machine_id
+        id_dict[self.web_server_host_config.container_conf.container_name] = self.web_server_host_config.machine_id
         for slave_config in self.jenkins_slave_configs:
-            if slave_config.container_name:
-                id_dict[slave_config.container_name] = slave_config.machine_id
+            if slave_config.container_conf.container_name:
+                id_dict[slave_config.container_conf.container_name] = slave_config.machine_id
 
         return id_dict
 
@@ -169,7 +172,10 @@ class ConfigData:
                 machine.user_password = machine_dict[KEY_PASSWORD]
             machine.os_type = _get_checked_value(machine_dict, KEY_OSTYPE)
             if KEY_TEMPDIR in machine_dict: # password is optional
-                machine.temp_dir = machine_dict[KEY_TEMPDIR]
+                if machine.os_type == "Windows":
+                    machine.temp_dir = PureWindowsPath(machine_dict[KEY_TEMPDIR])
+                else:
+                    machine.temp_dir = PurePosixPath(machine_dict[KEY_TEMPDIR])
 
             self.host_machine_connections.append(machine)
 
@@ -201,7 +207,7 @@ class ConfigData:
         config_dict = _get_checked_value(self._config_file_dict, KEY_REPOSITORY_HOST)
 
         self.repository_host_config.machine_id = _get_checked_value(config_dict, KEY_MACHINE_ID)
-        self.repository_host_config.ssh_dir = _get_checked_value(config_dict, KEY_SSH_DIR)
+        self.repository_host_config.ssh_dir = PurePosixPath(_get_checked_value(config_dict, KEY_SSH_DIR))
 
 
     def _read_jenkins_slave_configs(self):
@@ -338,20 +344,23 @@ class ConfigData:
         """
         Sets values to the member variables that hold container names and ips.
         """
-        self.web_server_host_config.container_name = 'ccb-web-server'
-        self.web_server_host_config.container_ip = self._DOCKER_SUBNET_BASE_IP + '.2'
-        self.jenkins_master_host_config.container_name = 'jenkins-master'
-        self.jenkins_master_host_config.container_ip = self._DOCKER_SUBNET_BASE_IP + '.3'
+        self.web_server_host_config.container_conf.container_name = 'ccb-web-server'
+        self.web_server_host_config.container_conf.container_ip = self._DOCKER_SUBNET_BASE_IP + '.2'
+        self.web_server_host_config.container_conf.container_image_name = 'ccb-web-server-image'
+        self.jenkins_master_host_config.container_conf.container_name = 'jenkins-master'
+        self.jenkins_master_host_config.container_conf.container_ip = self._DOCKER_SUBNET_BASE_IP + '.3'
+        self.jenkins_master_host_config.container_conf.container_image_name = 'jenkins-master-image'
 
         # set names and ips to linux 
         ip_index = 4
         name_index = 0
         for slave_config in self.jenkins_slave_configs:
             if self.is_linux_machine(slave_config.machine_id):
-                slave_config.container_name = "jenkins-slave-linux-{0}".format(name_index)
+                slave_config.container_conf.container_name = "{0}-{1}".format(self._LINUX_SLAVE_BASE_NAME, name_index)
                 name_index += 1
-                slave_config.container_ip = "{0}.{1}".format(self._DOCKER_SUBNET_BASE_IP,ip_index)
+                slave_config.container_conf.container_ip = "{0}.{1}".format(self._DOCKER_SUBNET_BASE_IP,ip_index)
                 ip_index += 1
+                slave_config.container_conf.container_image_name = self._LINUX_SLAVE_BASE_NAME + '-image'
 
 
     def _check_generated_data_validity(self):
@@ -366,7 +375,7 @@ class ConfigData:
         container_machines = set(self.get_container_machine_dictionary().values())
         for machine_id in container_machines:
             connection = self.get_host_machine_connection(machine_id)
-            if not connection.temp_dir:
+            if connection.temp_dir == PurePosixPath():
                 raise Exception("Config file Error! Host machine {0} needs a temporary directory set under key {1}.".format(machine_id, KEY_TEMPDIR))
 
 
@@ -424,6 +433,7 @@ class HostMachineConnection:
                 print(self._prepend_machine_id(line), end="")
         else:
             out_list = stdout.readlines()
+            out_list = self._remove_line_separators(out_list)
 
         err_list = stderr.readlines()
         err_list = self._remove_line_separators(err_list)
@@ -471,8 +481,16 @@ class JenkinsMasterHostConfig:
     def __init__(self):
         self.machine_id = ''
         self.jenkins_home_share = PurePosixPath()
+        self.container_conf = ContainerConfig()
+
+class ContainerConfig:
+    """
+    Data class that holds information about a container.
+    """
+    def __init__(self):
         self.container_name = ''
         self.container_ip = ''
+        self.container_image_name = ''
 
 
 class WebserverHostConfig:
@@ -482,8 +500,7 @@ class WebserverHostConfig:
     def __init__(self):
         self.machine_id = ''
         self.host_html_share_dir = PurePosixPath()
-        self.container_name = ''
-        self.container_ip = ''
+        self.container_conf = ContainerConfig()
 
 
 class RepositoryHostConfig:
@@ -502,8 +519,7 @@ class JenkinsSlaveConfig:
     def __init__(self):
         self.machine_id = ''
         self.executors = ''
-        self.container_name = ''
-        self.container_ip = ''
+        self.container_conf = ContainerConfig()
 
 
 class JenkinsConfig:
@@ -511,7 +527,7 @@ class JenkinsConfig:
     Data class that holds the information from the KEY_JENKINS_CONFIG key.
     """
     def __init__(self):
-        self.use_unconfigured_jenkins = False
+        self.use_unconfigured_jenkins = False   # Setting this option will prevent the pre-configuation of jenkins. Needed for createing a first account xml file?
         self.admin_user = ''
         self.admin_user_password = ''
         self.account_config_files = []

@@ -50,14 +50,16 @@ class TestConfigData(unittest.TestCase):
         # jenkins master host data
         self.assertEqual( sut.jenkins_master_host_config.machine_id, 'MyMaster')
         self.assertEqual( str(sut.jenkins_master_host_config.jenkins_home_share), '/home/fritz/jenkins_home')
-        self.assertEqual( sut.jenkins_master_host_config.container_name, 'jenkins-master')
-        self.assertEqual( sut.jenkins_master_host_config.container_ip, '172.19.0.3')
+        self.assertEqual( sut.jenkins_master_host_config.container_conf.container_name, 'jenkins-master')
+        self.assertEqual( sut.jenkins_master_host_config.container_conf.container_ip, '172.19.0.3')
+        self.assertEqual( sut.jenkins_master_host_config.container_conf.container_image_name, 'jenkins-master-image')
 
         # web server host data
         self.assertEqual( sut.web_server_host_config.machine_id, 'MyMaster')
         self.assertEqual( str(sut.web_server_host_config.host_html_share_dir), '/home/fritz/ccb_html_share')
-        self.assertEqual( sut.web_server_host_config.container_name, 'ccb-web-server')
-        self.assertEqual( sut.web_server_host_config.container_ip, '172.19.0.2')
+        self.assertEqual( sut.web_server_host_config.container_conf.container_name, 'ccb-web-server')
+        self.assertEqual( sut.web_server_host_config.container_conf.container_ip, '172.19.0.2')
+        self.assertEqual( sut.web_server_host_config.container_conf.container_image_name, 'ccb-web-server-image')
 
         # repository host data
         self.assertEqual( sut.repository_host_config.machine_id , 'MyMaster')
@@ -66,18 +68,21 @@ class TestConfigData(unittest.TestCase):
         # jenkins slave config
         self.assertEqual( sut.jenkins_slave_configs[0].machine_id , 'MyLinuxSlave')
         self.assertEqual( sut.jenkins_slave_configs[0].executors , 2)
-        self.assertEqual( sut.jenkins_slave_configs[0].container_name , 'jenkins-slave-linux-0')
-        self.assertEqual( sut.jenkins_slave_configs[0].container_ip , '172.19.0.4')
+        self.assertEqual( sut.jenkins_slave_configs[0].container_conf.container_name , 'jenkins-slave-linux-0')
+        self.assertEqual( sut.jenkins_slave_configs[0].container_conf.container_ip , '172.19.0.4')
+        self.assertEqual( sut.jenkins_slave_configs[0].container_conf.container_image_name , 'jenkins-slave-linux-image')
 
         self.assertEqual( sut.jenkins_slave_configs[1].machine_id , 'MyMaster')
         self.assertEqual( sut.jenkins_slave_configs[1].executors , 1)
-        self.assertEqual( sut.jenkins_slave_configs[1].container_name , 'jenkins-slave-linux-1')
-        self.assertEqual( sut.jenkins_slave_configs[1].container_ip , '172.19.0.5')
+        self.assertEqual( sut.jenkins_slave_configs[1].container_conf.container_name , 'jenkins-slave-linux-1')
+        self.assertEqual( sut.jenkins_slave_configs[1].container_conf.container_ip , '172.19.0.5')
+        self.assertEqual( sut.jenkins_slave_configs[1].container_conf.container_image_name , 'jenkins-slave-linux-image')
 
         self.assertEqual( sut.jenkins_slave_configs[2].machine_id , 'MyWindowsSlave')
         self.assertEqual( sut.jenkins_slave_configs[2].executors , 1)
-        self.assertEqual( sut.jenkins_slave_configs[2].container_name , '')
-        self.assertEqual( sut.jenkins_slave_configs[2].container_ip , '')
+        self.assertEqual( sut.jenkins_slave_configs[2].container_conf.container_name , '')
+        self.assertEqual( sut.jenkins_slave_configs[2].container_conf.container_ip , '')
+        self.assertEqual( sut.jenkins_slave_configs[2].container_conf.container_image_name , '')
 
         # jenkins master config
         self.assertEqual( sut.jenkins_config.use_unconfigured_jenkins , False)

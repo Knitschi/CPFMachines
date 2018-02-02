@@ -32,9 +32,15 @@ RUN /bin/bash buildGit.sh
 COPY buildCMake.sh buildCMake.sh
 RUN /bin/bash buildCMake.sh
 
-
 EXPOSE 22
-    
+
+
+# make sure the scripts from the base image are executable
+RUN chmod +x /usr/local/bin/install-plugins.sh
+RUN chmod +x /usr/local/bin/jenkins.sh
+RUN chmod +x /usr/local/bin/plugins.sh
+RUN chmod +x /usr/local/bin/jenkins-support
+
 # Make sure the container is run with the jenkins user rights
 USER jenkins
 
@@ -45,7 +51,7 @@ USER jenkins
 # xvfb -> mock x-server needed to run Qt guy tests on linux
 # command-launcher -> "Launch agent via execution of command on the master" option for jenkins slaves.
 
-RUN install-plugins.sh \
+RUN /bin/bash install-plugins.sh \
 blueocean:1.3.4 \
 greenballs:1.15 \
 xvfb:1.1.3 \
