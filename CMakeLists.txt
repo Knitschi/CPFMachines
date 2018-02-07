@@ -18,7 +18,6 @@ set( sources
     BuildHostLinux/shutdownVms.service
     buildQt.sh
     cppcodebasemachines_version.py
-    createEmptyConfigFile.py
     createSSHKeyFilePair.sh
     Doc_CppCodeBaseMachines.dox
     DockerfileCcbWebServer
