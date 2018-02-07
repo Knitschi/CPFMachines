@@ -31,39 +31,41 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.host_machine_connections[0].user_name, 'fritz' )
         self.assertEqual( sut.host_machine_connections[0].user_password, '1234password' )
         self.assertEqual( sut.host_machine_connections[0].os_type, 'Linux' )
-        self.assertEqual( str(sut.host_machine_connections[0].temp_dir), '/home/fritz/temp' )
+        self.assertEqual( sut.host_machine_connections[0].temp_dir, PurePosixPath('/home/fritz/temp') )
 
         self.assertEqual( sut.host_machine_connections[1].machine_id, 'MyLinuxSlave' )
         self.assertEqual( sut.host_machine_connections[1].host_name, '192.168.0.5' )
         self.assertEqual( sut.host_machine_connections[1].user_name, 'fritz' )
         self.assertEqual( sut.host_machine_connections[1].user_password, '1234password' )
         self.assertEqual( sut.host_machine_connections[1].os_type, 'Linux' )
-        self.assertEqual( str(sut.host_machine_connections[1].temp_dir), '/home/fritz/temp' )
+        self.assertEqual( sut.host_machine_connections[1].temp_dir, PurePosixPath('/home/fritz/temp') )
 
         self.assertEqual( sut.host_machine_connections[2].machine_id, 'MyWindowsSlave' )
         self.assertEqual( sut.host_machine_connections[2].host_name, 'whost12' )
         self.assertEqual( sut.host_machine_connections[2].user_name, 'fritz' )
         self.assertEqual( sut.host_machine_connections[2].user_password, '' )
         self.assertEqual( sut.host_machine_connections[2].os_type, 'Windows' )
-        self.assertEqual( str(sut.host_machine_connections[2].temp_dir), '' )
+        self.assertEqual( sut.host_machine_connections[2].temp_dir, None )
 
         # jenkins master host data
         self.assertEqual( sut.jenkins_master_host_config.machine_id, 'MyMaster')
-        self.assertEqual( str(sut.jenkins_master_host_config.jenkins_home_share), '/home/fritz/jenkins_home')
+        self.assertEqual( sut.jenkins_master_host_config.jenkins_home_share, PurePosixPath('/home/fritz/jenkins_home'))
         self.assertEqual( sut.jenkins_master_host_config.container_conf.container_name, 'jenkins-master')
         self.assertEqual( sut.jenkins_master_host_config.container_conf.container_ip, '172.19.0.3')
         self.assertEqual( sut.jenkins_master_host_config.container_conf.container_image_name, 'jenkins-master-image')
-
+        self.assertEqual( sut.jenkins_master_host_config.container_conf.mapped_ssh_host_port, None)
+        
         # web server host data
         self.assertEqual( sut.web_server_host_config.machine_id, 'MyMaster')
-        self.assertEqual( str(sut.web_server_host_config.host_html_share_dir), '/home/fritz/ccb_html_share')
+        self.assertEqual( sut.web_server_host_config.host_html_share_dir, PurePosixPath('/home/fritz/ccb_html_share'))
         self.assertEqual( sut.web_server_host_config.container_conf.container_name, 'ccb-web-server')
         self.assertEqual( sut.web_server_host_config.container_conf.container_ip, '172.19.0.2')
         self.assertEqual( sut.web_server_host_config.container_conf.container_image_name, 'ccb-web-server-image')
+        self.assertEqual( sut.web_server_host_config.container_conf.mapped_ssh_host_port, 23)
 
         # repository host data
         self.assertEqual( sut.repository_host_config.machine_id , 'MyMaster')
-        self.assertEqual( sut.repository_host_config.ssh_dir , '/home/fritz/.ssh')
+        self.assertEqual( sut.repository_host_config.ssh_dir , PurePosixPath('/home/fritz/.ssh'))
 
         # jenkins slave config
         self.assertEqual( sut.jenkins_slave_configs[0].machine_id , 'MyLinuxSlave')
@@ -71,18 +73,21 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_slave_configs[0].container_conf.container_name , 'jenkins-slave-linux-0')
         self.assertEqual( sut.jenkins_slave_configs[0].container_conf.container_ip , '172.19.0.4')
         self.assertEqual( sut.jenkins_slave_configs[0].container_conf.container_image_name , 'jenkins-slave-linux-image')
+        self.assertEqual( sut.jenkins_slave_configs[0].container_conf.mapped_ssh_host_port , 24)
 
         self.assertEqual( sut.jenkins_slave_configs[1].machine_id , 'MyMaster')
         self.assertEqual( sut.jenkins_slave_configs[1].executors , 1)
         self.assertEqual( sut.jenkins_slave_configs[1].container_conf.container_name , 'jenkins-slave-linux-1')
         self.assertEqual( sut.jenkins_slave_configs[1].container_conf.container_ip , '172.19.0.5')
         self.assertEqual( sut.jenkins_slave_configs[1].container_conf.container_image_name , 'jenkins-slave-linux-image')
+        self.assertEqual( sut.jenkins_slave_configs[1].container_conf.mapped_ssh_host_port , 25)
 
         self.assertEqual( sut.jenkins_slave_configs[2].machine_id , 'MyWindowsSlave')
         self.assertEqual( sut.jenkins_slave_configs[2].executors , 1)
         self.assertEqual( sut.jenkins_slave_configs[2].container_conf.container_name , '')
         self.assertEqual( sut.jenkins_slave_configs[2].container_conf.container_ip , '')
         self.assertEqual( sut.jenkins_slave_configs[2].container_conf.container_image_name , '')
+        self.assertEqual( sut.jenkins_slave_configs[2].container_conf.mapped_ssh_host_port , None)
 
         # jenkins master config
         self.assertEqual( sut.jenkins_config.use_unconfigured_jenkins , False)

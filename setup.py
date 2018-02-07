@@ -122,8 +122,9 @@ def main(config_file):
         config,
         config.jenkins_master_host_config.container_conf,
         _JENKINS_HOME_JENKINS_MASTER_CONTAINER)
+    print('----- Grant '+ config.jenkins_master_host_config.container_conf.container_name +' ssh access to linux slaves')
+    _grant_jenkins_master_ssh_access_to_jenkins_linux_slaves(config)
     """
-    _grant_jenkins_master_ssh_access_to_jenkins_linux_slave(config_values)
     _grant_jenkins_master_ssh_access_to_jenkins_windows_slave(
         config_values,
         jenkins_slave_machine_windows_password)
@@ -495,6 +496,7 @@ def _build_and_start_web_server(config):
         'docker run '
         '--detach '
         '--publish 80:80 '      # The web-page is reached under port 80
+        '--publish ' + str(config.web_server_host_config.container_conf.mapped_ssh_host_port) + ':22 ' # publish the port of the ssh server
         '--volume ' + str(config.web_server_host_config.host_html_share_dir) + ':' + str(_HTML_SHARE_WEB_SERVER_CONTAINER) + ' '
         '--name ' + container_name + ' '
         '--net ' + _DOCKER_NETWORK_NAME + ' '
@@ -573,6 +575,7 @@ def _build_and_start_jenkins_linux_slave(config, container_conf, machine_id):
         '--name ' + container_conf.container_name + ' '
         '--net ' + _DOCKER_NETWORK_NAME + ' '
         '--ip ' + container_conf.container_ip + ' '
+        '--publish ' + str(container_conf.mapped_ssh_host_port) + ':22 '
         + container_image
     )
     connection.run_command(command, print_command=True)
@@ -609,7 +612,11 @@ def _copy_file_to_container(connection, sftp_client, container_conf, source_path
     container_file = container_path.joinpath(file_name)
 
     _copy_textfile_from_local_to_linux(connection, sftp_client, local_file, host_file)
-    connection.run_command("docker cp {0} {1}:{2}".format(host_file, container_conf.container_name, container_file))
+    _copy_file_from_host_to_container(connection, container_conf, host_file, container_file)
+    
+
+def _copy_file_from_host_to_container(host_connection, container_conf, source_file, target_file):
+    host_connection.run_command("docker cp {0} {1}:{2}".format(source_file, container_conf.container_name, target_file))
 
 
 def _grant_container_ssh_access_to_repository(config, container_conf, container_home_directory):
@@ -628,7 +635,7 @@ def _grant_container_ssh_access_to_repository(config, container_conf, container_
     # The connection is used to access the git repository
     # This requires access to the datenbunker.
     with container_host_connection.ssh_client.open_sftp() as sftp_client:
-        public_key_file = container_name + _PUBLIC_KEY_FILE_POSTFIX
+        public_key_file = _get_public_key_filename(container_name)
 
         _guarantee_directory_exists(config, container_host_connection.machine_id, temp_dir_chost)
         
@@ -666,8 +673,11 @@ def _grant_container_ssh_access_to_repository(config, container_conf, container_
         _run_command_in_container(
             container_host_connection,
             container_name,
-            '/bin/bash '+ str(container_home_directory.joinpath(_ADDKNOWNHOST_SCRIPT)) + ' ' + repository_connection.host_name,
+            '/bin/bash '+ str(container_home_directory.joinpath(_ADDKNOWNHOST_SCRIPT)) + ' ' + repository_connection.host_name + ' 22',
             'jenkins')
+
+def _get_public_key_filename(container):
+    return container + _PUBLIC_KEY_FILE_POSTFIX
 
 
 def _rtorcopy(source_sftp_client, target_sftp_client, source_file, target_file):
@@ -680,20 +690,50 @@ def _rtorcopy(source_sftp_client, target_sftp_client, source_file, target_file):
     os.remove(local_temp_file)
 
 
-def _grant_jenkins_master_ssh_access_to_jenkins_linux_slave(config_values):
-    print('----- Grant '+_JENINS_MASTER_CONTAINER+' ssh access to '+_FULL_LINUX_JENKINS_SLAVE_NAME)
-    public_key_file = _JENINS_MASTER_CONTAINER + _PUBLIC_KEY_FILE_POSTFIX
+def _grant_jenkins_master_ssh_access_to_jenkins_linux_slaves(config):
+    """
+    Creates an authorized-keys file on all jenkins slave containers
+    that contains the public key of the master.
+    """
+    master_host_connection = config.get_host_machine_connection(config.jenkins_master_host_config.machine_id)
+    public_key_file_master_host = master_host_connection.temp_dir.joinpath(
+        _get_public_key_filename(config.jenkins_master_host_config.container_conf.container_name)
+        )
 
-    # COPY AND REGISTER THE PUBLIC KEY WITH THE SLAVE
-    # Jenkins handles linux slaves with an ssh connection.
-    _run_command(
-        'docker cp {0}/{1} {2}:{3}/.ssh/authorized_keys'.format(
-            config_values['HostJenkinsMasterShare'],
-            public_key_file,
-            _FULL_LINUX_JENKINS_SLAVE_NAME,
-            _JENKINS_HOME_JENKINS_SLAVE_CONTAINER))
-    # Add slave as known host to prevent the authentication request on the first connect
-    _add_remote_to_known_ssh_hosts_of_jenkins_master(_JENKINS_LINUX_SLAVE_CONTAINER_IP)
+    for slave_config in config.jenkins_slave_configs:
+        if config.is_linux_machine(slave_config.machine_id):
+            slave_connection = config.get_host_machine_connection(slave_config.machine_id)
+            authorized_keys_file = _JENKINS_HOME_JENKINS_SLAVE_CONTAINER.joinpath('.ssh/authorized_keys')
+            
+            rtocontainercopy(master_host_connection, slave_connection, slave_config.container_conf, public_key_file_master_host, authorized_keys_file)
+
+            # Add slave as known host to prevent the authentication request on the first connect
+            _add_remote_to_known_ssh_hosts_of_jenkins_master(config, slave_connection.host_name, slave_config.container_conf.mapped_ssh_host_port)
+
+
+def rtocontainercopy(source_host_connection, target_host_connection, container_conf, source_file, target_file):
+    """
+    Copies the source_file from a host machine to the target target path target_file on a container.
+    """
+    with source_host_connection.ssh_client.open_sftp() as source_sftp_client:
+        with target_host_connection.ssh_client.open_sftp() as target_sftp_client:
+            temp_path_container_host = target_host_connection.temp_dir.joinpath(source_file.name)
+            _rtorcopy(source_sftp_client, target_sftp_client, source_file, temp_path_container_host)
+            _copy_file_from_host_to_container(target_host_connection, container_conf, temp_path_container_host, target_file)
+
+
+def _add_remote_to_known_ssh_hosts_of_jenkins_master(config, remote_host, port):
+    """
+    remoteMachine can be an IP or machine name.
+    """
+    connection = config.get_host_machine_connection(config.jenkins_master_host_config.machine_id)
+    runScriptCommand = ('/bin/bash ' + str(_JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath(_ADDKNOWNHOST_SCRIPT)) + ' ' + remote_host + ' ' + str(port))
+    
+    _run_command_in_container(
+        connection,
+        config.jenkins_master_host_config.container_conf.container_name,
+        runScriptCommand,
+        'jenkins')
 
 
 def _grant_jenkins_master_ssh_access_to_jenkins_windows_slave(config_values, jenkins_slave_machine_windows_password):
@@ -702,9 +742,7 @@ def _grant_jenkins_master_ssh_access_to_jenkins_windows_slave(config_values, jen
     jenkins_slave_machine_windows = config_values['BuildSlaveWindowsMachine']
     jenkins_slave_machine_windows_user = config_values['BuildSlaveWindowsMachineUser']
 
-    print((
-        "----- Grant {0} ssh access to {1}"
-        ).format(_JENINS_MASTER_CONTAINER, jenkins_slave_machine_windows))
+    print(("----- Grant {0} ssh access to {1}").format(_JENINS_MASTER_CONTAINER, jenkins_slave_machine_windows))
 
     # configure the script for adding an authorized key to the bitwise ssh server on the
     # windows machine
@@ -756,19 +794,6 @@ def _grant_jenkins_master_ssh_access_to_jenkins_windows_slave(config_values, jen
 def _read_file_content(filename):
     with open(filename) as open_file:
         return open_file.read()
-
-
-def _add_remote_to_known_ssh_hosts_of_jenkins_master(remote_machine):
-    """
-    remoteMachine can be an IP or machine name.
-    """
-    runScriptCommand = (
-        '/bin/bash ' + _JENKINS_HOME_JENKINS_MASTER_CONTAINER +
-        '/' + _ADDKNOWNHOST_SCRIPT + ' ' + remote_machine)
-    _run_command_in_container(
-        _JENINS_MASTER_CONTAINER,
-        runScriptCommand,
-        'jenkins')
 
 
 def _grant_jenkins_master_ssh_access_to_web_server(config_values):
@@ -928,13 +953,13 @@ def _set_jenkins_slaves(config_values):
     return start_commands
 
 
-def _get_slave_start_command(slave_machine, slave_machine_user, slave_jar_dir):
+def _get_slave_start_command(slave_host_machine, slave_machine_user, slave_jar_dir):
     """
     defines the command that is used to start the slaves via ssh.
     """
     start_command = (
-        'ssh {0}@{1} java -jar {2}/slave.jar'
-        ).format(slave_machine_user, slave_machine, slave_jar_dir)
+        'ssh {0}@{1} -p {2} java -jar {3}/slave.jar'
+        ).format(slave_machine_user, slave_host_machine, mapped_ssh_port, slave_jar_dir)
     return start_command
 
 

@@ -79,7 +79,7 @@ class ConfigData:
         # fill data members and check validity
         self._import_config_data()
         self._check_data_validity()
-        self._set_container_names_and_ips()
+        self._configure_container()
         self._check_generated_data_validity()
 
 
@@ -340,7 +340,7 @@ class ConfigData:
                 raise  Exception("Config file Error! Values for key {0} must be larger than zero.".format(KEY_EXECUTORS) )
 
 
-    def _set_container_names_and_ips(self):
+    def _configure_container(self):
         """
         Sets values to the member variables that hold container names and ips.
         """
@@ -351,7 +351,7 @@ class ConfigData:
         self.jenkins_master_host_config.container_conf.container_ip = self._DOCKER_SUBNET_BASE_IP + '.3'
         self.jenkins_master_host_config.container_conf.container_image_name = 'jenkins-master-image'
 
-        # set names and ips to linux 
+        # set names and ips to linux slave container
         ip_index = 4
         name_index = 0
         for slave_config in self.jenkins_slave_configs:
@@ -361,6 +361,19 @@ class ConfigData:
                 slave_config.container_conf.container_ip = "{0}.{1}".format(self._DOCKER_SUBNET_BASE_IP,ip_index)
                 ip_index += 1
                 slave_config.container_conf.container_image_name = self._LINUX_SLAVE_BASE_NAME + '-image'
+
+        # set the mapped ssh ports
+        forbidden_ports = (80, 8080) # these are already used by jenkins and the webserver
+        mapped_ssh_port = 23
+        self.web_server_host_config.container_conf.mapped_ssh_host_port = mapped_ssh_port
+        mapped_ssh_port += 1
+        for slave_config in self.jenkins_slave_configs:
+            if self.is_linux_machine(slave_config.machine_id):
+                # do not use ports that are used othervise
+                while mapped_ssh_port in forbidden_ports:
+                    mapped_ssh_port += 1
+                slave_config.container_conf.mapped_ssh_host_port = mapped_ssh_port
+                mapped_ssh_port += 1
 
 
     def _check_generated_data_validity(self):
@@ -379,8 +392,6 @@ class ConfigData:
                 raise Exception("Config file Error! Host machine {0} needs a temporary directory set under key {1}.".format(machine_id, KEY_TEMPDIR))
 
 
-
-
 class HostMachineConnection:
     """
     Objects of this class hold the information that is required for an ssh login
@@ -392,7 +403,7 @@ class HostMachineConnection:
         self.user_name = ''
         self.user_password = ''
         self.os_type = ''
-        self.temp_dir = ''
+        self.temp_dir = None
         self.ssh_client = paramiko.SSHClient()
 
         # object to close open connections when the object is destroyed
@@ -479,18 +490,19 @@ class JenkinsMasterHostConfig:
     Data class that holds the information from the KEY_MASTER_AND_WEB_SERVER_HOST key.
     """
     def __init__(self):
-        self.machine_id = ''
-        self.jenkins_home_share = PurePosixPath()
-        self.container_conf = ContainerConfig()
+        self.machine_id = ''                        # The host machine on which the container is run.
+        self.jenkins_home_share = PurePosixPath()   # The directory on the host that is shared with the containers home directory.
+        self.container_conf = ContainerConfig()     # Information about the container.
 
 class ContainerConfig:
     """
     Data class that holds information about a container.
     """
     def __init__(self):
-        self.container_name = ''
-        self.container_ip = ''
-        self.container_image_name = ''
+        self.container_name = ''            # The name of the container.
+        self.container_ip = ''              # The ip of the container in the docker network.
+        self.container_image_name = ''      # The name of the image which is used to instantiate the container.
+        self.mapped_ssh_host_port = None    # The port on the host machine that is mapped to port 22 on the container.
 
 
 class WebserverHostConfig:

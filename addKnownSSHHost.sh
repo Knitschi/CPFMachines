@@ -4,4 +4,4 @@
 # to the machine given in the first argument.
 set -e
 
-ssh-keyscan -H -t rsa $1 >> ~/.ssh/known_hosts
+ssh-keyscan -H -t rsa -p $2 $1 >> ~/.ssh/known_hosts
