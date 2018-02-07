@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """
-Runs all python tests from the CppCodeBaseMachines package.
+Runs all python tests from the CPFMachines package.
 """
 
 import unittest

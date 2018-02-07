@@ -1,14 +1,15 @@
-include(ccbAddPackage)
+include(cpfAddPackage)
 
 # add a custom target that does nothing, so the files appear in the Visual Studio solution explorer.
 
-set( PACKAGE_NAMESPACE CcbBS )
-ccbInitPackageProject(
+set( PACKAGE_NAMESPACE CPFBS )
+cpfInitPackageProject(
 	PACKAGE_NAME
 	${PACKAGE_NAMESPACE}
 )
 
 set( sources
+    documentation/CPFMachines.dox
     addKnownSSHHost.sh
     buildCMake.sh
     buildCurl.sh
@@ -17,10 +18,9 @@ set( sources
     BuildHostLinux/shutdownVms
     BuildHostLinux/shutdownVms.service
     buildQt.sh
-    cppcodebasemachines_version.py
+    cpfmachines_version.py
     createSSHKeyFilePair.sh
-    Doc_CppCodeBaseMachines.dox
-    DockerfileCcbWebServer
+    DockerfileCPFWebServer
     DockerfileJenkinsMaster
     DockerfileJenkinsSlaveLinux
     installAbiComplianceChecker.sh

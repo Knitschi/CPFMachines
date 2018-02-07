@@ -1,3 +1,3 @@
 #!python3
 """A generated file that provides the current version of the package for python code."""
-CPPCODEBASEMACHINES_VERSION = '0.0.0'
+CPFMACHINES_VERSION = '0.0.0'

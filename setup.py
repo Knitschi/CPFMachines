@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-# This script removes and adds and starts all docker container of the CppCodeBase project
-# infrastructure.
+# This script removes and adds and starts all docker container of the CMakeProjectFramework infrastructure.
+#
 # Arguments:
 # 1. - The path to a configuration json file.
 # (An empty file can be generated with the createEmptyconfig_files.py script)
@@ -22,7 +22,7 @@ import time
 import requests
 import paramiko
 
-from . import cppcodebasemachines_version
+from . import cpfmachines_version
 from . import config_data
 
 _SCRIPT_DIR = PurePath(os.path.dirname(os.path.realpath(__file__)))
@@ -35,7 +35,7 @@ _JENKINS_SHA256 = 'f9f363959042fce1615ada81ae812e08d79075218c398ed28e68e1302c4b2
 _JENKINS_BASE_IMAGE = 'jenkins-image-' + _JENKINS_VERSION
 
 # docker network
-_DOCKER_NETWORK_NAME = 'CppCodeBaseNetwork'
+_DOCKER_NETWORK_NAME = 'CPFNetwork'
 
 # Files
 _PUBLIC_KEY_FILE_POSTFIX = '_ssh_key.rsa.pub'
@@ -52,7 +52,7 @@ _HTML_SHARE_JENKINS_MASTER = _JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath('ht
 # directories on jenkins-slave-linux
 _JENKINS_HOME_JENKINS_SLAVE_CONTAINER =  PurePosixPath('/home/jenkins')
 
-# directories on ccb-web-server
+# directories on cpf-web-server
 _HTML_SHARE_WEB_SERVER_CONTAINER =  PurePosixPath('/var/www/html')
 
 
@@ -469,7 +469,7 @@ def _build_and_start_web_server(config):
     container_image = config.web_server_host_config.container_conf.container_image_name
     
     # create build context
-    docker_file = 'DockerfileCcbWebServer'
+    docker_file = 'DockerfileCPFWebServer'
     files = [
         docker_file,
         'installClangTools.sh',
@@ -971,7 +971,7 @@ def _get_slave_labels_string(base_label_name, max_index):
     for i in range(max_index + 1):
         # The version must be in the label, to make sure that we can change
         # the nodes and still build old versions of a package no the old nodes.
-        labels.append(base_label_name + '-' + cppcodebasemachines_version.CPPCODEBASEMACHINES_VERSION + '-' + str(i))
+        labels.append(base_label_name + '-' + cpfmachines_version.CPFMACHINES_VERSION + '-' + str(i))
     return ' '.join(labels)
 
 

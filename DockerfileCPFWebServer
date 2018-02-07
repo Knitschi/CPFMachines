@@ -5,7 +5,7 @@
 
 # The container needs a serach database and the html content of the displayed page.
 # The information is provided by external sources over the shared mounted volume /var/www/html
-# Refer to the CppCodeBase documentation on how to start the container.
+# Refer to the CMakeProjectFramework documentation on how to start the container.
 
 FROM debian:9.3
 

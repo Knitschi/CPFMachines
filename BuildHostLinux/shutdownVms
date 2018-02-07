@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 # This script shuts down the virtual machines and docker container of
-# the CppCodeBase build infrastrukture.
+# the CMakeProjectFramework build infrastrukture.
 # This script is called by systemd via the /etc/systemd/system/shutdownVms.service file.
 # On the build host, this file should be placed under /usr/bin
 
@@ -9,7 +9,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin:/usr/lib/virtu
 
 start() {
   
-  docker start ccb-web-server
+  docker start cpf-web-server
   docker start jenkins-master
   docker start jenkins-slave-linux-0
 
@@ -29,7 +29,7 @@ stop() {
 
   docker stop jenkins-slave-linux-0
   docker stop jenkins-master
-  docker stop ccb-web-server
+  docker stop cpf-web-server
 
 
   return 0

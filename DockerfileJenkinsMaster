@@ -1,4 +1,4 @@
-# A Docker Image for the jenkins master server that runs the build-pipeline of the CppCodeBase project.
+# A Docker Image for the jenkins master server.
 
 # Note that you need to login as admin and with the password in /home/jenkinsmastercontainer/secrets/initialAdminPassword
 # after the first start of the jenkins server. Then change the admin account under "Manage Jenkins" -> "Manage Users"

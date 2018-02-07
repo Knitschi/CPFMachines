@@ -1,9 +1,9 @@
 /**
-\defgroup CPFMachinesGroup CppCodeBaseMachines
+\defgroup CPFMachinesGroup CPFMachines
 
-\brief A package that provides a Jenkins job configuration for a CppCodeBase project.
+\brief A package that provides a Jenkins job configuration for a CPF project.
 
-This package uses the infrastructure from the CppCodeBaseMachines package.
+This package uses the infrastructure from the CPFMachines package.
 
 # Problems #
 

@@ -17,10 +17,10 @@ import paramiko
 import weakref
 from pathlib import PureWindowsPath, PurePosixPath, PurePath
 
-from . import cppcodebasemachines_version
+from . import cpfmachines_version
 
 # define config file keys
-KEY_VERSION = 'CppCodeBaseMachinesVersion'
+KEY_VERSION = 'CPFMachinesVersion'
 
 KEY_LOGIN_DATA = 'HostMachines'
 KEY_MACHINE_ID = 'MachineID'
@@ -49,7 +49,7 @@ KEY_JENKINS_ADMIN_USER = 'JenkinsAdminUser'
 KEY_JENKINS_ADMIN_USER_PASSWORD = 'JenkinsAdminUserPassword'
 KEY_JENKINS_ACCOUNT_CONFIG_FILES = 'JenkinsAccountConfigFiles'
 KEY_JENKINS_JOB_CONFIG_FILES = 'JenkinsJobConfigFiles'
-KEY_CPP_CODE_BASE_JOBS = 'CppCodeBaseJobs'
+KEY_CPP_CODE_BASE_JOBS = 'CMakeProjectFrameworkJobs'
 KEY_JENKINS_APPROVED_SYSTEM_COMMANDS = 'JenkinsApprovedSystemCommands'
 KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES = 'JenkinsApprovedScriptSignatures'
 
@@ -58,7 +58,7 @@ KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES = 'JenkinsApprovedScriptSignatures'
 
 class ConfigData:
     """
-    This class holds all the information from a CppCodeBaseMachines config file.
+    This class holds all the information from a CPFMachines config file.
     """
     _DOCKER_SUBNET_BASE_IP = '172.19.0'
     _LINUX_SLAVE_BASE_NAME = 'jenkins-slave-linux'
@@ -242,9 +242,9 @@ class ConfigData:
         for key, value in job_config_dict.items():
             self.jenkins_config.job_config_files.append(JenkinsJobConfig(key, value))
 
-        ccb_jobs_config_dict = _get_checked_value(config_dict, KEY_CPP_CODE_BASE_JOBS)
-        for key, value in ccb_jobs_config_dict.items():
-            self.jenkins_config.cpp_codebase_jobs.append(CppCodeBaseJobConfig(key, value))
+        cpf_jobs_config_dict = _get_checked_value(config_dict, KEY_CPP_CODE_BASE_JOBS)
+        for key, value in cpf_jobs_config_dict.items():
+            self.jenkins_config.cpf_jobs.append(CPFJobConfig(key, value))
 
         self.jenkins_config.approved_system_commands = config_dict[KEY_JENKINS_APPROVED_SYSTEM_COMMANDS]
         self.jenkins_config.approved_script_signatures = config_dict[KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES]
@@ -268,9 +268,9 @@ class ConfigData:
         Checks that the version of the file and of the version of the library are the same.
         """
         file_version = _get_checked_value(self._config_file_dict, KEY_VERSION)
-        if not file_version == cppcodebasemachines_version.CPPCODEBASEMACHINES_VERSION:
-            raise Exception("Config file Error! The version of the config file ({0}) does not fit the version of the CppCodeBaseMachines package ({1})."
-                            .format(file_version, cppcodebasemachines_version.CPPCODEBASEMACHINES_VERSION))
+        if not file_version == cpfmachines_version.CPFMACHINES_VERSION:
+            raise Exception("Config file Error! The version of the config file ({0}) does not fit the version of the CPFMachines package ({1})."
+                            .format(file_version, cpfmachines_version.CPFMACHINES_VERSION))
 
     
     def _check_one_linux_machine_available(self):
@@ -280,7 +280,7 @@ class ConfigData:
         for data in self.host_machine_connections:
             if data.os_type == "Linux":
                 return
-        raise Exception("Config file Error! The CppCodeBaseMachines configuration must at least contain one Linux host machine.")
+        raise Exception("Config file Error! The CPFMachines configuration must at least contain one Linux host machine.")
         
 
     def _check_master_and_webserver_use_linux_machines(self):
@@ -344,9 +344,9 @@ class ConfigData:
         """
         Sets values to the member variables that hold container names and ips.
         """
-        self.web_server_host_config.container_conf.container_name = 'ccb-web-server'
+        self.web_server_host_config.container_conf.container_name = 'cpf-web-server'
         self.web_server_host_config.container_conf.container_ip = self._DOCKER_SUBNET_BASE_IP + '.2'
-        self.web_server_host_config.container_conf.container_image_name = 'ccb-web-server-image'
+        self.web_server_host_config.container_conf.container_image_name = 'cpf-web-server-image'
         self.jenkins_master_host_config.container_conf.container_name = 'jenkins-master'
         self.jenkins_master_host_config.container_conf.container_ip = self._DOCKER_SUBNET_BASE_IP + '.3'
         self.jenkins_master_host_config.container_conf.container_image_name = 'jenkins-master-image'
@@ -544,7 +544,7 @@ class JenkinsConfig:
         self.admin_user_password = ''
         self.account_config_files = []
         self.job_config_files = []
-        self.cpp_codebase_jobs = []
+        self.cpf_jobs = []
         self.approved_system_commands = []
         self.approved_script_signatures = []
 
@@ -567,7 +567,7 @@ class JenkinsJobConfig:
         self.xml_config_file = PurePath(xml_file)
 
 
-class CppCodeBaseJobConfig:
+class CPFJobConfig:
     """
     Data class that holds the information from the KEY_CPP_CODE_BASE_JOBS key.
     """
@@ -578,7 +578,7 @@ class CppCodeBaseJobConfig:
 
 def write_example_config_file(file_path):
     """
-    This function creates a small CppCodeBaseMachines config file for documentation purposes.
+    This function creates a small CPFMachines config file for documentation purposes.
     """
     # create an empty dictionary with all possible config values.
     config_dict = get_example_config_dict()
@@ -599,7 +599,7 @@ def get_example_config_dict():
     Returns a dictionary that contains the data of a valid example configuration.
     """
     config_dict = {
-        KEY_VERSION : cppcodebasemachines_version.CPPCODEBASEMACHINES_VERSION,
+        KEY_VERSION : cpfmachines_version.CPFMACHINES_VERSION,
         KEY_LOGIN_DATA : [
             {
                 KEY_MACHINE_ID : 'MyMaster',
@@ -630,7 +630,7 @@ def get_example_config_dict():
         },
         KEY_WEB_SERVER_HOST : {
             KEY_MACHINE_ID : 'MyMaster',
-            KEY_HOST_HTML_SHARE : '/home/fritz/ccb_html_share',
+            KEY_HOST_HTML_SHARE : '/home/fritz/cpf_html_share',
         },
         KEY_REPOSITORY_HOST : {
             KEY_MACHINE_ID : 'MyMaster',
@@ -661,7 +661,7 @@ def get_example_config_dict():
                 'MyCustomJob' : 'MyCustomJob.xml'
             },
             KEY_CPP_CODE_BASE_JOBS : {
-                'BuildMyCppCodeBase' : 'ssh://fritz@mastermachine:/home/fritz/repositories/BuildMyCppCodeBase.git'
+                'BuildMyCPFProject' : 'ssh://fritz@mastermachine:/home/fritz/repositories/BuildMyCPFProject.git'
             },
             KEY_JENKINS_APPROVED_SYSTEM_COMMANDS : [
             ],

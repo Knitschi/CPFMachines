@@ -8,7 +8,7 @@ import os
 import pprint
 
 from .config_data import *
-from . import cppcodebasemachines_version
+from . import cpfmachines_version
 
 
 class TestConfigData(unittest.TestCase):
@@ -23,7 +23,7 @@ class TestConfigData(unittest.TestCase):
         sut = ConfigData(get_example_config_dict())
 
         # verify
-        self.assertEqual( sut.file_version, cppcodebasemachines_version.CPPCODEBASEMACHINES_VERSION)
+        self.assertEqual( sut.file_version, cpfmachines_version.CPFMACHINES_VERSION)
 
         # host machine data
         self.assertEqual( sut.host_machine_connections[0].machine_id, 'MyMaster' )
@@ -57,10 +57,10 @@ class TestConfigData(unittest.TestCase):
         
         # web server host data
         self.assertEqual( sut.web_server_host_config.machine_id, 'MyMaster')
-        self.assertEqual( sut.web_server_host_config.host_html_share_dir, PurePosixPath('/home/fritz/ccb_html_share'))
-        self.assertEqual( sut.web_server_host_config.container_conf.container_name, 'ccb-web-server')
+        self.assertEqual( sut.web_server_host_config.host_html_share_dir, PurePosixPath('/home/fritz/cpf_html_share'))
+        self.assertEqual( sut.web_server_host_config.container_conf.container_name, 'cpf-web-server')
         self.assertEqual( sut.web_server_host_config.container_conf.container_ip, '172.19.0.2')
-        self.assertEqual( sut.web_server_host_config.container_conf.container_image_name, 'ccb-web-server-image')
+        self.assertEqual( sut.web_server_host_config.container_conf.container_image_name, 'cpf-web-server-image')
         self.assertEqual( sut.web_server_host_config.container_conf.mapped_ssh_host_port, 23)
 
         # repository host data
@@ -97,8 +97,8 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( str(sut.jenkins_config.account_config_files[0].xml_config_file) , 'UserHans.xml')
         self.assertEqual( sut.jenkins_config.job_config_files[0].job_name , 'MyCustomJob')
         self.assertEqual( str(sut.jenkins_config.job_config_files[0].xml_config_file) , 'MyCustomJob.xml')
-        self.assertEqual( sut.jenkins_config.cpp_codebase_jobs[0].job_name , 'BuildMyCppCodeBase')
-        self.assertEqual( sut.jenkins_config.cpp_codebase_jobs[0].repository , 'ssh://fritz@mastermachine:/home/fritz/repositories/BuildMyCppCodeBase.git')
+        self.assertEqual( sut.jenkins_config.cpf_jobs[0].job_name , 'BuildMyCPFProject')
+        self.assertEqual( sut.jenkins_config.cpf_jobs[0].repository , 'ssh://fritz@mastermachine:/home/fritz/repositories/BuildMyCPFProject.git')
         self.assertFalse( sut.jenkins_config.approved_system_commands )
         self.assertEqual( sut.jenkins_config.approved_script_signatures[0] , '<script signature from my MyCustomJob jenkinsfile>')
 
@@ -126,7 +126,7 @@ class TestConfigData(unittest.TestCase):
 
         # verify
         expected_machine_dict = {
-            'ccb-web-server' : 'MyMaster',
+            'cpf-web-server' : 'MyMaster',
             'jenkins-master' : 'MyMaster',
             'jenkins-slave-linux-0' : 'MyLinuxSlave',
             'jenkins-slave-linux-1' : 'MyMaster',

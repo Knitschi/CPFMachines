@@ -1,7 +1,7 @@
 
 # The docker image file for the jenkins slave nodes.
 # 
-# It is a debian container that has the necessary tools installed to execute the CppCodeBase build-pipeline.
+# This is a debian based container that includes the tools that are required to execute a CPF build-pipeline.
 
 FROM debian:9.3
 
