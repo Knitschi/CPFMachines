@@ -3,8 +3,8 @@
 """
 This script is used to generate a post-receive hook script for
 git that is then copied to a number of given directories.
-The hook script is used to trigger the CppCodeBase jenkins job that is
-defined by the CppCodeBaseJenkinsjob module.
+The hook script is used to trigger the CPF jenkins job that is
+defined by the CPFJenkinsjob module.
 """
 
 import sys
@@ -15,7 +15,7 @@ import json
 import pprint
 
 import addJenkinsJob
-import setup_docker_container_with_ccb_jobs
+import setup_docker_container_with_cpf_jobs
 
 _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -34,7 +34,7 @@ def main():
     jenkins_user = config_values['JenkinsUser']
     jenkins_password = config_values['JenkinsPassword']
     jenkins_job_base_name = config_values['JenkinsJobBasename']
-    package_repo_target_directories = config_values['CcbPackageRepoHookDirectories']
+    package_repo_target_directories = config_values['CPFPackageRepoHookDirectories']
 
     script_template = _SCRIPT_DIR + '/post-receive.in'
 
@@ -47,8 +47,8 @@ def main():
             '@JENKINS_URL@' : jenkins_url,
             '@JENKINS_USER@' : jenkins_user,
             '@JENKINS_PASSWORD@' : jenkins_password,
-            '@JENKINS_JOB_NAME@' : setup_docker_container_with_ccb_jobs.get_job_name(jenkins_job_base_name),
-            '@CCB_PACKAGE@' : package
+            '@JENKINS_JOB_NAME@' : setup_docker_container_with_cpf_jobs.get_job_name(jenkins_job_base_name),
+            '@CPF_PACKAGE@' : package
         }
         temp_script = _SCRIPT_DIR + '/post-receive_' + package
         temp_files.append(temp_script)

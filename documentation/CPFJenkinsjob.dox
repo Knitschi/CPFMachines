@@ -1,0 +1,8 @@
+/**
+\defgroup CPFJenkinsjobGroup CPFJenkinsjob
+
+\brief A package that provides a Jenkins job configuration for a CPF project.
+
+This package uses the infrastructure from the CPFMachines package.
+
+*/

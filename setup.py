@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 
 """
-This script runs the CppCodeBaseMachines setupdDockerContainer.py script, 
-but adds additional CppCodeBaseJenkinsjob jobs.
+This script runs the CPFMachines setupdDockerContainer.py script, 
+but adds additional CPFJenkinsjob jobs.
 
 The script takes a .json config file for the machine setup, which can
-contain an additional dictionary for defineing CppCodeBase jobs.
+contain an additional dictionary for defineing CMakeProjectFramework jobs.
 
 
 {
   ...
-  "CppCodeBaseJobs" : {
-    "MyCppCodeBaseJob" : "ssh://me@repository_machine:/share/MyRepo.git"
+  "CMakeProjectFrameworkJobs" : {
+    "MyCPFProjectJob" : "ssh://me@repository_machine:/share/MyRepo.git"
   },
   ...
 }
@@ -25,17 +25,17 @@ import shutil
 import pprint
 import io
 
-from ..CppCodeBaseMachines import setup
+from ..CPFMachines import setup
 
-from . import cppcodebasejenkinsjob_version
+from . import cpfjenkinsjob_version
 
 _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
 
-# The address of the official CppCodeBaseJenkinsjob repository.
+# The address of the official CPFJenkinsjob repository.
 # Is it good enough to have this hardcoded here?
-_JENKINSJOB_REPOSITORY = 'ssh://admin@datenbunker/share/GitRepositories/CppCodeBaseJenkinsjob.git'
+_JENKINSJOB_REPOSITORY = 'ssh://admin@datenbunker/share/GitRepositories/CPFJenkinsjob.git'
 _TEMPLATE_FILE = _SCRIPT_DIR + '/config.xml.in'
 
 
@@ -51,13 +51,13 @@ def main(config_file):
     abs_temp_config_file = config_file_dir + '/' + temp_config_file
 
     # create the job .xml files that are used by jenkins.
-    ccb_jobs_dict = config_values['CppCodeBaseJobs']
+    cpf_jobs_dict = config_values['CMakeProjectFrameworkJobs']
     temp_dir = 'temp'
     abs_temp_dir = config_file_dir + '/' + temp_dir
     if not os.path.exists(abs_temp_dir):
         os.makedirs(abs_temp_dir)
     job_dict = {}
-    for job_base_name, build_repository in ccb_jobs_dict.items():
+    for job_base_name, build_repository in cpf_jobs_dict.items():
         job_name = get_job_name(job_base_name)
         xml_file = job_name + '.xml'
         xml_file_path = temp_dir + '/' + xml_file
@@ -77,11 +77,11 @@ def main(config_file):
     ]
     config_values['JenkinsApprovedScriptSignatures'].extend(approved_script_signatures)
     
-    # Write extended config to a temporary config file for the setup script from CppCodeBaseMachines.
+    # Write extended config to a temporary config file for the setup script from CPFMachines.
     with open(abs_temp_config_file, 'w') as outfile:
         json.dump(config_values, outfile)
 
-    # run the setup script from CppCodeBaseMachines
+    # run the setup script from CPFMachines
     setup.main(temp_config_file)
 
     # clean up the temporary files
@@ -93,7 +93,7 @@ def get_job_name(job_base_name):
     """
     Add the version to the base name.
     """
-    return job_base_name + '-' + cppcodebasejenkinsjob_version.CPPCODEBASEJENKINSJOB_VERSION
+    return job_base_name + '-' + cpfjenkinsjob_version.CPFJENKINSJOB_VERSION
 
 
 def configure_job_config_file(xml_file_path, job_name, build_repository_address, jenkinsjob_repository_address):
@@ -101,7 +101,7 @@ def configure_job_config_file(xml_file_path, job_name, build_repository_address,
     Fills in the blanks in the config file and copies it to the given job
     directory.
     """
-    # TODO this should be the version tag once automatic versioning for CppCodeBaseJenkinsjob works.
+    # TODO this should be the version tag once automatic versioning for CPFJenkinsjob works.
     tag_or_branch = 'master'
     _configure_file(_TEMPLATE_FILE, xml_file_path, {
         '$JOB_NAME' : job_name,

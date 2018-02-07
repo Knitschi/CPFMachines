@@ -1,8 +1,0 @@
-/**
-\defgroup CPFJenkinsjobGroup CppCodeBaseJenkinsjob
-
-\brief A package that provides a Jenkins job configuration for a CppCodeBase project.
-
-This package uses the infrastructure from the CppCodeBaseMachines package.
-
-*/

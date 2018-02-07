@@ -1,7 +1,7 @@
 #!groovy
 
 /**
-The jenkins pipeline script for a CppCodeBase project.
+The jenkins pipeline script for a CPF project.
 */
 
 import static Constants.*
@@ -70,9 +70,9 @@ else
 //############################### FUNCTION SECTION ################################
 class Constants {
     // locations
-    static final WEBSERVER_HOST_NAME="root@172.19.0.2"      // This is defined by CppCodeBaseMachines
+    static final WEBSERVER_HOST_NAME="root@172.19.0.2"      // This is defined by CPFMachines
     static final CHECKOUT_FOLDER = 'Check out dir'
-    static final CPPCODEBASECMAKE_DIR = 'CppCodeBaseCMake'
+    static final CPFCMAKE_DIR = 'CPFCMake'
 
     // stash names
     static final HTML_STASH = "html"
@@ -97,7 +97,7 @@ def addRepositoryOperationsStage( repository, mainBranch, createTempBranch, deve
                 {
                     // execute the cmake script that does the git operations and changes the source files
                     echo 'Create temporary build branch'
-                    sh "cmake -DDEVELOPER=${developer} -DMAIN_BRANCH=${mainBranch} -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPPCODEBASECMAKE_DIR}/Scripts/prepareTmpBranch.cmake\""
+                    sh "cmake -DDEVELOPER=${developer} -DMAIN_BRANCH=${mainBranch} -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPFCMAKE_DIR}/Scripts/prepareTmpBranch.cmake\""
                 }
 
                 // read the CiBuiltConfigurations.json file
@@ -121,16 +121,16 @@ def getBuildConfigurations()
     }
 
     def usedConfigurations = []
-    if( params.ccbConfiguration != '')
+    if( params.cpfConfiguration != '')
     {
         for(config in configurations)
         {
-            if(config.ConfigName == params.ccbConfiguration)
+            if(config.ConfigName == params.cpfConfiguration)
             {
                 usedConfigurations.add(config)
             }
         }
-        assertConfigurationExists(configurations, params.ccbConfiguration)
+        assertConfigurationExists(configurations, params.cpfConfiguration)
     }
     else
     {
@@ -191,7 +191,7 @@ def checkoutBranch(repository, branch)
     */
 }
 
-def addPipelineStage( ccbConfigs, repository, tempBranch, target)
+def addPipelineStage( cpfConfigs, repository, tempBranch, target)
 {
     stage('Build Pipeline')
     {
@@ -200,7 +200,7 @@ def addPipelineStage( ccbConfigs, repository, tempBranch, target)
         
         // add nodes for building the pipeline
         def nodeIndex = 0
-        for(config in ccbConfigs)
+        for(config in cpfConfigs)
         {
             echo "Create build node " + config
             def nodeLabel = config.BuildSlaveLabel + '-' + nodeIndex
@@ -215,7 +215,7 @@ def addPipelineStage( ccbConfigs, repository, tempBranch, target)
     }
 }
 
-def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target, compilerConfig)
+def createBuildNode( nodeLabel, cpfConfig, repository, builtTagOrBranch, target, compilerConfig)
 {
     return { 
         node(nodeLabel)
@@ -223,23 +223,23 @@ def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target,
             // get the main name of repository
 
             
-            ws("${getRepositoryName(repository)}-${ccbConfig}") 
+            ws("${getRepositoryName(repository)}-${cpfConfig}") 
             { 
                 checkoutBranch(repository, builtTagOrBranch)
 
                 dir(CHECKOUT_FOLDER)
                 {
                     // Make the python scripts available in the root directory
-                    runPythonCommand("Sources/CppCodeBaseBuildscripts/0_CopyScripts.py")
+                    runPythonCommand("Sources/CPFBuildscripts/0_CopyScripts.py")
 
                     // Setup build configurations
                     // We do not use the ninja build-system for msvc because ninja in combination with mscv can randomly fail with an error thet says that a .pdb file could not be opened.
                     // This usually does not happen when doing a fresh build, but rather when doing incremental builds.
                     // https://github.com/ninja-build/ninja/issues/620
-                    runPythonCommand("1_Configure.py ${ccbConfig} --inherits ${ccbConfig}")
+                    runPythonCommand("1_Configure.py ${cpfConfig} --inherits ${cpfConfig}")
                     
                     // generate makefiles
-                    runPythonCommand("2_Generate.py ${ccbConfig}")
+                    runPythonCommand("2_Generate.py ${cpfConfig}")
 
                     // build the pipeline target
                     def configOption = ''
@@ -247,16 +247,16 @@ def createBuildNode( nodeLabel, ccbConfig, repository, builtTagOrBranch, target,
                     {
                         configOption = "--config ${compilerConfig}"
                     }
-                    runXvfbWrappedPythonCommand( "3_Make.py ${ccbConfig} --target ${target} ${configOption}" )
+                    runXvfbWrappedPythonCommand( "3_Make.py ${cpfConfig} --target ${target} ${configOption}" )
 
                     // stash generated html content
-                    dir( "Generated/${ccbConfig}" )
+                    dir( "Generated/${cpfConfig}" )
                     {
-                        def htmlStash = "${HTML_STASH}${ccbConfig}"
+                        def htmlStash = "${HTML_STASH}${cpfConfig}"
                         stash includes: 'html/**', name: htmlStash
                     }
                     
-                    echo "----- The pipeline finished successfully for configuration ${ccbConfig}. -----"
+                    echo "----- The pipeline finished successfully for configuration ${cpfConfig}. -----"
                 }
             }
         }
@@ -277,7 +277,7 @@ def addUpdateMainBranchStage( repository, developer, mainBranch, tempBranch)
                     // TODO Add format target, build it and commit the changes.
 
                     // Merge the tmp branch into the main branch and tag it.
-                    sh "cmake -DDEVELOPER=${developer} -DMAIN_BRANCH=${mainBranch} -DROOT_DIR=\"\$PWD\" -P Sources/${CPPCODEBASECMAKE_DIR}/Scripts/integrateTmpBranch.cmake"
+                    sh "cmake -DDEVELOPER=${developer} -DMAIN_BRANCH=${mainBranch} -DROOT_DIR=\"\$PWD\" -P Sources/${CPFCMAKE_DIR}/Scripts/integrateTmpBranch.cmake"
                 
                     echo "----- The commits from branch ${params.branchOrTag} were successfully integrated into the main branch. -----"
                 }
@@ -286,7 +286,7 @@ def addUpdateMainBranchStage( repository, developer, mainBranch, tempBranch)
     }
 }
 
-def addUpdateWebPageStage(repository, ccbConfigs, branchOrTag)
+def addUpdateWebPageStage(repository, cpfConfigs, branchOrTag)
 {
     stage('Update Project Web-Page')
     {
@@ -306,9 +306,9 @@ def addUpdateWebPageStage(repository, ccbConfigs, branchOrTag)
                 sh "mkdir \"${tempHtmlDir}\""
             
                 // collect all produced html content from the build-slaves
-                for(ccbConfig in ccbConfigs)
+                for(cpfConfig in cpfConfigs)
                 {
-                    unstashFiles(HTML_STASH, ccbConfig.ConfigName)
+                    unstashFiles(HTML_STASH, cpfConfig.ConfigName)
                 }
                 // sh "ls -l \"${tempHtmlDir}\""
 
@@ -317,7 +317,7 @@ def addUpdateWebPageStage(repository, ccbConfigs, branchOrTag)
 
                 // merge the new html content into the old html content
                 // sh "ls -l \$PWD/${CHECKOUT_FOLDER}/Sources/cmake/Scripts"
-                sh "cmake -DSOURCE_DIR=\"${tempHtmlDir}\" -DTARGET_DIR=\"${serverHtmlDir}\" -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPPCODEBASECMAKE_DIR}/Scripts/updateExistingWebPage.cmake\""
+                sh "cmake -DSOURCE_DIR=\"${tempHtmlDir}\" -DTARGET_DIR=\"${serverHtmlDir}\" -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPFCMAKE_DIR}/Scripts/updateExistingWebPage.cmake\""
 
                 // copy the merge result back to the server
                 sh "ssh ${WEBSERVER_HOST_NAME} \"rm -rf /var/www/html/*\""
@@ -352,7 +352,7 @@ def addCreateReleaseTagStage(repository, incrementTaskType, branch)
                 checkoutBranch(repository, branch)
 
                 // execute the cmake script that does the git operations
-                sh "cmake -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -DBRANCH=${branch} -DDIGIT_OPTION=${incrementTaskType} -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPPCODEBASECMAKE_DIR}/Scripts/incrementVersionNumber.cmake\""
+                sh "cmake -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -DBRANCH=${branch} -DDIGIT_OPTION=${incrementTaskType} -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPFCMAKE_DIR}/Scripts/incrementVersionNumber.cmake\""
             
                 usedConfigurations = getBuildConfigurations()
             }
@@ -414,10 +414,10 @@ def runXvfbWrappedPythonCommand(command)
     }
 }
 
-def cleanWorkspace()
+def cleanWorkspace(repository, cpfConfig)
 {
     echo 'Clean Workspace ...'
-    dir('WS-CppCodeBase'){
+    dir("${getRepositoryName(repository)}-${cpfConfig}"){ // todo use 
         deleteDir()
     }
 }

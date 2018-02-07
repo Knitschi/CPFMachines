@@ -1,10 +1,10 @@
 
 # add a custom target that does nothing, so the files appear in the Visual Studio solution explorer.
 
-include(ccbAddPackage)
+include(cpfAddPackage)
 
-set( PACKAGE_NAMESPACE CcbJS )
-ccbInitPackageProject(
+set( PACKAGE_NAMESPACE CPFJS )
+cpfInitPackageProject(
 	PACKAGE_NAME
 	${PACKAGE_NAMESPACE}
 )

@@ -5,7 +5,7 @@
 set -e
 unset GIT_DIR # whithout this we get git errors "remote: fatal: Not a git repository: '.'" when the script is started by a push (not when executed locally)
 
-echo ----- Run CppCodeBaseJenkinsjob post-receive hook -----
+echo ----- Run CPFJenkinsjob post-receive hook -----
 
 # The base url of the jenkins server on which a job is triggered e.g. http://localhost:8080
 jenkinsUrl=@JENKINS_URL@
@@ -16,7 +16,7 @@ jenkinsPassword=@JENKINS_PASSWORD@
 # The name of the job that is triggered.
 jenkinsJobName=@JENKINS_JOB_NAME@
 # The name of the package in the build repository to which this hook belongs
-ccbPackage=@CCB_PACKAGE@
+cpfPackage=@CPF_PACKAGE@
 
 jenkinsCrumb=$(curl --user $jenkinsUser:$jenkinsPassword "$jenkinsUrl/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,\":\",//crumb)" )
 echo $jenkinsCrumb
@@ -36,7 +36,7 @@ function triggerJenkinsJob()
         curl $jenkinsUrl/job/$jenkinsJobName/build \
         --user $jenkinsUser:$jenkinsPassword \
         --header $jenkinsCrumb \
-        --data-urlencode json='{"parameter": [{"name":"branchOrTag", "value":"'$branch'"},{"name":"package", "value":"'$ccbPackage'"}]}'
+        --data-urlencode json='{"parameter": [{"name":"branchOrTag", "value":"'$branch'"},{"name":"package", "value":"'$cpfPackage'"}]}'
         set +x
     
     else
@@ -47,7 +47,7 @@ function triggerJenkinsJob()
         curl $jenkinsUrl/job/$jenkinsJobName/build \
         --user $jenkinsUser:$jenkinsPassword \
         --header $jenkinsCrumb \
-        --data-urlencode json='{"parameter": [{"name":"branchOrTag", "value":"'$branch'"},{"name":"package", "value":"'$ccbPackage'"},{"name":"task", "value":"rebuild"}]}'
+        --data-urlencode json='{"parameter": [{"name":"branchOrTag", "value":"'$branch'"},{"name":"package", "value":"'$cpfPackage'"},{"name":"task", "value":"rebuild"}]}'
         set +x
     fi
 }
