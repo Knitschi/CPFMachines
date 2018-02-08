@@ -1,9 +1,34 @@
 /**
 \defgroup CPFMachinesGroup CPFMachines
 
-\brief A package that provides a Jenkins job configuration for a CPF project.
+\brief Provides a script that sets up a jenkins-server, jenkins-slaves and a web-server on machines in a local network.
 
-This package uses the infrastructure from the CPFMachines package.
+The CPF infrastructure includes a Jenkins server, build slaves and a web-server for hosting the generated html pages.
+This package provides a python script for setting up these servers. The setup script requires a user provided configuration file
+and ssh access to all involved machines in the network. 
+
+# Usage #
+
+## Requirements ##
+
+- At least one Linux Machine.
+- For Windows builds, an additional Windows machine is required.
+- All machines must be in a local network, that also contains the machine that runs the setup script.
+- Linux machines must be accessible via OpenSSH from the script-runner.
+- Linux machines must have docker installed.
+- Windows machines must be accessible via "Bitvise SSH Server" from the script-runner.
+- Windows machines must have the `slave.jar` copied to "C:\jenkins"?
+- On windows build-slaves all tools that are required to run the CPF pipeline must be manually installed.
+
+\todo Setup infrastructure on fresh systems and complete the list.
+
+## Creating a config file ##
+
+The setup script reads a config file that can be used to define the number and location of build-slave, some jenkins configuration etc.
+
+
+\todo Describe how to generate an empty file and add documentation of parameters here.
+
 
 # Problems #
 
