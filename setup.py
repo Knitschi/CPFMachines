@@ -923,9 +923,9 @@ def _configure_jenkins_master(config, config_file):
     if not config.jenkins_config.use_unconfigured_jenkins:
         print("----- Configure the jenkins master server.")
 
-        _set_general_jenkins_options(config)
-        _set_jenkins_users(config, config_file)
-        _set_jenkins_jobs(config, config_file)
+        _configure_general_jenkins_options(config)
+        _configure_jenkins_users(config, config_file)
+        _configure_jenkins_jobs(config, config_file)
         slaveStartCommands = _configure_jenkins_slaves(config)
         config.jenkins_config.approved_system_commands.extend(slaveStartCommands)
 
@@ -946,7 +946,7 @@ def _configure_jenkins_master(config, config_file):
             " because no user files were given.")
 
 
-def _set_general_jenkins_options(config):
+def _configure_general_jenkins_options(config):
     """
     Configure the general options by copying the .xml config files from the JenkinsConfig
     directory to the jenkins master home directory.
@@ -986,14 +986,14 @@ def _get_dir_content(directory):
     return items
 
 
-def _set_jenkins_users(config, config_file):
+def _configure_jenkins_users(config, config_file):
     """
     Copy user config xml files to user/<username>/config.xml
     """
     _copy_jenkins_config_files(config, config_file, 'users', config.jenkins_config.account_config_files )
 
 
-def _set_jenkins_jobs(config, config_file):
+def _configure_jenkins_jobs(config, config_file):
     """
     copy job config xml files to jobs/<jobname>/config.xml
     """
