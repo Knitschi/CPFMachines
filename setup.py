@@ -10,7 +10,7 @@ contain an additional dictionary for defineing CMakeProjectFramework jobs.
 
 {
   ...
-  "CMakeProjectFrameworkJobs" : {
+  "CPFJobs" : {
     "MyCPFProjectJob" : "ssh://me@repository_machine:/share/MyRepo.git"
   },
   ...
@@ -26,6 +26,7 @@ import pprint
 import io
 
 from ..CPFMachines import setup
+from ..CPFMachines import config_data
 
 from . import cpfjenkinsjob_version
 
@@ -51,7 +52,7 @@ def main(config_file):
     abs_temp_config_file = config_file_dir + '/' + temp_config_file
 
     # create the job .xml files that are used by jenkins.
-    cpf_jobs_dict = config_values['CMakeProjectFrameworkJobs']
+    cpf_jobs_dict = config_values[config_data.KEY_JENKINS_CONFIG][config_data.KEY_CPF_JOBS]
     temp_dir = 'temp'
     abs_temp_dir = config_file_dir + '/' + temp_dir
     if not os.path.exists(abs_temp_dir):
@@ -66,7 +67,7 @@ def main(config_file):
         configure_job_config_file(abs_xml_file_path, job_name, build_repository, _JENKINSJOB_REPOSITORY)
 
     # Extend the config values with the generated jobs.
-    config_values['JenkinsJobConfigFiles'].update(job_dict)
+    config_values[config_data.KEY_JENKINS_CONFIG][config_data.KEY_JENKINS_JOB_CONFIG_FILES].update(job_dict)
 
     # Extend the config values with the scripts that need to
     # be approved to run the jenkinsfile.
@@ -75,7 +76,7 @@ def main(config_file):
         'method groovy.json.JsonSlurperClassic parseText java.lang.String',
         'staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods matches java.lang.String java.util.regex.Pattern'
     ]
-    config_values['JenkinsApprovedScriptSignatures'].extend(approved_script_signatures)
+    config_values[config_data.KEY_JENKINS_CONFIG][config_data.KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES].extend(approved_script_signatures)
     
     # Write extended config to a temporary config file for the setup script from CPFMachines.
     with open(abs_temp_config_file, 'w') as outfile:
@@ -115,7 +116,6 @@ def _readconfig_file(config_file):
     print('----- Read configuration file ' + config_file)
     with open(config_file) as file:
         data = json.load(file)
-    pprint.pprint(data)
     return data
 
 
