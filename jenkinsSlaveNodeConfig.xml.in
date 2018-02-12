@@ -3,7 +3,7 @@
   <name>$SLAVE_NAME</name>
   <description>$DESCRIPTION</description>
   <remoteFS>$WORKSPACE</remoteFS>
-  <numExecutors>1</numExecutors>
+  <numExecutors>$EXECUTORS</numExecutors>
   <mode>NORMAL</mode>
   <retentionStrategy class="hudson.slaves.RetentionStrategy$Always"/>
   <launcher class="hudson.slaves.CommandLauncher" plugin="command-launcher@1.2">

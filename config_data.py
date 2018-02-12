@@ -49,7 +49,7 @@ KEY_JENKINS_ADMIN_USER = 'JenkinsAdminUser'
 KEY_JENKINS_ADMIN_USER_PASSWORD = 'JenkinsAdminUserPassword'
 KEY_JENKINS_ACCOUNT_CONFIG_FILES = 'JenkinsAccountConfigFiles'
 KEY_JENKINS_JOB_CONFIG_FILES = 'JenkinsJobConfigFiles'
-KEY_CPP_CODE_BASE_JOBS = 'CMakeProjectFrameworkJobs'
+KEY_CPF_JOBS = 'CPFJobs'
 KEY_JENKINS_APPROVED_SYSTEM_COMMANDS = 'JenkinsApprovedSystemCommands'
 KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES = 'JenkinsApprovedScriptSignatures'
 
@@ -126,6 +126,11 @@ class ConfigData:
         return connection.os_type == 'Linux'
 
 
+    def is_windows_machine(self, machine_id):
+        connection  = self.get_host_machine_connection(machine_id)
+        return connection.os_type == 'Windows'
+
+
     def get_container_machine_dictionary(self):
         """
         Returns a dictionary with all docker container as keys and
@@ -135,7 +140,7 @@ class ConfigData:
         id_dict[self.jenkins_master_host_config.container_conf.container_name] = self.jenkins_master_host_config.machine_id
         id_dict[self.web_server_host_config.container_conf.container_name] = self.web_server_host_config.machine_id
         for slave_config in self.jenkins_slave_configs:
-            if slave_config.container_conf.container_name:
+            if slave_config.container_conf:
                 id_dict[slave_config.container_conf.container_name] = slave_config.machine_id
 
         return id_dict
@@ -236,13 +241,13 @@ class ConfigData:
         
         account_config_dict = _get_checked_value(config_dict, KEY_JENKINS_ACCOUNT_CONFIG_FILES)
         for key, value in account_config_dict.items():
-            self.jenkins_config.account_config_files.append(JenkinsAccountConfig(key, value))
+            self.jenkins_config.account_config_files.append(ConfigItem(key, value))
 
         job_config_dict = _get_checked_value(config_dict, KEY_JENKINS_JOB_CONFIG_FILES)
         for key, value in job_config_dict.items():
-            self.jenkins_config.job_config_files.append(JenkinsJobConfig(key, value))
+            self.jenkins_config.job_config_files.append(ConfigItem(key, value))
 
-        cpf_jobs_config_dict = _get_checked_value(config_dict, KEY_CPP_CODE_BASE_JOBS)
+        cpf_jobs_config_dict = _get_checked_value(config_dict, KEY_CPF_JOBS)
         for key, value in cpf_jobs_config_dict.items():
             self.jenkins_config.cpf_jobs.append(CPFJobConfig(key, value))
 
@@ -344,23 +349,38 @@ class ConfigData:
         """
         Sets values to the member variables that hold container names and ips.
         """
-        self.web_server_host_config.container_conf.container_name = 'cpf-web-server'
-        self.web_server_host_config.container_conf.container_ip = self._DOCKER_SUBNET_BASE_IP + '.2'
-        self.web_server_host_config.container_conf.container_image_name = 'cpf-web-server-image'
+        # jenkins-master
         self.jenkins_master_host_config.container_conf.container_name = 'jenkins-master'
+        self.jenkins_master_host_config.container_conf.container_user = 'jenkins'
         self.jenkins_master_host_config.container_conf.container_ip = self._DOCKER_SUBNET_BASE_IP + '.3'
         self.jenkins_master_host_config.container_conf.container_image_name = 'jenkins-master-image'
+        # cft-web-server
+        self.web_server_host_config.container_conf.container_name = 'cpf-web-server'
+        self.web_server_host_config.container_conf.container_user = 'root'
+        self.web_server_host_config.container_conf.container_ip = self._DOCKER_SUBNET_BASE_IP + '.2'
+        self.web_server_host_config.container_conf.container_image_name = 'cpf-web-server-image'
 
         # set names and ips to linux slave container
         ip_index = 4
-        name_index = 0
+        linux_name_index = 0
+        windows_name_index = 0
         for slave_config in self.jenkins_slave_configs:
             if self.is_linux_machine(slave_config.machine_id):
-                slave_config.container_conf.container_name = "{0}-{1}".format(self._LINUX_SLAVE_BASE_NAME, name_index)
-                name_index += 1
+                slave_config.slave_name = 'CPF-{0}-linux-slave-{1}'.format(cpfmachines_version.CPFMACHINES_VERSION, linux_name_index)
+                slave_config.container_conf = ContainerConfig()
+                slave_config.container_conf.container_name = "{0}-{1}".format(self._LINUX_SLAVE_BASE_NAME, linux_name_index)
+                linux_name_index += 1
+                slave_config.container_conf.container_user = 'jenkins'
                 slave_config.container_conf.container_ip = "{0}.{1}".format(self._DOCKER_SUBNET_BASE_IP,ip_index)
                 ip_index += 1
                 slave_config.container_conf.container_image_name = self._LINUX_SLAVE_BASE_NAME + '-image'
+
+            elif self.is_windows_machine(slave_config.machine_id):
+                slave_config.slave_name = 'CPF-{0}-windows-slave-{1}'.format(cpfmachines_version.CPFMACHINES_VERSION, windows_name_index)
+                windows_name_index += 1
+
+            else:
+                raise Exception('Function needs to be extended to handle os type of machine ' + slave_config.machine_id )
 
         # set the mapped ssh ports
         forbidden_ports = (80, 8080) # these are already used by jenkins and the webserver
@@ -500,9 +520,11 @@ class ContainerConfig:
     """
     def __init__(self):
         self.container_name = ''            # The name of the container.
+        self.container_user = ''            # The name of the user that runs the services in the container.
         self.container_ip = ''              # The ip of the container in the docker network.
         self.container_image_name = ''      # The name of the image which is used to instantiate the container.
         self.mapped_ssh_host_port = None    # The port on the host machine that is mapped to port 22 on the container.
+
 
 
 class WebserverHostConfig:
@@ -530,8 +552,9 @@ class JenkinsSlaveConfig:
     """
     def __init__(self):
         self.machine_id = ''
+        self.slave_name = ''
         self.executors = ''
-        self.container_conf = ContainerConfig()
+        self.container_conf = None
 
 
 class JenkinsConfig:
@@ -549,27 +572,19 @@ class JenkinsConfig:
         self.approved_script_signatures = []
 
 
-class JenkinsAccountConfig:
+class ConfigItem:
     """
-    Data class that holds the information from the KEY_JENKINS_ACCOUNT_CONFIG_FILES key.
+    Data class that holds the information about pieces of config information
+    that jenkins holds in a single config.xml file.
     """
-    def __init__(self, user_name_arg, xml_file):
-        self.user_name = user_name_arg
-        self.xml_config_file = PurePath(xml_file)
-
-
-class JenkinsJobConfig:
-    """
-    Data class that holds the information from the KEY_JENKINS_JOB_CONFIG_FILES key.
-    """
-    def __init__(self, job_name_arg, xml_file):
-        self.job_name = job_name_arg
-        self.xml_config_file = PurePath(xml_file)
+    def __init__(self, name_arg, xml_file_arg):
+        self.name = name_arg
+        self.xml_file = PurePath(xml_file_arg)
 
 
 class CPFJobConfig:
     """
-    Data class that holds the information from the KEY_CPP_CODE_BASE_JOBS key.
+    Data class that holds the information from the KEY_CPF_JOBS key.
     """
     def __init__(self, job_name_arg, repository_address ):
         self.job_name = job_name_arg
@@ -660,7 +675,7 @@ def get_example_config_dict():
             KEY_JENKINS_JOB_CONFIG_FILES : {
                 'MyCustomJob' : 'MyCustomJob.xml'
             },
-            KEY_CPP_CODE_BASE_JOBS : {
+            KEY_CPF_JOBS : {
                 'BuildMyCPFProject' : 'ssh://fritz@mastermachine:/home/fritz/repositories/BuildMyCPFProject.git'
             },
             KEY_JENKINS_APPROVED_SYSTEM_COMMANDS : [

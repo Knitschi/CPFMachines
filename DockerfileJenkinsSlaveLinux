@@ -115,7 +115,6 @@ RUN chown -R jenkins:jenkins /home/jenkins/bin
 
 RUN apt-get update &&\
     apt-get install -y openjdk-8-jdk
-    
+
 # Run the sshd server as command to keep the container alive.
 CMD ["/usr/sbin/sshd", "-D"]
-

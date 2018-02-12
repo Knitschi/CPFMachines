@@ -36,4 +36,7 @@ The setup script reads a config file that can be used to define the number and l
 - I was not able to make name resolution for windows machines in the host network work inside the docker containers. The machine names for the windows build-slaves
 therefore must be given as ip addresses to allow the jenkins-master to reach them. 
 
+\warning All machines should be within a trusted network as machine to machine communication is currently vulnerable to man in the middle attacks due to
+ignoring ssh host key checking.
+
 */
