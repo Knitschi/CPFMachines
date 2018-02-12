@@ -12,9 +12,7 @@ Can we add comments to the KEY definitions that are visible in the docs?
 import json
 import collections
 import pprint
-import getpass
-import paramiko
-import weakref
+
 from pathlib import PureWindowsPath, PurePosixPath, PurePath
 
 from . import cpfmachines_version
@@ -66,7 +64,7 @@ class ConfigData:
     def __init__(self, config_dict):
         # objects that contain the config data
         self.file_version = ''
-        self.host_machine_connections = []
+        self.host_machine_infos = []
         self.jenkins_master_host_config = JenkinsMasterHostConfig()
         self.web_server_host_config = WebserverHostConfig()
         self.repository_host_config = RepositoryHostConfig()
@@ -80,70 +78,26 @@ class ConfigData:
         self._import_config_data()
         self._check_data_validity()
         self._configure_container()
-        self._check_generated_data_validity()
 
 
-    def establish_host_machine_connections(self):
-        """
-        Reads the machine login date from a config file dictionary.
-        Returns a map that contains machine ids as keys and HostMachineConnection objects as values.
-        """
-        for connection in self.host_machine_connections:
-            # prompt for password if it was not provided in the file
-            if not connection.user_password:
-                prompt_message = "Please enter the password for account {0}@{1}.".format(connection.user_name, connection.host_name)
-                connection.user_password = getpass.getpass(prompt_message)
-
-            # make the connection
-            connection.ssh_client.load_system_host_keys()
-            #connection.ssh_client.set_missing_host_key_policy(paramiko.WarningPolicy)
-            connection.ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            connection.ssh_client.connect(connection.host_name, port=22, username=connection.user_name, password=connection.user_password, timeout=2)
-
-            sftp_client = connection.ssh_client.open_sftp()
 
 
-    def get_host_machine_connection(self, machine_id):
+    def get_host_machine_info(self, machine_id):
         """
         Get the connection data for a certain host machine.
         """
-        return next((x for x in self.host_machine_connections if x.machine_id == machine_id), None)
-
-
-    def get_container_host_machine_connection(self, container_name):
-        """
-        Returns the connection to the host machine that hosts the given container
-        or None if there is no such container.
-        """
-        id_dict = self.get_container_machine_dictionary()
-        if container_name in id_dict:
-            return self.get_host_machine_connection(id_dict[container_name])
-        return None
+        return next((x for x in self.host_machine_infos if x.machine_id == machine_id), None)
 
 
     def is_linux_machine(self, machine_id):
-        connection  = self.get_host_machine_connection(machine_id)
+        connection  = self.get_host_machine_info(machine_id)
         return connection.os_type == 'Linux'
 
 
     def is_windows_machine(self, machine_id):
-        connection  = self.get_host_machine_connection(machine_id)
+        connection  = self.get_host_machine_info(machine_id)
         return connection.os_type == 'Windows'
 
-
-    def get_container_machine_dictionary(self):
-        """
-        Returns a dictionary with all docker container as keys and
-        the associated host machine_ids as values.
-        """
-        id_dict = {}
-        id_dict[self.jenkins_master_host_config.container_conf.container_name] = self.jenkins_master_host_config.machine_id
-        id_dict[self.web_server_host_config.container_conf.container_name] = self.web_server_host_config.machine_id
-        for slave_config in self.jenkins_slave_configs:
-            if slave_config.container_conf:
-                id_dict[slave_config.container_conf.container_name] = slave_config.machine_id
-
-        return id_dict
 
     def get_docker_subnet(self):
         return self._DOCKER_SUBNET_BASE_IP + '.0/16'
@@ -169,20 +123,22 @@ class ConfigData:
         """
         host_machines = _get_checked_value(self._config_file_dict, KEY_LOGIN_DATA)
         for machine_dict in host_machines:
-            machine = HostMachineConnection()
+            machine = HostMachineInfo()
             machine.machine_id = _get_checked_value(machine_dict, KEY_MACHINE_ID)
             machine.host_name = _get_checked_value(machine_dict, KEY_MACHINE_NAME)
             machine.user_name = _get_checked_value(machine_dict, KEY_USER)
             if KEY_PASSWORD in machine_dict: # password is optional
                 machine.user_password = machine_dict[KEY_PASSWORD]
             machine.os_type = _get_checked_value(machine_dict, KEY_OSTYPE)
-            if KEY_TEMPDIR in machine_dict: # password is optional
-                if machine.os_type == "Windows":
-                    machine.temp_dir = PureWindowsPath(machine_dict[KEY_TEMPDIR])
-                else:
-                    machine.temp_dir = PurePosixPath(machine_dict[KEY_TEMPDIR])
 
-            self.host_machine_connections.append(machine)
+            if machine.os_type == "Windows":
+                machine.temp_dir = PureWindowsPath(_get_checked_value(machine_dict, KEY_TEMPDIR))
+            elif machine.os_type == "Linux":
+                machine.temp_dir = PurePosixPath(_get_checked_value(machine_dict, KEY_TEMPDIR))
+            else:
+                raise Exception('Function needs to be extended to handle os type ' + machine.os_type)
+
+            self.host_machine_infos.append(machine)
 
 
     def _read_jenkins_master_host_config(self):
@@ -282,7 +238,7 @@ class ConfigData:
         """
         Checks that at least on of the host machines is a linux machine.
         """
-        for data in self.host_machine_connections:
+        for data in self.host_machine_infos:
             if data.os_type == "Linux":
                 return
         raise Exception("Config file Error! The CPFMachines configuration must at least contain one Linux host machine.")
@@ -312,7 +268,7 @@ class ConfigData:
             used_machines.append(slave_config.machine_id)
 
         # now check if all defined hosts are within the used machines list
-        for host_config in self.host_machine_connections:
+        for host_config in self.host_machine_infos:
             found = next((x for x in used_machines if x == host_config.machine_id ), None)
             if found is None:
                 raise Exception("Config file Error! The host machine with id {0} is not used.".format(host_config.machine_id))
@@ -320,7 +276,7 @@ class ConfigData:
 
     def _check_host_ids_are_unique(self):
         host_ids = []
-        for host_config in self.host_machine_connections:
+        for host_config in self.host_machine_infos:
             host_ids.append(host_config.machine_id)
         
         if len(host_ids) > len(set(host_ids)):
@@ -332,7 +288,7 @@ class ConfigData:
         Make sure that each combination of user and host machine only occurs once in the host config data.
         """
         accounts = []
-        for host_config in self.host_machine_connections:
+        for host_config in self.host_machine_infos:
             accounts.append( host_config.user_name + host_config.host_name)
 
         if len(accounts) > len(set(accounts)):
@@ -396,23 +352,7 @@ class ConfigData:
                 mapped_ssh_port += 1
 
 
-    def _check_generated_data_validity(self):
-        """
-        This function executes validity checks that require the generated data, like container names
-        to be available.
-        """
-        self._check_container_hosts_have_temp_dir()
-        
-
-    def _check_container_hosts_have_temp_dir(self):
-        container_machines = set(self.get_container_machine_dictionary().values())
-        for machine_id in container_machines:
-            connection = self.get_host_machine_connection(machine_id)
-            if connection.temp_dir == PurePosixPath():
-                raise Exception("Config file Error! Host machine {0} needs a temporary directory set under key {1}.".format(machine_id, KEY_TEMPDIR))
-
-
-class HostMachineConnection:
+class HostMachineInfo:
     """
     Objects of this class hold the information that is required for an ssh login
     """
@@ -424,85 +364,6 @@ class HostMachineConnection:
         self.user_password = ''
         self.os_type = ''
         self.temp_dir = None
-        self.ssh_client = paramiko.SSHClient()
-
-        # object to close open connections when the object is destroyed
-        self._finalizer = weakref.finalize(self, self._close_connections)
-
-
-    def _close_connections(self):
-        self.ssh_client.close()
-
-
-    def remove(self):
-        self._finalizer()
-
-
-    @property
-    def removed(self):
-        return not self._finalizer.alive
-
-
-    def run_command(self, command, print_output=False, print_command=False, ignore_return_code=False):
-        """
-        The function runs a console command on the remote host machine via the paramiko ssh client.
-        The function returns the output of the command as a list of strings, where each element
-        in the list is a line in the output. 
-
-        The function throws if the return code is not zero and ignore_return_code is set to False.
-        """
-        stdin, stdout, stderr = self.ssh_client.exec_command(command, get_pty=True)
-
-        if print_command:
-            print(self._prepend_machine_id(command))
-
-        # print output as soon as it is produced
-        out_list = []
-        if print_output:
-            for line in iter(stdout.readline, ""):
-                out_list.append(line.rstrip()) # add the line without line separators
-                print(self._prepend_machine_id(line), end="")
-        else:
-            out_list = stdout.readlines()
-            out_list = self._remove_line_separators(out_list)
-
-        err_list = stderr.readlines()
-        err_list = self._remove_line_separators(err_list)
-        retcode = stdout.channel.recv_exit_status()
-
-        if not ignore_return_code and retcode != 0:
-            if not print_output:                         # always print the output in case of an error
-                self._print_output(out_list, err_list)
-            error = 'Command "{0}" executed on host {1} returned error code {2}.'.format(command, self.machine_id, str(retcode))
-            raise Exception(error)
-
-        return out_list
-
-
-    def _remove_line_separators(self, stringlist):
-        new_list = []
-        for string in stringlist:
-            new_list.append(string.rstrip())
-        return new_list
-
-
-    def _print_output(self, out_list, err_list):
-        out_list = self._prepend_machine_ids(out_list)
-        _print_string_list(out_list)
-        err_list = self._prepend_machine_ids(err_list)
-        _print_string_list(err_list)
-
-
-    def _prepend_machine_ids(self, stringlist):
-        return [ (self._prepend_machine_id(string)) for string in stringlist]
-
-    def _prepend_machine_id(self, string):
-        return "[{0}] ".format(self.machine_id) + string
-
-
-def _print_string_list(list):
-    for string in list:
-        print(string)
 
 
 class JenkinsMasterHostConfig:
@@ -636,7 +497,8 @@ def get_example_config_dict():
                 KEY_MACHINE_ID : 'MyWindowsSlave',
                 KEY_MACHINE_NAME : 'whost12',
                 KEY_USER : 'fritz',
-                KEY_OSTYPE : 'Windows'
+                KEY_OSTYPE : 'Windows',
+                KEY_TEMPDIR : 'C:/temp'
             },
         ],
         KEY_JENKINS_MASTER_HOST : {

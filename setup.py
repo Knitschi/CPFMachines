@@ -23,11 +23,12 @@ import io
 import json
 import pprint
 import time
-import requests
 import paramiko
 
 from . import cpfmachines_version
 from . import config_data
+from .jenkins_remote_access import JenkinsRESTAccessor
+from .remote_commands import RemoteCommandExecutor
 
 _SCRIPT_DIR = PurePath(os.path.dirname(os.path.realpath(__file__)))
 
@@ -91,11 +92,11 @@ def main(config_file):
 
 
     print('----- Establish ssh connections to host machines')
-    config.establish_host_machine_connections()
+    cmd_executor = RemoteCommandExecutor(config)
 
     # prepare environment
     print('----- Cleanup existing docker container and networks')
-    _clear_docker(config)
+    _clear_docker(cmd_executor)
     _clear_host_directories(config)
     # we do not clear this to preserve the accumulated web content.
     _guarantee_directory_exists(config, config.web_server_host_config.machine_id, config.web_server_host_config.host_html_share_dir)
@@ -152,87 +153,20 @@ def dev_message(text):
     print('--------------- ' + str(text))
 
 
-def _clear_docker(config):
+def _clear_docker(cmd_executor):
     """
     Removes docker containers and networks from previous runs.
     Takes a config_data.ConfigData object as argument.
     """
-    container_dict = config.get_container_machine_dictionary()
-    for container in container_dict:
-        _stubbornly_remove_container(config, container)
-
-    container_machines = set(container_dict.values())
-    for machine_id in container_machines:
-        _remove_docker_network(config, machine_id, _DOCKER_NETWORK_NAME)
-
-
-def _stubbornly_remove_container(config, container):
-    """
-    Removes a given docker container even if it is running.
-    If the container does not exist, the function does nothing.
-    """
-    connection = config.get_container_host_machine_connection(container)
-    if _container_exists(connection, container):
-        if _container_is_running(connection, container):
-            _stop_docker_container(connection, container)
-        _remove_container(connection, container)
-
-
-def _container_exists(connection, container):
-    """
-    Returns true if the container exists on the host.
-    """
-    all_container = _get_all_docker_container(connection)
-    return container in all_container
-
-
-def _get_all_docker_container(connection):
-    return connection.run_command("docker ps -a --format '{{.Names}}'")
-
-
-def _container_is_running(connection, container):
-    """
-    Returns true if the container is running on its host.
-    """
-    running_container = _get_running_docker_container(connection)
-    return container in running_container
-
-
-def _get_running_docker_container(connection):
-    return connection.run_command("docker ps --format '{{.Names}}'")
-
-def _stop_docker_container(connection, container):
-    connection.run_command('docker stop ' + container)
-
-
-def _start_docker_container(connection, container):
-    connection.run_command('docker start ' + container)
-
-
-def _remove_container(connection, container):
-    """
-    This removes a given docker container and will fail if the container is running.
-    """
-    connection.run_command('docker rm -f ' + container)
-
-
-def _remove_docker_network(config, machine_id, network):
-    connection = config.get_host_machine_connection(machine_id)
-    network_lines = connection.run_command('docker network ls')
-    networks = []
-    for line in network_lines:
-        columns = line.split()
-        networks.append(columns[1])
-
-    if network in networks:
-        connection.run_command('docker network rm ' + network)
+    cmd_executor.remove_all_container()
+    cmd_executor.remove_all_docker_networks(_DOCKER_NETWORK_NAME)
 
 
 def _clear_host_directories(config):
     # the master share directory
     _clear_rdirectory(config, config.jenkins_master_host_config.machine_id, config.jenkins_master_host_config.jenkins_home_share)
     # all temporary directories
-    for connection in config.host_machine_connections:
+    for connection in config.host_machine_infos:
         if connection.temp_dir:
             _clear_rdirectory(config, connection.machine_id, connection.temp_dir)
 
@@ -242,7 +176,7 @@ def _clear_rdirectory(config, machine_id, directory):
     This functions deletes the given directory and all its content and recreates it.
     It does it on the given machine.
     """
-    connection = config.get_host_machine_connection(machine_id)
+    connection = config.get_host_machine_info(machine_id)
     with connection.ssh_client.open_sftp() as sftp_client:
         if _rexists(sftp_client, directory):
             _rrmtree(sftp_client, directory)
@@ -292,7 +226,7 @@ def _rmakedirs(sftp_client, dir_path):
     
 
 def _guarantee_directory_exists(config, machine_id, dir_path):
-    connection = config.get_host_machine_connection(machine_id)
+    connection = config.get_host_machine_info(machine_id)
     with connection.ssh_client.open_sftp() as sftp_client:
         if not _rexists(sftp_client, dir_path):
             _rmakedirs(sftp_client, dir_path)
@@ -306,7 +240,7 @@ def _create_docker_networks(config):
 
 
 def _create_docker_network(config, machine_id, network):
-    connection = config.get_host_machine_connection(machine_id)
+    connection = config.get_host_machine_info(machine_id)
     connection.run_command("docker network create --driver bridge --subnet={0} {1}".format(config.get_docker_subnet(), network))
 
 
@@ -341,7 +275,7 @@ def _build_jenkins_base(config):
 
 
 def _get_jenkins_master_host_connection(config):
-    return config.get_host_machine_connection(config.jenkins_master_host_config.machine_id)
+    return config.get_host_machine_info(config.jenkins_master_host_config.machine_id)
 
 def _get_context_dir(connection, image_name):
     return connection.temp_dir.joinpath(image_name)
@@ -498,7 +432,7 @@ def _run_commands_in_container(host_connection, container_config, commands, user
 
 
 def _build_and_start_web_server(config):
-    connection = config.get_host_machine_connection(config.web_server_host_config.machine_id)
+    connection = config.get_host_machine_info(config.web_server_host_config.machine_id)
     container_name = config.web_server_host_config.container_conf.container_name
     container_image = config.web_server_host_config.container_conf.container_image_name
     
@@ -562,7 +496,7 @@ def _build_and_start_jenkins_linux_slaves(config):
 
 def _build_and_start_jenkins_linux_slave(config, container_conf, machine_id):
     
-    connection = config.get_host_machine_connection(machine_id)
+    connection = config.get_host_machine_info(machine_id)
     container_image = container_conf.container_image_name
 
     if not _docker_container_image_exists(connection, container_image):
@@ -652,7 +586,7 @@ def _copy_file_from_host_to_container(host_connection, container_conf, source_fi
 def _grant_container_ssh_access_to_repository(config, container_conf, container_home_directory):
 
     repository_machine_id = config.repository_host_config.machine_id
-    repository_connection = config.get_host_machine_connection(config.repository_host_config.machine_id)
+    repository_connection = config.get_host_machine_info(config.repository_host_config.machine_id)
     repository_machine_ssh_dir = config.repository_host_config.ssh_dir
 
     container_name = container_conf.container_name
@@ -735,7 +669,7 @@ def _grant_jenkins_master_ssh_access_to_jenkins_linux_slaves(config):
 
     for slave_config in config.jenkins_slave_configs:
         if config.is_linux_machine(slave_config.machine_id):
-            slave_connection = config.get_host_machine_connection(slave_config.machine_id)
+            slave_connection = config.get_host_machine_info(slave_config.machine_id)
             authorized_keys_file = _JENKINS_HOME_JENKINS_SLAVE_CONTAINER.joinpath('.ssh/authorized_keys')
             # add the masters public key to the authorized keys file of the slave
             _rtocontainercopy(master_host_connection, slave_connection, slave_config.container_conf, public_key_file_master_host, authorized_keys_file)
@@ -786,7 +720,7 @@ def _accept_remote_container_host_key(client_container_host_connection, client_c
 def _grant_jenkins_master_ssh_access_to_jenkins_windows_slaves(config):
     for slave_config in config.jenkins_slave_configs:
         if config.is_windows_machine(slave_config.machine_id):
-            slave_connection = config.get_host_machine_connection(slave_config.machine_id)
+            slave_connection = config.get_host_machine_info(slave_config.machine_id)
             _grant_jenkins_master_ssh_access_to_jenkins_windows_slave(config, slave_connection)
 
 
@@ -864,7 +798,7 @@ def _grant_jenkins_master_ssh_access_to_web_server(config):
     master_host_connection = _get_jenkins_master_host_connection(config)
     
     authorized_keys_file = PurePosixPath('/root/.ssh/authorized_keys')
-    webserver_host_connection = config.get_host_machine_connection(config.web_server_host_config.machine_id)
+    webserver_host_connection = config.get_host_machine_info(config.web_server_host_config.machine_id)
     webserver_container_config = config.web_server_host_config.container_conf
 
     # set the authorized keys file in the webserver container
@@ -934,11 +868,24 @@ def _configure_jenkins_master(config, config_file):
         # up and running.
         _restart_jenkins(config)
 
-        # Approve system commands
-        _approve_jenkins_system_commands(config)
+        
+        # Create object that helps with configuring jenkins over its web interface.
+        master_connection = _get_jenkins_master_host_connection(config)
+        jenkins_accessor = JenkinsRESTAccessor(
+            'http://{0}:8080'.format(master_connection.host_name),
+            config.jenkins_config.admin_user,
+            config.jenkins_config.admin_user_password
+        )
 
+        # Approve system commands
+        jenkins_accessor.wait_until_online(90)
+        print("----- Approve system-commands")
+        pprint.pprint(config.jenkins_config.approved_system_commands)
+        jenkins_accessor.approve_system_commands(config.jenkins_config.approved_system_commands)
         # Approve script signatures
-        _approve_jenkins_script_signatures(config)
+        print("----- Approve script signatures")
+        pprint.pprint(config.jenkins_config.approved_script_signatures)
+        jenkins_accessor.approve_script_signatures(config.jenkins_config.approved_script_signatures)
 
     else:
         print(
@@ -1031,34 +978,6 @@ def _restart_jenkins(config):
     master_container = config.jenkins_master_host_config.container_conf.container_name
     _stop_docker_container(master_connection, master_container)
     _start_docker_container(master_connection, master_container)
-    _wait_for_jenkins_master_to_come_online(config)
-
-
-def _wait_for_jenkins_master_to_come_online(config):
-    """
-    Returns when the jenkins instance is fully operable.
-
-    We wait for the crumb request to work, because this is what we need next.
-    """
-    print("----- Wait for jenkins to come online")
-    # We have to wait a little or we get python exceptions.
-    # This is ugly, because it can still fail on slower machines.
-    time.sleep(10)
-    master_connection = _get_jenkins_master_host_connection(config)
-    crumb_text = "Jenkins-Crumb"
-    url = 'http://{0}:8080/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)'.format(master_connection.host_name)
-    auth = (config.jenkins_config.admin_user, config.jenkins_config.admin_user_password)
-
-    text = ''
-    max_time = 30
-    waited_time = 0
-    time_delta = 1
-    while crumb_text not in text:
-        text = requests.get(url, auth=auth).text
-        waited_time += time_delta
-        time.sleep(time_delta)
-        if waited_time > max_time:
-            break
 
 
 def _configure_jenkins_slaves(config):
@@ -1072,7 +991,7 @@ def _configure_jenkins_slaves(config):
     start_commands = []
 
     for slave_config in config.jenkins_slave_configs:
-        slave_host_connection = config.get_host_machine_connection(slave_config.machine_id)
+        slave_host_connection = config.get_host_machine_info(slave_config.machine_id)
         if config.is_linux_machine(slave_config.machine_id):
             # create config file for the linux slave
             linux_slave_start_command = _get_slave_start_command(
@@ -1193,97 +1112,6 @@ def _clear_dir(directory):
     if os.path.isdir(directory):
         shutil.rmtree(directory)
     os.makedirs(directory)
-
-
-def _approve_jenkins_system_commands(config):
-    """
-    Approve system commands that are required by the jenkins configuration.
-    """
-    print("----- Approve system-commands")
-    pprint.pprint(config.jenkins_config.approved_system_commands)
-
-    master_connection = _get_jenkins_master_host_connection(config)
-    jenkins_user = config.jenkins_config.admin_user
-    jenkins_admin_password = config.jenkins_config.admin_user_password
-    jenkins_crumb = _get_jenkins_crumb(master_connection.host_name, jenkins_user, jenkins_admin_password)
-
-    for command in config.jenkins_config.approved_system_commands:
-        _approve_jenkins_system_command(
-            master_connection.host_name,
-            jenkins_user,
-            jenkins_admin_password,
-            jenkins_crumb,
-            command
-        )
-
-
-def _get_jenkins_crumb(master_host, jenkins_user, jenkins_password):
-    url = 'http://{0}:8080/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,":",//crumb)'.format(master_host)
-    auth = (jenkins_user, jenkins_password)
-    request = requests.get(url, auth=auth)
-    request.raise_for_status()
-    return request.text
-
-
-def _approve_jenkins_system_command(master_host, jenkins_user, jenkins_password, jenkins_crumb, approved_script_text):
-    """
-    Runs a groovy script over the jenkins groovy console, that approves system-command
-    scipts.
-    """
-
-    groovy_script = (
-        "def scriptApproval = Jenkins.instance.getExtensionList('org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval')[0];" +
-        "scriptApproval.approveScript(scriptApproval.hash('{0}', 'system-command'))"
-        ).format(approved_script_text)
-    _run_jenkins_groovy_script(master_host, jenkins_user, jenkins_password, jenkins_crumb, groovy_script)
-
-
-def _run_jenkins_groovy_script(master_host, jenkins_user, jenkins_password, jenkins_crumb, script):
-    """
-    Runs the given script in the jenkins script console.
-    """
-    url = 'http://{0}:8080/scriptText'.format(master_host)
-    auth = (jenkins_user, jenkins_password)
-    crumb_parts = jenkins_crumb.split(':')
-    crumb_header = {crumb_parts[0] : crumb_parts[1]}
-    script_data = {'script' : script}
-
-    response = requests.post(url, auth=auth, headers=crumb_header, data=script_data)
-    response.raise_for_status()
-
-
-def _approve_jenkins_script_signatures(config):
-    """
-    Approve script signatures that are required by the pipeline scripts.
-    """
-    print("----- Approve script signatures")
-    pprint.pprint(config.jenkins_config.approved_script_signatures)
-
-    master_connection = _get_jenkins_master_host_connection(config)
-    jenkins_user = config.jenkins_config.admin_user
-    jenkins_admin_password = config.jenkins_config.admin_user_password
-    jenkins_crumb = _get_jenkins_crumb(master_connection.host_name, jenkins_user, jenkins_admin_password)
-
-    for script_signature in config.jenkins_config.approved_script_signatures:
-        _approve_jenkins_script_signature(
-            master_connection.host_name, 
-            jenkins_user, 
-            jenkins_admin_password, 
-            jenkins_crumb, 
-            script_signature
-        )
-
-
-def _approve_jenkins_script_signature(master_host, jenkins_user, jenkins_password, jenkins_crumb, approved_script_text):
-    """
-    Runs a groovy script over the jenkins groovy console, that approves the commands
-    that are used to start the slaves.
-    """
-    groovy_script = (
-        "def signature = '{0}';" +
-        "org.jenkinsci.plugins.scriptsecurity.scripts.ScriptApproval.get().approveSignature(signature)"
-    ).format(approved_script_text)
-    _run_jenkins_groovy_script(master_host, jenkins_user, jenkins_password, jenkins_crumb, groovy_script)
 
 
 

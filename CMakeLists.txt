@@ -40,6 +40,8 @@ set( sources
     ssh_config
     supervisord.conf
     updateAuthorizedKeysBitvise.bat.in
+    jenkins_remote_access.py
+    remote_commands.py
 )
 
 add_custom_target( 

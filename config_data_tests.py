@@ -26,26 +26,26 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.file_version, cpfmachines_version.CPFMACHINES_VERSION)
 
         # host machine data
-        self.assertEqual( sut.host_machine_connections[0].machine_id, 'MyMaster' )
-        self.assertEqual( sut.host_machine_connections[0].host_name, 'lhost3' )
-        self.assertEqual( sut.host_machine_connections[0].user_name, 'fritz' )
-        self.assertEqual( sut.host_machine_connections[0].user_password, '1234password' )
-        self.assertEqual( sut.host_machine_connections[0].os_type, 'Linux' )
-        self.assertEqual( sut.host_machine_connections[0].temp_dir, PurePosixPath('/home/fritz/temp') )
+        self.assertEqual( sut.host_machine_infos[0].machine_id, 'MyMaster' )
+        self.assertEqual( sut.host_machine_infos[0].host_name, 'lhost3' )
+        self.assertEqual( sut.host_machine_infos[0].user_name, 'fritz' )
+        self.assertEqual( sut.host_machine_infos[0].user_password, '1234password' )
+        self.assertEqual( sut.host_machine_infos[0].os_type, 'Linux' )
+        self.assertEqual( sut.host_machine_infos[0].temp_dir, PurePosixPath('/home/fritz/temp') )
 
-        self.assertEqual( sut.host_machine_connections[1].machine_id, 'MyLinuxSlave' )
-        self.assertEqual( sut.host_machine_connections[1].host_name, '192.168.0.5' )
-        self.assertEqual( sut.host_machine_connections[1].user_name, 'fritz' )
-        self.assertEqual( sut.host_machine_connections[1].user_password, '1234password' )
-        self.assertEqual( sut.host_machine_connections[1].os_type, 'Linux' )
-        self.assertEqual( sut.host_machine_connections[1].temp_dir, PurePosixPath('/home/fritz/temp') )
+        self.assertEqual( sut.host_machine_infos[1].machine_id, 'MyLinuxSlave' )
+        self.assertEqual( sut.host_machine_infos[1].host_name, '192.168.0.5' )
+        self.assertEqual( sut.host_machine_infos[1].user_name, 'fritz' )
+        self.assertEqual( sut.host_machine_infos[1].user_password, '1234password' )
+        self.assertEqual( sut.host_machine_infos[1].os_type, 'Linux' )
+        self.assertEqual( sut.host_machine_infos[1].temp_dir, PurePosixPath('/home/fritz/temp') )
 
-        self.assertEqual( sut.host_machine_connections[2].machine_id, 'MyWindowsSlave' )
-        self.assertEqual( sut.host_machine_connections[2].host_name, 'whost12' )
-        self.assertEqual( sut.host_machine_connections[2].user_name, 'fritz' )
-        self.assertEqual( sut.host_machine_connections[2].user_password, '' )
-        self.assertEqual( sut.host_machine_connections[2].os_type, 'Windows' )
-        self.assertEqual( sut.host_machine_connections[2].temp_dir, None )
+        self.assertEqual( sut.host_machine_infos[2].machine_id, 'MyWindowsSlave' )
+        self.assertEqual( sut.host_machine_infos[2].host_name, 'whost12' )
+        self.assertEqual( sut.host_machine_infos[2].user_name, 'fritz' )
+        self.assertEqual( sut.host_machine_infos[2].user_password, '' )
+        self.assertEqual( sut.host_machine_infos[2].os_type, 'Windows' )
+        self.assertEqual( sut.host_machine_infos[2].temp_dir, PureWindowsPath('C:/temp') )
 
         # jenkins master host data
         self.assertEqual( sut.jenkins_master_host_config.machine_id, 'MyMaster')
@@ -107,35 +107,15 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_config.approved_script_signatures[0] , '<script signature from my MyCustomJob jenkinsfile>')
 
 
-    def test_get_host_machine_connection(self):
+    def test_get_host_machine_info(self):
         # setup
         sut = ConfigData(get_example_config_dict())
 
         # execute and verify
         machine_ids = ['MyMaster','MyLinuxSlave','MyWindowsSlave']
         for machine_id in machine_ids:
-            connection = sut.get_host_machine_connection(machine_id)
+            connection = sut.get_host_machine_info(machine_id)
             self.assertEqual(machine_id, connection.machine_id)
-
-
-    def test_get_container_machine_dictionary(self):
-        """
-        Verify the output is correct.
-        """
-        # setup
-        sut = ConfigData(get_example_config_dict())
-
-        # execute
-        machine_dict = sut.get_container_machine_dictionary()
-
-        # verify
-        expected_machine_dict = {
-            'cpf-web-server' : 'MyMaster',
-            'jenkins-master' : 'MyMaster',
-            'jenkins-slave-linux-0' : 'MyLinuxSlave',
-            'jenkins-slave-linux-1' : 'MyMaster',
-        }
-        self.assertEqual(machine_dict, expected_machine_dict)
 
 
     def test_validation_checks_version(self):
