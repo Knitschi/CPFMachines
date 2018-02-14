@@ -502,7 +502,7 @@ def read_json_file(config_file):
     """
     Returns the content of a json file as dictionary.
     """
-    with open(config_file) as file:
+    with open(str(config_file)) as file:
         data = json.load(file)
     return data
 

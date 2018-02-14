@@ -63,13 +63,17 @@ class ConnectionHolder:
         self._ssh_client.load_system_host_keys()
         #connection.ssh_client.set_missing_host_key_policy(paramiko.WarningPolicy)
         self._ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self._ssh_client.connect(
-            self.info.host_name,
-            port=self._DEFAULT_SSH_PORT,
-            username=self.info.user_name,
-            password=self.info.user_password,
-            timeout=self._CONNECTION_TIMEOUT
-        )
+        try:
+            self._ssh_client.connect(
+                self.info.host_name,
+                port=self._DEFAULT_SSH_PORT,
+                username=self.info.user_name,
+                password=self.info.user_password,
+                timeout=self._CONNECTION_TIMEOUT
+            )
+        except Exception as err:
+            print('Failed to connect to ssh account {0}@{1}'.format(self.info.user_name, self.info.host_name))
+            raise err
 
         self.sftp_client = self._ssh_client.open_sftp()
         

@@ -58,10 +58,10 @@ def configure_file(source_file, dest_file, replacement_dictionary):
     with the values and writes the result to dest_file.
     """
     # Open target file
-    config_file = io.open(dest_file, 'w')
+    config_file = io.open(str(dest_file), 'w')
 
     # Read the lines from the template, substitute the values, and write to the new config file
-    for line in io.open(source_file, 'r'):
+    for line in io.open(str(source_file), 'r'):
         for key, value in replacement_dictionary.items():
             line = line.replace(key, value)
         config_file.write(line)
@@ -522,7 +522,7 @@ class MachinesController:
             raise err
 
         # clean up the generated script because of the included password
-        os.remove(full_authorized_keys_script)
+        os.remove(str(full_authorized_keys_script))
 
         # Wait a little until the bitvise ssh server is ready to accept the key file.
         # This can possibly fail on slower machines.

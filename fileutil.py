@@ -123,7 +123,7 @@ def rtorcopy(source_sftp_client, target_sftp_client, source_file, target_file):
     local_temp_file = _SCRIPT_DIR.joinpath(source_file.name)
     source_sftp_client.get(str(source_file), str(local_temp_file))
     target_sftp_client.put(str(local_temp_file), str(target_file))
-    os.remove(local_temp_file)
+    os.remove(str(local_temp_file))
 
 
 def get_dir_content(directory):
@@ -131,7 +131,7 @@ def get_dir_content(directory):
     Returns a list of all files and directories in a directory with pathes relative to the given directory.
     """
     items = []
-    for dirpath, dirs, files in os.walk(directory):
+    for dirpath, dirs, files in os.walk(str(directory)):
         relpath = PurePath(dirpath).relative_to(directory)
         for dir in dirs:
             items.append(relpath.joinpath(dir))
@@ -144,7 +144,7 @@ def clear_dir(directory):
     """
     After calling this function the directory will exist and be empty.
     """
-    if os.path.isdir(directory):
-        shutil.rmtree(directory)
-    os.makedirs(directory)
+    if os.path.isdir(str(directory)):
+        shutil.rmtree(str(directory))
+    os.makedirs(str(directory))
 

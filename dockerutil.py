@@ -154,7 +154,7 @@ def copy_local_textfile_tree_to_container(local_source_dir, container_host_conne
     dir_content = fileutil.get_dir_content(local_source_dir)
     for item in dir_content:
         source_path = local_source_dir.joinpath(item)
-        if os.path.isfile(source_path):
+        if os.path.isfile(str(source_path)):
             target_path = container_target_dir.joinpath(item)
             copy_textfile_to_container(container_host_connection, container_config, source_path, target_path)
 
