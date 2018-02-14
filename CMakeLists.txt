@@ -41,7 +41,9 @@ set( sources
     supervisord.conf
     updateAuthorizedKeysBitvise.bat.in
     jenkins_remote_access.py
-    remote_commands.py
+    connections.py
+    dockerutil.py
+    fileutil.py
 )
 
 add_custom_target( 

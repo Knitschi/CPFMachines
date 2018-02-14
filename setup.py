@@ -14,7 +14,6 @@ the VMWare virtual machines?
 import os
 import posixpath
 from pathlib import PureWindowsPath, PurePosixPath, PurePath
-import stat
 import sys
 import distutils.dir_util
 import subprocess
@@ -28,7 +27,10 @@ import paramiko
 from . import cpfmachines_version
 from . import config_data
 from .jenkins_remote_access import JenkinsRESTAccessor
-from .remote_commands import RemoteCommandExecutor
+from .connections import ConnectionsHolder
+
+from . import dockerutil
+from . import fileutil
 
 _SCRIPT_DIR = PurePath(os.path.dirname(os.path.realpath(__file__)))
 
@@ -83,529 +85,388 @@ def main(config_file):
     """
     Entry point of the script.
     """
-
     # read configuration file
     print('----- Read configuration file ' + config_file)
     config_file = PurePath(config_file)
     config_dict = config_data.read_json_file(config_file)
     config = config_data.ConfigData(config_dict)
 
-
     print('----- Establish ssh connections to host machines')
-    cmd_executor = RemoteCommandExecutor(config)
+    connections = ConnectionsHolder(config)
+
+    # Create the object that does the work.
+    controller = MachinesController(config, connections)
 
     # prepare environment
     print('----- Cleanup existing docker container and networks')
-    _clear_docker(cmd_executor)
-    _clear_host_directories(config)
-    # we do not clear this to preserve the accumulated web content.
-    _guarantee_directory_exists(config, config.web_server_host_config.machine_id, config.web_server_host_config.host_html_share_dir)
-    _create_docker_networks(config)
+    controller.prepare_host_environment()
 
     # build container
     print("----- Build jenkins base image on host " + config.jenkins_master_host_config.machine_id)
-    _build_jenkins_base(config)
-
+    controller.build_jenkins_base()
     print("----- Build and start container {0} on host {1}".format(config.jenkins_master_host_config.container_conf.container_name, config.jenkins_master_host_config.machine_id))
-    _build_and_start_jenkins_master(config)
-
-    # The document server must be started before the jenkins slave is started because mounting
-    # the shared volume here sets the owner of the share to root an only the jenkins container
-    # can set it to jenkins. Do we still use the document share to copy files?
+    controller.build_and_start_jenkins_master()
     print("----- Build and start the web-server container " + config.web_server_host_config.container_conf.container_name)
-    _build_and_start_web_server(config)
+    controller.build_and_start_web_server()
     print("----- Build and start the docker SLAVE containers")
-    _build_and_start_jenkins_linux_slaves(config)
+    controller.build_and_start_jenkins_linux_slaves()
 
-    # setup ssh accesses used by jenkins-master
-    print(
-    '----- Create SSH key file pair for container ' + config.jenkins_master_host_config.container_conf.container_name +
-    ' in directory ' + str(_JENKINS_HOME_JENKINS_MASTER_CONTAINER))
-    _create_rsa_key_file_pair_on_container(
-        config,
-        config.jenkins_master_host_config.container_conf,
-        _JENKINS_HOME_JENKINS_MASTER_CONTAINER)
+    # setup ssh accesses
+    print( '----- Setup SSH access rights ' )
+    controller.setup_ssh_access_rights()
 
-    _grant_container_ssh_access_to_repository(
-        config,
-        config.jenkins_master_host_config.container_conf,
-        _JENKINS_HOME_JENKINS_MASTER_CONTAINER)
-    print('----- Grant '+ config.jenkins_master_host_config.container_conf.container_name +' ssh access to linux slaves')
-    _grant_jenkins_master_ssh_access_to_jenkins_linux_slaves(config)
-    _grant_jenkins_master_ssh_access_to_jenkins_windows_slaves(config)
-    _grant_jenkins_master_ssh_access_to_web_server(config)
-
-    # setup ssh accesses used by the jenkins slaves
-    _create_rsa_key_file_pairs_on_slave_container(config)
-    _grant_linux_slaves_access_to_repository(config)
-    # \todo Windows slaves need repository access as well. Did we do this manually?
-
-    _configure_jenkins_master(config, config_file)
+    # configure jenkins
+    if not config.jenkins_config.use_unconfigured_jenkins:
+        print("----- Configure the jenkins master server.")
+        controller.configure_jenkins_master(config_file)
 
     print('Successfully startet jenkins master, build slaves and the documentation server.')
 
 
-def dev_message(text):
+###############################################################################################################
+
+class MachinesController:
     """
-    Print function emphasizes the printed string with some dashes.
-    It is intended to be used for debugging during development.
+    This class contains the implementation of the operations that must be done to setup
+    all involved machines.
     """
-    print('--------------- ' + str(text))
+    def __init__(self, config, connections):
+        self.config = config
+        self.connections = connections
 
 
-def _clear_docker(cmd_executor):
-    """
-    Removes docker containers and networks from previous runs.
-    Takes a config_data.ConfigData object as argument.
-    """
-    cmd_executor.remove_all_container()
-    cmd_executor.remove_all_docker_networks(_DOCKER_NETWORK_NAME)
+    def setup_ssh_access_rights(self):
+        # setup ssh accesses of the jenkins-master
+        connection = self._get_jenkins_master_host_connection()
+        _create_rsa_key_file_pair_on_container(
+            connection,
+            self.config.jenkins_master_host_config.container_conf,
+            _JENKINS_HOME_JENKINS_MASTER_CONTAINER)
+
+        self._grant_container_ssh_access_to_repository(
+            self.config.jenkins_master_host_config.container_conf,
+            _JENKINS_HOME_JENKINS_MASTER_CONTAINER)
+
+        self._grant_jenkins_master_ssh_access_to_jenkins_linux_slaves()
+        self._grant_jenkins_master_ssh_access_to_jenkins_windows_slaves()
+        self._grant_jenkins_master_ssh_access_to_web_server()
+        
+        # setup ssh accesses used by the jenkins slaves
+        self._create_rsa_key_file_pairs_on_slave_container()
+        self._grant_linux_slaves_access_to_repository()
+        # \todo Windows slaves need repository access as well. Did we do this manually?
 
 
-def _clear_host_directories(config):
-    # the master share directory
-    _clear_rdirectory(config, config.jenkins_master_host_config.machine_id, config.jenkins_master_host_config.jenkins_home_share)
-    # all temporary directories
-    for connection in config.host_machine_infos:
-        if connection.temp_dir:
-            _clear_rdirectory(config, connection.machine_id, connection.temp_dir)
+    def prepare_host_environment(self):
+        """
+        Removes docker containers and networks from previous runs.
+        Takes a config_data.ConfigData object as argument.
+        """
+        self._remove_all_container()
+        self._remove_all_docker_networks(_DOCKER_NETWORK_NAME)
+        self._clear_directories()
+        # we do not clear the webshare directory to preserve the accumulated web content.
+        connection = self.connections.get_connection(self.config.web_server_host_config.machine_id)
+        fileutil.guarantee_directory_exists(connection.sftp_client, self.config.web_server_host_config.host_html_share_dir)
+        self._create_docker_networks()
 
 
-def _clear_rdirectory(config, machine_id, directory):
-    """
-    This functions deletes the given directory and all its content and recreates it.
-    It does it on the given machine.
-    """
-    connection = config.get_host_machine_info(machine_id)
-    with connection.ssh_client.open_sftp() as sftp_client:
-        if _rexists(sftp_client, directory):
-            _rrmtree(sftp_client, directory)
-        _rmakedirs(sftp_client, directory)
+    def _remove_all_container(self):
+        """
+        Stop and remove all containers of the CPF infrastructure.
+        """
+        for container in self.config.get_all_container():
+            self._stubbornly_remove_container(container)
 
 
-def _rexists(sftp_client, path):
-    """
-    Returns true if the remote directory or file under path exists.
-    """
-    try:
-        sftp_client.stat(str(path))
-    except IOError as err:
-        if err.errno == 2:
-            return False
-        raise
-    else:
-        return True
+    def _stubbornly_remove_container(self, container):
+        """
+        Removes a given docker container even if it is running.
+        If the container does not exist, the function does nothing.
+        """
+        connection = self._get_container_host_connection(container)
+        if dockerutil.container_exists(connection, container):
+            if dockerutil.container_is_running(connection, container):
+                dockerutil.stop_docker_container(connection, container)
+            dockerutil.remove_container(connection, container)
 
 
-def _rrmtree(sftp_client, dir_path):
-    """
-    Removes the remote directory and its content.
-    """
-    for item in sftp_client.listdir_attr(str(dir_path)):
-        rpath = dir_path.joinpath(item.filename)
-        if stat.S_ISDIR(item.st_mode):
-            _rrmtree(sftp_client, rpath)
-        else:
-            rpath = dir_path.joinpath(item.filename)
-            sftp_client.remove(str(rpath))
-
-    sftp_client.rmdir(str(dir_path))
+    def _get_container_host_connection(self, container):
+        machine_id = self.config.get_container_host(container)
+        return self.connections.get_connection(machine_id)
 
 
-def _rmakedirs(sftp_client, dir_path):
-    """
-    Creates a remote directory and all its parent directories.
-    """
-    # create a list with all sub-pathes, where the longer ones come first.
-    pathes = [dir_path]
-    pathes.extend(dir_path.parents) 
-    # now create all sub-directories, starting with the shortest pathes
-    for parent in reversed(pathes): 
-        if not _rexists(sftp_client, parent):
-            sftp_client.mkdir(str(parent))
-    
-
-def _guarantee_directory_exists(config, machine_id, dir_path):
-    connection = config.get_host_machine_info(machine_id)
-    with connection.ssh_client.open_sftp() as sftp_client:
-        if not _rexists(sftp_client, dir_path):
-            _rmakedirs(sftp_client, dir_path)
+    def _remove_all_docker_networks(self, network_name):
+        """
+        Removes the CFP docker networks from all docker instances.
+        """
+        container_machines = self.config.get_container_machines()
+        for machine_id in container_machines:
+            connection = self.connections.get_connection(machine_id)
+            dockerutil.remove_docker_network(connection, network_name)
 
 
-def _create_docker_networks(config):
-    container_dict = config.get_container_machine_dictionary()
-    container_machines = set(container_dict.values())
-    for machine_id in container_machines:
-        _create_docker_network(config, machine_id, _DOCKER_NETWORK_NAME)
+    def _clear_directories(self):
+        # the master share directory
+        connection = self.connections.get_connection(self.config.jenkins_master_host_config.machine_id)
+        fileutil.clear_rdirectory(connection.sftp_client, self.config.jenkins_master_host_config.jenkins_home_share)
+        # all temporary directories
+        for host_info in self.config.host_machine_infos:
+            connection = self.connections.get_connection(host_info.machine_id)
+            fileutil.clear_rdirectory(connection.sftp_client, host_info.temp_dir)
 
 
-def _create_docker_network(config, machine_id, network):
-    connection = config.get_host_machine_info(machine_id)
-    connection.run_command("docker network create --driver bridge --subnet={0} {1}".format(config.get_docker_subnet(), network))
+    def _create_docker_networks(self):
+        for machine_id in self.config.get_container_machines():
+            connection = self.connections.get_connection(machine_id)
+            dockerutil.create_docker_network(connection, _DOCKER_NETWORK_NAME, self.config.get_docker_subnet())
 
 
-def _build_jenkins_base(config):
-    """
-    This builds the base image of the jenkins-master container.
-    """
-    connection = _get_jenkins_master_host_connection(config)
+    def build_jenkins_base(self):
+        """
+        This builds the base image of the jenkins-master container.
+        """
+        connection = self._get_jenkins_master_host_connection()
 
-    # crate the build-context on the host
-    source_dir = _SCRIPT_DIR.joinpath('../JenkinsciDocker')
-    docker_file = 'Dockerfile'
-    files = [
-        docker_file,
-        'tini_pub.gpg',
-        'init.groovy',
-        'jenkins-support',
-        'jenkins.sh',
-        'plugins.sh',
-        'install-plugins.sh',
-    ]
-    context_dir = _get_context_dir(connection, _JENKINS_BASE_IMAGE)
-    _create_build_context_dir(config, connection, source_dir, context_dir, files)
-
-    # Create the jenkins base image. This is required to customize the jenkins version.
-    _build_docker_image(
-        connection,
-        _JENKINS_BASE_IMAGE,
-        context_dir.joinpath(docker_file),
-        context_dir,
-        ['JENKINS_VERSION=' + _JENKINS_VERSION, 'JENKINS_SHA=' + _JENKINS_SHA256])
-
-
-def _get_jenkins_master_host_connection(config):
-    return config.get_host_machine_info(config.jenkins_master_host_config.machine_id)
-
-def _get_context_dir(connection, image_name):
-    return connection.temp_dir.joinpath(image_name)
-
-
-def _create_build_context_dir(config, connection, source_dir, context_dir, text_files, binary_files=[]):
-    """
-    context_dir is the directory on the host that is used as a build context for the container.
-    source_dir is the absolute directory on the machine executing the script that contains the files
-    required for building the container.
-    """
-    with connection.ssh_client.open_sftp() as sftp_client:
-
-        source_dir = PurePath(source_dir)
-
-        # copy text files to the host
-        for file_path in text_files:
-            source_path = source_dir.joinpath(file_path)
-            target_path = context_dir.joinpath(file_path)
-            # Copy the file.
-            _copy_textfile_from_local_to_linux(connection, sftp_client, source_path, target_path)
-
-        # copy binary files to the host
-        for file_path in binary_files:
-            source_path = source_dir.joinpath(file_path)
-            target_path = context_dir.joinpath(file_path)
-            # Copy the file.
-            _copy_file_from_local_to_remote(connection, sftp_client, source_path, target_path)
-
-
-def _copy_textfile_from_local_to_linux(connection, sftp_client, source_path, target_path):
-    """
-    This function ensures that the file-endings of the text-file are set to linux
-    convention after the copy.
-    """
-    _copy_file_from_local_to_remote(connection, sftp_client, source_path, target_path)
-    # Remove \r from file from windows line endings.
-    # This may be necessary when the machine that executes this script
-    # is a windows machine.
-    temp_file = target_path.parent.joinpath('temp.txt')
-    format_line_endings_command = "tr -d '\r' < '{0}' > '{1}' && mv {1} {0}".format(str(target_path), str(temp_file))
-    connection.run_command(format_line_endings_command)
-
-
-def _copy_file_from_local_to_remote(connection, sftp_client, source_path, target_path):
-    """
-    Copies a file to a host machine defined by connection, without changing it.
-    """
-    # make sure a directory for the target file exists
-    _rmakedirs(sftp_client, target_path.parent)
-    sftp_client.put( str(source_path), str(target_path) )
-
-
-def _build_docker_image(connection, image_name, docker_file, build_context_directory, build_args):
-    build_args_string = ''
-    for arg in build_args:
-        build_args_string += ' --build-arg ' + arg
-
-    command = (
-        'docker build' + build_args_string + ' -t ' + image_name +
-        ' -f ' + str(docker_file) + ' ' + str(build_context_directory)
-    )
-    connection.run_command(command, print_output=True, print_command=True)
-
-
-def _build_and_start_jenkins_master(config):
-
-    connection = _get_jenkins_master_host_connection(config)
-    container_name = config.jenkins_master_host_config.container_conf.container_name
-    container_image = config.jenkins_master_host_config.container_conf.container_image_name
-
-    # create a directory on the host that contains all files that are needed for the container build
-    docker_file = 'DockerfileJenkinsMaster'
-    files = [
-        docker_file,
-        'installGcc.sh',
-        'buildGit.sh',
-        'buildCMake.sh',
-    ]
-    context_dir = _get_context_dir(connection, container_name)
-    _create_build_context_dir(config, connection, _SCRIPT_DIR, context_dir, files)
-
-    # Create the container image
-    _build_docker_image(
-        connection,
-        container_image,
-        context_dir.joinpath(docker_file),
-        context_dir,
-        ['JENKINS_BASE_IMAGE=' + _JENKINS_BASE_IMAGE])
-
-    # Start the container
-    # --env JAVA_OPTS="-Djenkins.install.runSetupWizard=false"
-    # The jenkins master and its slaves communicate over the bridge network.
-    # This means the master and the slaves must be on the same host.
-    # This should later be upgraded to a swarm.
-
-    # When the user already has a jenkins configuration
-    # we add an option that prevents the first startup wizard from popping up.
-    no_setup_wizard_option = ''
-    if not config.jenkins_config.use_unconfigured_jenkins:
-        no_setup_wizard_option = '--env JAVA_OPTS="-Djenkins.install.runSetupWizard=false" '
-
-    command = (
-        'docker run '
-        '--detach '
-        # This makes the jenkins home directory accessible on the host. This eases debugging.
-        '--volume ' + str(config.jenkins_master_host_config.jenkins_home_share) + ':' + str(_JENKINS_HOME_JENKINS_MASTER_CONTAINER) + ' '
-        + no_setup_wizard_option +
-        # The jenkins webinterface is available under this port.
-        '--publish 8080:8080 '
-        # Only needed for hnlp slaves. We leave it here in case we need hnlp slave later.
-        #'--publish 50000:50000 '
-        '--name ' + container_name + ' '
-        '--net ' + _DOCKER_NETWORK_NAME + ' '
-        '--ip ' + config.jenkins_master_host_config.container_conf.container_ip + ' '
-        + container_image
-    )
-    connection.run_command(command, print_command=True)
-
-    # add global gitconfig after mounting the workspace volume, otherwise is gets deleted.
-    commands = [
-        'git config --global user.email not@valid.org',
-        'git config --global user.name jenkins'
-    ]
-    _run_commands_in_container(
-        connection,
-        config.jenkins_master_host_config.container_conf,
-        commands
-        )
-
-
-def _run_command_in_container(connection, container_config, command, user=None, print_command=True):
-    """
-    The user option can be used to run the command for a different user then
-    the containers default user.
-    """
-    user_option = ''
-    if not user:
-        user = container_config.container_user
-    user_option = '--user ' + user + ':' + user + ' '
-    command = 'docker exec ' + user_option + container_config.container_name + ' ' + command
-    output = connection.run_command(command, print_command)
-    return output
-
-
-def _run_commands_in_container(host_connection, container_config, commands, user=None):
-    for command in commands:
-        _run_command_in_container(
-            host_connection,
-            container_config,
-            command,
-            user
-        )
-
-
-def _build_and_start_web_server(config):
-    connection = config.get_host_machine_info(config.web_server_host_config.machine_id)
-    container_name = config.web_server_host_config.container_conf.container_name
-    container_image = config.web_server_host_config.container_conf.container_image_name
-    
-    # create build context
-    docker_file = 'DockerfileCPFWebServer'
-    files = [
-        docker_file,
-        'installClangTools.sh',
-        'installGcc.sh',
-        'buildDoxygen.sh',
-        'ssh_config',
-        'serve-cgi-bin.conf',
-        'supervisord.conf',
-    ]
-    context_dir = _get_context_dir(connection, container_image)
-    _create_build_context_dir(config, connection, _SCRIPT_DIR, context_dir, files)
-
-    # build container image
-    _build_docker_image(
-        connection,
-        container_image,
-        context_dir.joinpath(docker_file),
-        context_dir, 
-        []
-        )
-
-    # start container
-    command = (
-        'docker run '
-        '--detach '
-        '--publish 80:80 '      # The web-page is reached under port 80
-        '--publish ' + str(config.web_server_host_config.container_conf.mapped_ssh_host_port) + ':22 ' # publish the port of the ssh server
-        '--volume ' + str(config.web_server_host_config.host_html_share_dir) + ':' + str(_HTML_SHARE_WEB_SERVER_CONTAINER) + ' '
-        '--name ' + container_name + ' '
-        '--net ' + _DOCKER_NETWORK_NAME + ' '
-        '--ip ' + config.web_server_host_config.container_conf.container_ip + ' '
-        + container_image
-    )
-    connection.run_command(command, print_command=True)
-
-    # copy the doxyserach.cgi to the html share
-    cgi_bin_dir = _HTML_SHARE_WEB_SERVER_CONTAINER.joinpath('cgi-bin')
-    commands = [
-        'rm -fr ' + str(cgi_bin_dir),
-        'mkdir ' + str(cgi_bin_dir),
-        'mkdir ' + str(cgi_bin_dir) + '/doxysearch.db',
-        'cp -r -f /usr/local/bin/doxysearch.cgi ' + str(cgi_bin_dir),
-    ]
-    _run_commands_in_container(
-        connection,
-        config.web_server_host_config.container_conf,
-        commands
-        )
-
-
-def _build_and_start_jenkins_linux_slaves(config):
-    for slave_config in config.jenkins_slave_configs:
-        if config.is_linux_machine(slave_config.machine_id):
-            _build_and_start_jenkins_linux_slave(config, slave_config.container_conf, slave_config.machine_id)
-
-
-def _build_and_start_jenkins_linux_slave(config, container_conf, machine_id):
-    
-    connection = config.get_host_machine_info(machine_id)
-    container_image = container_conf.container_image_name
-
-    if not _docker_container_image_exists(connection, container_image):
-        # create build context
-        docker_file = 'DockerfileJenkinsSlaveLinux'
-        text_files = [
+        # crate the build-context on the host
+        source_dir = _SCRIPT_DIR.joinpath('../JenkinsciDocker')
+        docker_file = 'Dockerfile'
+        files = [
             docker_file,
-            'installClangTools.sh',
+            'tini_pub.gpg',
+            'init.groovy',
+            'jenkins-support',
+            'jenkins.sh',
+            'plugins.sh',
+            'install-plugins.sh',
+        ]
+        context_dir = _get_buildcontext_dir(connection.info, _JENKINS_BASE_IMAGE)
+        fileutil.copy_local_files_to_host(connection, source_dir, context_dir, files)
+
+        # Create the jenkins base image. This is required to customize the jenkins version.
+        dockerutil.build_docker_image(
+            connection,
+            _JENKINS_BASE_IMAGE,
+            context_dir.joinpath(docker_file),
+            context_dir,
+            ['JENKINS_VERSION=' + _JENKINS_VERSION, 'JENKINS_SHA=' + _JENKINS_SHA256])
+
+
+    def _get_jenkins_master_host_connection(self):
+        return self.connections.get_connection(self.config.jenkins_master_host_config.machine_id)
+
+
+    def build_and_start_jenkins_master(self):
+
+        connection = self._get_jenkins_master_host_connection()
+        container_name = self.config.jenkins_master_host_config.container_conf.container_name
+        container_image = self.config.jenkins_master_host_config.container_conf.container_image_name
+
+        # create a directory on the host that contains all files that are needed for the container build
+        docker_file = 'DockerfileJenkinsMaster'
+        files = [
+            docker_file,
             'installGcc.sh',
-            'buildQt.sh',
             'buildGit.sh',
             'buildCMake.sh',
-            'buildDoxygen.sh',
-            'installCTags.sh',
-            'installAbiComplianceChecker.sh',
-            'ssh_config',
         ]
-        binary_files = [
-            'slave.jar',
-        ]
-        context_dir = _get_context_dir(connection, container_image)
-        _create_build_context_dir(config, connection, _SCRIPT_DIR, context_dir, text_files, binary_files)
+        context_dir = _get_buildcontext_dir(connection.info, container_name)
+        fileutil.copy_local_files_to_host(connection, _SCRIPT_DIR, context_dir, files)
 
-        # Build the container.
-        _build_docker_image(
+        # Create the container image
+        dockerutil.build_docker_image(
             connection,
             container_image,
             context_dir.joinpath(docker_file),
             context_dir,
+            ['JENKINS_BASE_IMAGE=' + _JENKINS_BASE_IMAGE])
+
+        # Start the container
+        # --env JAVA_OPTS="-Djenkins.install.runSetupWizard=false"
+        # The jenkins master and its slaves communicate over the bridge network.
+        # This means the master and the slaves must be on the same host.
+        # This should later be upgraded to a swarm.
+
+        # When the user already has a jenkins configuration
+        # we add an option that prevents the first startup wizard from popping up.
+        no_setup_wizard_option = ''
+        if not self.config.jenkins_config.use_unconfigured_jenkins:
+            no_setup_wizard_option = '--env JAVA_OPTS="-Djenkins.install.runSetupWizard=false" '
+
+        command = (
+            'docker run '
+            '--detach '
+            # This makes the jenkins home directory accessible on the host. This eases debugging.
+            '--volume ' + str(self.config.jenkins_master_host_config.jenkins_home_share) + ':' + str(_JENKINS_HOME_JENKINS_MASTER_CONTAINER) + ' '
+            + no_setup_wizard_option +
+            # The jenkins webinterface is available under this port.
+            '--publish 8080:8080 '
+            # Only needed for hnlp slaves. We leave it here in case we need hnlp slave later.
+            #'--publish 50000:50000 '
+            '--name ' + container_name + ' '
+            '--net ' + _DOCKER_NETWORK_NAME + ' '
+            '--ip ' + self.config.jenkins_master_host_config.container_conf.container_ip + ' '
+            + container_image
+        )
+        connection.run_command(command, print_command=True)
+
+        # add global gitconfig after mounting the workspace volume, otherwise is gets deleted.
+        commands = [
+            'git config --global user.email not@valid.org',
+            'git config --global user.name jenkins'
+        ]
+        dockerutil.run_commands_in_container(
+            connection,
+            self.config.jenkins_master_host_config.container_conf,
+            commands
+            )
+
+
+
+    def build_and_start_web_server(self):
+        machine_id = self.config.web_server_host_config.machine_id
+        connection = self.connections.get_connection(machine_id)
+        container_name = self.config.web_server_host_config.container_conf.container_name
+        container_image = self.config.web_server_host_config.container_conf.container_image_name
+        
+        # create build context
+        docker_file = 'DockerfileCPFWebServer'
+        files = [
+            docker_file,
+            'installClangTools.sh',
+            'installGcc.sh',
+            'buildDoxygen.sh',
+            'ssh_config',
+            'serve-cgi-bin.conf',
+            'supervisord.conf',
+        ]
+        context_dir = _get_buildcontext_dir(connection.info, container_image)
+        fileutil.copy_local_files_to_host(connection, _SCRIPT_DIR, context_dir, files)
+
+        # build container image
+        dockerutil.build_docker_image(
+            connection,
+            container_image,
+            context_dir.joinpath(docker_file),
+            context_dir, 
             []
             )
 
-    # Start the container.
-    command = (
-        'docker run '
-        '--detach '
-        '--name ' + container_conf.container_name + ' '
-        '--net ' + _DOCKER_NETWORK_NAME + ' '
-        '--ip ' + container_conf.container_ip + ' '
-        '--publish ' + str(container_conf.mapped_ssh_host_port) + ':22 '
-        + container_image
-    )
-    connection.run_command(command, print_command=True)
-
-
-def _docker_container_image_exists(connection, image_name):
-    images = connection.run_command('docker images')
-    return image_name in images
-
-
-def _create_rsa_key_file_pair_on_container(config, container_conf, container_home_directory):
-    connection = config.get_container_host_machine_connection(container_conf.container_name)
-
-    # copy the scripts that does the job to the container
-    with connection.ssh_client.open_sftp() as sftp_client:
-        _copy_textfile_to_container(connection, sftp_client, container_conf, _SCRIPT_DIR.joinpath(_CREATEKEYPAIR_SCRIPT), container_home_directory.joinpath(_CREATEKEYPAIR_SCRIPT) )
-
-    # This will create the key-pair on the container.
-    # We need to do this in the container or ssh will not accept the private key file.
-    _run_command_in_container(
-        connection,
-        container_conf,
-        '/bin/bash ' + str(container_home_directory.joinpath(_CREATEKEYPAIR_SCRIPT)) + ' ' + container_conf.container_name
+        # start container
+        command = (
+            'docker run '
+            '--detach '
+            '--publish 80:80 '      # The web-page is reached under port 80
+            '--publish ' + str(self.config.web_server_host_config.container_conf.mapped_ssh_host_port) + ':22 ' # publish the port of the ssh server
+            '--volume ' + str(self.config.web_server_host_config.host_html_share_dir) + ':' + str(_HTML_SHARE_WEB_SERVER_CONTAINER) + ' '
+            '--name ' + container_name + ' '
+            '--net ' + _DOCKER_NETWORK_NAME + ' '
+            '--ip ' + self.config.web_server_host_config.container_conf.container_ip + ' '
+            + container_image
         )
-   
+        connection.run_command(command, print_command=True)
 
-def _copy_textfile_to_container(connection, sftp_client, container_conf, source_path, target_path):
-    """
-    We first copy the file to the hosts context directory and then to the container.
-    """
-    context_dir = _get_context_dir(connection, container_conf.container_image_name)
-    host_file = context_dir.joinpath(source_path.name)
-    _copy_textfile_from_local_to_linux(connection, sftp_client, source_path, host_file)
-    _copy_file_from_host_to_container(connection, container_conf, host_file, target_path)
-
-
-def _copy_file_from_host_to_container(host_connection, container_conf, source_file, target_file):
-    _run_command_in_container(
-        host_connection,
-        container_conf,
-        'mkdir -p {0}'.format(target_file.parent),
-        print_command=False
-    )
-    host_connection.run_command("docker cp {0} {1}:{2}".format(source_file, container_conf.container_name, target_file))
+        # copy the doxyserach.cgi to the html share
+        cgi_bin_dir = _HTML_SHARE_WEB_SERVER_CONTAINER.joinpath('cgi-bin')
+        commands = [
+            'rm -fr ' + str(cgi_bin_dir),
+            'mkdir ' + str(cgi_bin_dir),
+            'mkdir ' + str(cgi_bin_dir) + '/doxysearch.db',
+            'cp -r -f /usr/local/bin/doxysearch.cgi ' + str(cgi_bin_dir),
+        ]
+        dockerutil.run_commands_in_container(
+            connection,
+            self.config.web_server_host_config.container_conf,
+            commands
+            )
 
 
-def _grant_container_ssh_access_to_repository(config, container_conf, container_home_directory):
+    def build_and_start_jenkins_linux_slaves(self):
+        for slave_config in self.config.jenkins_slave_configs:
+            if self.config.is_linux_machine(slave_config.machine_id):
+                self._build_and_start_jenkins_linux_slave(slave_config.container_conf, slave_config.machine_id)
 
-    repository_machine_id = config.repository_host_config.machine_id
-    repository_connection = config.get_host_machine_info(config.repository_host_config.machine_id)
-    repository_machine_ssh_dir = config.repository_host_config.ssh_dir
 
-    container_name = container_conf.container_name
-    container_host_connection = config.get_container_host_machine_connection(container_name)
-    temp_dir_chost = container_host_connection.temp_dir
+    def _build_and_start_jenkins_linux_slave(self, container_conf, machine_id):
+        
+        connection = self.connections.get_connection(machine_id)
+        container_image = container_conf.container_image_name
 
-    print('----- Grant container ' + container_name + ' SSH access to the repository machine ' + repository_machine_id)
+        if not dockerutil.docker_container_image_exists(connection, container_image):
+            # create build context
+            docker_file = 'DockerfileJenkinsSlaveLinux'
+            text_files = [
+                docker_file,
+                'installClangTools.sh',
+                'installGcc.sh',
+                'buildQt.sh',
+                'buildGit.sh',
+                'buildCMake.sh',
+                'buildDoxygen.sh',
+                'installCTags.sh',
+                'installAbiComplianceChecker.sh',
+                'ssh_config',
+            ]
+            binary_files = [
+                'slave.jar',
+            ]
+            context_dir = _get_buildcontext_dir(connection.info, container_image)
+            fileutil.copy_local_files_to_host(connection, _SCRIPT_DIR, context_dir, text_files, binary_files)
 
-    # COPY AND REGISTER THE PUBLIC KEY WITH repositoryMachine
-    # The connection is used to access the git repository
-    # This requires access to the datenbunker.
-    with container_host_connection.ssh_client.open_sftp() as sftp_client:
+            # Build the container.
+            dockerutil.build_docker_image(
+                connection,
+                container_image,
+                context_dir.joinpath(docker_file),
+                context_dir,
+                []
+                )
+
+        # Start the container.
+        command = (
+            'docker run '
+            '--detach '
+            '--name ' + container_conf.container_name + ' '
+            '--net ' + _DOCKER_NETWORK_NAME + ' '
+            '--ip ' + container_conf.container_ip + ' '
+            '--publish ' + str(container_conf.mapped_ssh_host_port) + ':22 '
+            + container_image
+        )
+        connection.run_command(command, print_command=True)
+
+
+    def _create_rsa_key_file_pairs_on_slave_container(self):
+        for slave_config in self.config.jenkins_slave_configs:
+            if self.config.is_linux_machine(slave_config.machine_id):
+                connection = self.connections.get_connection(slave_config.machine_id)
+                _create_rsa_key_file_pair_on_container(
+                    connection,
+                    slave_config.container_conf,
+                    PurePosixPath('/home/jenkins')
+                )
+
+
+    def _grant_container_ssh_access_to_repository(self, container_conf, container_home_directory):
+
+        repository_machine_id = self.config.repository_host_config.machine_id
+        repository_connection = self.connections.get_connection(repository_machine_id)
+        repository_machine_ssh_dir = self.config.repository_host_config.ssh_dir
+
+        container_name = container_conf.container_name
+        container_host_connection = self._get_container_host_connection(container_name)
+        sftp_client = container_host_connection.sftp_client
+        temp_dir_chost = container_host_connection.info.temp_dir
+
+        print('----- Grant container ' + container_name + ' SSH access to the repository machine ' + repository_machine_id)
+
+        # COPY AND REGISTER THE PUBLIC KEY WITH repositoryMachine
         public_key_file = _get_public_key_filename(container_name)
 
-        _guarantee_directory_exists(config, container_host_connection.machine_id, temp_dir_chost)
+        fileutil.guarantee_directory_exists(sftp_client, temp_dir_chost)
         
         # delete previously copied key-files
         full_temp_public_key_file = temp_dir_chost.joinpath(public_key_file)
-        if _rexists(sftp_client, full_temp_public_key_file):
+        if fileutil.rexists(sftp_client, full_temp_public_key_file):
             sftp_client.remove(full_temp_public_key_file)
 
         # Copy the public key from the jenkins home directory to the
@@ -613,8 +474,7 @@ def _grant_container_ssh_access_to_repository(config, container_conf, container_
         container_host_connection.run_command('docker cp {0}:{1}/{2} {3}'.format(container_name, container_home_directory, public_key_file, temp_dir_chost))
 
         # Then copy it to the repository machine
-        with repository_connection.ssh_client.open_sftp() as repo_sftp_client:
-            _rtorcopy(sftp_client, repo_sftp_client, temp_dir_chost.joinpath(public_key_file) , repository_machine_ssh_dir.joinpath(public_key_file))
+        fileutil.rtorcopy(sftp_client, repository_connection.sftp_client, temp_dir_chost.joinpath(public_key_file) , repository_machine_ssh_dir.joinpath(public_key_file))
 
         # add the key file to authorized_keys
         authorized_keys_file = repository_machine_ssh_dir.joinpath('authorized_keys')
@@ -636,325 +496,227 @@ def _grant_container_ssh_access_to_repository(config, container_conf, container_
         _accept_remote_container_host_key(
             container_host_connection, 
             container_conf, 
-            repository_connection, 
+            repository_connection.info.host_name, 
             22,
-            repository_connection.user_name
+            repository_connection.info.user_name
         )
 
 
-def _get_public_key_filename(container):
-    return container + _PUBLIC_KEY_FILE_POSTFIX
+    def _grant_jenkins_master_ssh_access_to_jenkins_linux_slaves(self):
+        """
+        Creates an authorized-keys file on all jenkins slave containers
+        that contains the public key of the master.
+        """
+        master_host_connection = self._get_jenkins_master_host_connection()
+        master_container = self.config.jenkins_master_host_config.container_conf.container_name
+        public_key_file_master_host = master_host_connection.info.temp_dir.joinpath(
+            _get_public_key_filename(master_container)
+            )
+
+        for slave_config in self.config.jenkins_slave_configs:
+            if self.config.is_linux_machine(slave_config.machine_id):
+                slave_connection = self.connections.get_connection(slave_config.machine_id)
+                authorized_keys_file = _JENKINS_HOME_JENKINS_SLAVE_CONTAINER.joinpath('.ssh/authorized_keys')
+                # add the masters public key to the authorized keys file of the slave
+                fileutil.rtocontainercopy(master_host_connection, slave_connection, slave_config.container_conf, public_key_file_master_host, authorized_keys_file)
+                # authenticate the slave ssh host with the master
+                _accept_remote_container_host_key(
+                    master_host_connection, 
+                    self.config.jenkins_master_host_config.container_conf, 
+                    slave_connection.info.host_name, 
+                    slave_config.container_conf.mapped_ssh_host_port, 
+                    slave_config.container_conf.container_user
+                    )
 
 
-def _rtorcopy(source_sftp_client, target_sftp_client, source_file, target_file):
-    """
-    Copy a file from one remote machine to another.
-    """
-    local_temp_file = _SCRIPT_DIR.joinpath(source_file.name)
-    source_sftp_client.get(str(source_file), str(local_temp_file))
-    target_sftp_client.put(str(local_temp_file), str(target_file))
-    os.remove(local_temp_file)
+    def _grant_jenkins_master_ssh_access_to_jenkins_windows_slaves(self):
+        for slave_config in self.config.jenkins_slave_configs:
+            if self.config.is_windows_machine(slave_config.machine_id):
+                slave_connection = self.connections.get_connection(slave_config.machine_id)
+                self._grant_jenkins_master_ssh_access_to_jenkins_windows_slave(slave_connection)
 
 
-def _grant_jenkins_master_ssh_access_to_jenkins_linux_slaves(config):
-    """
-    Creates an authorized-keys file on all jenkins slave containers
-    that contains the public key of the master.
-    """
-    master_host_connection = _get_jenkins_master_host_connection(config)
-    master_container = config.jenkins_master_host_config.container_conf.container_name
-    public_key_file_master_host = master_host_connection.temp_dir.joinpath(
-        _get_public_key_filename(master_container)
-        )
+    def _grant_jenkins_master_ssh_access_to_jenkins_windows_slave(self, slave_host_connection ):
 
-    for slave_config in config.jenkins_slave_configs:
-        if config.is_linux_machine(slave_config.machine_id):
-            slave_connection = config.get_host_machine_info(slave_config.machine_id)
-            authorized_keys_file = _JENKINS_HOME_JENKINS_SLAVE_CONTAINER.joinpath('.ssh/authorized_keys')
-            # add the masters public key to the authorized keys file of the slave
-            _rtocontainercopy(master_host_connection, slave_connection, slave_config.container_conf, public_key_file_master_host, authorized_keys_file)
-            # authenticate the slave ssh host with the master
+        master_container = self.config.jenkins_master_host_config.container_conf.container_name
+        print(("----- Grant {0} ssh access to {1}").format(master_container, slave_host_connection.info.host_name))
+
+        # configure the script for adding an authorized key to the bitwise ssh server on the
+        # windows machine
+        authorized_keys_script = 'updateAuthorizedKeysBitvise.bat'
+        full_authorized_keys_script = _SCRIPT_DIR.joinpath(authorized_keys_script)
+
+        master_connection = self._get_jenkins_master_host_connection()
+        public_key_file_master = _JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath('.ssh/' + _get_public_key_filename(master_container) )
+        public_key = dockerutil.run_command_in_container(
+            master_connection,
+            self.config.jenkins_master_host_config.container_conf,
+            'cat {0}'.format(public_key_file_master)
+        )[0]
+
+        configure_file(str(full_authorized_keys_script) + '.in', full_authorized_keys_script, {
+            '@PUBLIC_KEY@' : public_key,
+            '@JENKINS_MASTER_CONTAINER@' : master_container,
+            '@SLAVE_MACHINE_USER@' : slave_host_connection.info.user_name,
+        })
+
+        # copy the script to the windows slave machine
+        ssh_dir = PureWindowsPath('C:/Users/' + slave_host_connection.info.user_name + '/.ssh')
+        full_script_path_on_slave = ssh_dir.joinpath(full_authorized_keys_script.name)
+        slave_host_connection.sftp_client.put(str(full_authorized_keys_script), str(full_script_path_on_slave))
+
+        # call the script
+        try:
+            call_script_command = '{0} {1}'.format(full_script_path_on_slave, slave_host_connection.info.user_password)
+            slave_host_connection.run_command(call_script_command, print_command=True)
+        except Exception as err:
+            print(
+                "Error: Updating the authorized ssh keys on "
+                + slave_host_connection.info.host_name + " failed. Was the password correct?")
+            raise err
+
+        # clean up the generated script because of the included password
+        os.remove(full_authorized_keys_script)
+
+        # Wait a little until the bitvise ssh server is ready to accept the key file.
+        # This can possibly fail on slower machines.
+        time.sleep(1)
+
+        # Add the slave to the known hosts
+        try:
             _accept_remote_container_host_key(
-                master_host_connection, 
-                config.jenkins_master_host_config.container_conf, 
-                slave_connection, 
-                slave_config.container_conf.mapped_ssh_host_port, 
-                slave_config.container_conf.container_user
+                master_connection, 
+                self.config.jenkins_master_host_config.container_conf, 
+                slave_host_connection.info.host_name, 
+                22, 
+                slave_host_connection.info.user_name
+                )
+        except Exception as err:
+            # This is not really clean but I can not think of a better solution now.
+            print("When this call fails, it is possible that the waiting time before using the ssh connection to the Bitvise SSH server is too short.")
+            raise err
+
+
+    def _grant_jenkins_master_ssh_access_to_web_server(self):
+
+        master_container_config = self.config.jenkins_master_host_config.container_conf
+        master_container = master_container_config.container_name
+        master_public_key_file = _JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath('.ssh/' + _get_public_key_filename(master_container))
+        master_host_connection = self._get_jenkins_master_host_connection()
+        
+        authorized_keys_file = PurePosixPath('/root/.ssh/authorized_keys')
+        webserver_host_connection = self.connections.get_connection(self.config.web_server_host_config.machine_id)
+        webserver_container_config = self.config.web_server_host_config.container_conf
+
+        # set the authorized keys file in the webserver container
+        fileutil.container_to_container_copy(
+            master_host_connection, 
+            master_container_config, 
+            webserver_host_connection, 
+            webserver_container_config, 
+            master_public_key_file, 
+            authorized_keys_file
+        )
+        
+        # we need to change the file owner from jenkins to root
+        commands = [
+            'chown root:root ' + str(authorized_keys_file),
+            'chmod 600 ' + str(authorized_keys_file),
+            'service ssh start',
+        ]
+        dockerutil.run_commands_in_container(
+            webserver_host_connection,
+            webserver_container_config,
+            commands
+        )
+
+        # Add doc-server as known host to prevent the authentication request on the first connect
+        _accept_remote_container_host_key(
+            master_host_connection, 
+            master_container_config, 
+            webserver_host_connection.info.host_name, 
+            webserver_container_config.mapped_ssh_host_port, 
+            webserver_container_config.container_user
+        )
+
+
+    def _grant_linux_slaves_access_to_repository(self):
+        for slave_config in self.config.jenkins_slave_configs:
+            if self.config.is_linux_machine(slave_config.machine_id):
+                self._grant_container_ssh_access_to_repository(
+                    slave_config.container_conf,
+                    PurePosixPath('/home/jenkins')
                 )
 
 
-
-def _rtocontainercopy(source_host_connection, target_host_connection, container_conf, source_file, target_file):
-    """
-    Copies the source_file from a host machine to the target target path target_file on a container.
-    """
-    with source_host_connection.ssh_client.open_sftp() as source_sftp_client:
-        with target_host_connection.ssh_client.open_sftp() as target_sftp_client:
-            temp_path_container_host = target_host_connection.temp_dir.joinpath(source_file.name)
-            _rtorcopy(source_sftp_client, target_sftp_client, source_file, temp_path_container_host)
-            _copy_file_from_host_to_container(target_host_connection, container_conf, temp_path_container_host, target_file)
-
-
-def _container_to_container_copy(source_host_connection, source_container_conf, target_host_connection, target_container_conf, source_file, target_file):
-    """
-    Copies a file from one container to another.
-    """
-    # copy from source container to source host
-    temp_path_source_host = source_host_connection.temp_dir.joinpath(source_file.name)
-    source_host_connection.run_command('docker cp {0}:{1} {2}'.format(source_container_conf.container_name, source_file, temp_path_source_host))
-
-    # copy from source host to target container
-    _rtocontainercopy(source_host_connection, target_host_connection, target_container_conf, temp_path_source_host, target_file)
-
-
-def _accept_remote_container_host_key(client_container_host_connection, client_container_config, host_host_connection, ssh_port, host_container_user):
-    """
-    Opens a ssh connection from the client container to the host container and thereby accepting the hosts ssh key.
-    """
-    _run_command_in_container(
-        client_container_host_connection,
-        client_container_config,
-        'ssh -oStrictHostKeyChecking=no -p {0} {1}@{2} "echo dummy"'.format(ssh_port, host_container_user, host_host_connection.host_name)
-    )
-
-def _grant_jenkins_master_ssh_access_to_jenkins_windows_slaves(config):
-    for slave_config in config.jenkins_slave_configs:
-        if config.is_windows_machine(slave_config.machine_id):
-            slave_connection = config.get_host_machine_info(slave_config.machine_id)
-            _grant_jenkins_master_ssh_access_to_jenkins_windows_slave(config, slave_connection)
-
-
-def _grant_jenkins_master_ssh_access_to_jenkins_windows_slave(config, slave_host_connection ):
-
-    master_container = config.jenkins_master_host_config.container_conf.container_name
-    print(("----- Grant {0} ssh access to {1}").format(master_container, slave_host_connection.host_name))
-
-    # configure the script for adding an authorized key to the bitwise ssh server on the
-    # windows machine
-    authorized_keys_script = 'updateAuthorizedKeysBitvise.bat'
-    full_authorized_keys_script = _SCRIPT_DIR.joinpath(authorized_keys_script)
-
-    master_connection = _get_jenkins_master_host_connection(config)
-    public_key_file_master = _JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath('.ssh/' + _get_public_key_filename(master_container) )
-    public_key = _run_command_in_container(
-        master_connection,
-        config.jenkins_master_host_config.container_conf,
-        'cat {0}'.format(public_key_file_master)
-    )[0]
-
-    configure_file(str(full_authorized_keys_script) + '.in', full_authorized_keys_script, {
-        '@PUBLIC_KEY@' : public_key,
-        '@JENKINS_MASTER_CONTAINER@' : master_container,
-        '@SLAVE_MACHINE_USER@' : slave_host_connection.user_name,
-    })
-
-    # copy the script to the windows slave machine
-    ssh_dir = PureWindowsPath('C:/Users/' + slave_host_connection.user_name + '/.ssh')
-    full_script_path_on_slave = ssh_dir.joinpath(full_authorized_keys_script.name)
-    with slave_host_connection.ssh_client.open_sftp() as sftp_client:
-        sftp_client.put(str(full_authorized_keys_script), str(full_script_path_on_slave))
-
-    # call the script
-    try:
-        call_script_command = '{0} {1}'.format(full_script_path_on_slave, slave_host_connection.user_password)
-        slave_host_connection.run_command(call_script_command, print_command=True)
-    except Exception as err:
-        print(
-            "Error: Updating the authorized ssh keys on "
-            + slave_host_connection.host_name + " failed. Was the password correct?")
-        raise err
-
-    # clean up the generated script because of the included password
-    os.remove(full_authorized_keys_script)
-
-    # Wait a little until the bitvise ssh server is ready to accept the key file.
-    # This can possibly fail on slower machines.
-    time.sleep(1)
-
-    # Add the slave to the known hosts
-    try:
-        _accept_remote_container_host_key(
-            master_connection, 
-            config.jenkins_master_host_config.container_conf, 
-            slave_host_connection, 
-            22, 
-            slave_host_connection.user_name
-            )
-    except Exception as err:
-        # This is not really clean but I can not think of a better solution now.
-        print("When this call fails, it is possible that the waiting time before using the ssh connection to the Bitvise SSH server is too short.")
-        raise err
-
-def _read_file_content(filename):
-    with open(filename) as open_file:
-        return open_file.read()
-
-
-def _grant_jenkins_master_ssh_access_to_web_server(config):
-
-    master_container_config = config.jenkins_master_host_config.container_conf
-    master_container = master_container_config.container_name
-    master_public_key_file = _JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath('.ssh/' + _get_public_key_filename(master_container))
-    master_host_connection = _get_jenkins_master_host_connection(config)
-    
-    authorized_keys_file = PurePosixPath('/root/.ssh/authorized_keys')
-    webserver_host_connection = config.get_host_machine_info(config.web_server_host_config.machine_id)
-    webserver_container_config = config.web_server_host_config.container_conf
-
-    # set the authorized keys file in the webserver container
-    _container_to_container_copy(
-        master_host_connection, 
-        master_container_config, 
-        webserver_host_connection, 
-        webserver_container_config, 
-        master_public_key_file, 
-        authorized_keys_file
-    )
-    
-    # we need to change the file owner from jenkins to root
-    commands = [
-        'chown root:root ' + str(authorized_keys_file),
-        'chmod 600 ' + str(authorized_keys_file),
-        'service ssh start',
-    ]
-    _run_commands_in_container(
-        webserver_host_connection,
-        webserver_container_config,
-        commands
-    )
-
-    # Add doc-server as known host to prevent the authentication request on the first connect
-    _accept_remote_container_host_key(
-        master_host_connection, 
-        master_container_config, 
-        webserver_host_connection, 
-        webserver_container_config.mapped_ssh_host_port, 
-        webserver_container_config.container_user
-    )
-
-
-def _create_rsa_key_file_pairs_on_slave_container(config):
-    for slave_config in config.jenkins_slave_configs:
-        if config.is_linux_machine(slave_config.machine_id):
-            _create_rsa_key_file_pair_on_container(
-                config,
-                slave_config.container_conf,
-                PurePosixPath('/home/jenkins')
-            )
-
-
-def _grant_linux_slaves_access_to_repository(config):
-    for slave_config in config.jenkins_slave_configs:
-        if config.is_linux_machine(slave_config.machine_id):
-            _grant_container_ssh_access_to_repository(
-                config,
-                slave_config.container_conf,
-                PurePosixPath('/home/jenkins')
-            )
-
-
-def _configure_jenkins_master(config, config_file):
-    if not config.jenkins_config.use_unconfigured_jenkins:
-        print("----- Configure the jenkins master server.")
-
-        _configure_general_jenkins_options(config)
-        _configure_jenkins_users(config, config_file)
-        _configure_jenkins_jobs(config, config_file)
-        slaveStartCommands = _configure_jenkins_slaves(config)
-        config.jenkins_config.approved_system_commands.extend(slaveStartCommands)
+    def configure_jenkins_master(self, config_file):
+        self._configure_general_jenkins_options()
+        self._configure_jenkins_users(config_file)
+        self._configure_jenkins_jobs(config_file)
+        slaveStartCommands = self._configure_jenkins_slaves()
+        self.config.jenkins_config.approved_system_commands.extend(slaveStartCommands)
 
         # restart jenkins to make sure it as the desired configuration
         # this is required because approveing the slaves scripts requires jenkins to be
         # up and running.
-        _restart_jenkins(config)
+        self._restart_jenkins()
 
         
         # Create object that helps with configuring jenkins over its web interface.
-        master_connection = _get_jenkins_master_host_connection(config)
+        master_connection = self._get_jenkins_master_host_connection()
         jenkins_accessor = JenkinsRESTAccessor(
-            'http://{0}:8080'.format(master_connection.host_name),
-            config.jenkins_config.admin_user,
-            config.jenkins_config.admin_user_password
+            'http://{0}:8080'.format(master_connection.info.host_name),
+            self.config.jenkins_config.admin_user,
+            self.config.jenkins_config.admin_user_password
         )
 
         # Approve system commands
         jenkins_accessor.wait_until_online(90)
         print("----- Approve system-commands")
-        pprint.pprint(config.jenkins_config.approved_system_commands)
-        jenkins_accessor.approve_system_commands(config.jenkins_config.approved_system_commands)
+        pprint.pprint(self.config.jenkins_config.approved_system_commands)
+        jenkins_accessor.approve_system_commands(self.config.jenkins_config.approved_system_commands)
         # Approve script signatures
         print("----- Approve script signatures")
-        pprint.pprint(config.jenkins_config.approved_script_signatures)
-        jenkins_accessor.approve_script_signatures(config.jenkins_config.approved_script_signatures)
-
-    else:
-        print(
-            "Jenkins will be run without the default configuration," +
-            " because no user files were given.")
+        pprint.pprint(self.config.jenkins_config.approved_script_signatures)
+        jenkins_accessor.approve_script_signatures(self.config.jenkins_config.approved_script_signatures)
 
 
-def _configure_general_jenkins_options(config):
-    """
-    Configure the general options by copying the .xml config files from the JenkinsConfig
-    directory to the jenkins master home directory.
-    """
-    _copy_local_textfile_tree_to_container(
-        _SCRIPT_DIR.joinpath('JenkinsConfig'), 
-        _get_jenkins_master_host_connection(config), 
-        config.jenkins_master_host_config.container_conf, 
-        _JENKINS_HOME_JENKINS_MASTER_CONTAINER
-    )
+    def _configure_general_jenkins_options(self):
+        """
+        Configure the general options by copying the .xml config files from the JenkinsConfig
+        directory to the jenkins master home directory.
+        """
+        connection = self._get_jenkins_master_host_connection()
+        fileutil.copy_local_textfile_tree_to_container(
+            _SCRIPT_DIR.joinpath('JenkinsConfig'),
+            connection,
+            self.config.jenkins_master_host_config.container_conf,
+            _JENKINS_HOME_JENKINS_MASTER_CONTAINER
+        )
 
 
-def _copy_local_textfile_tree_to_container(local_source_dir, container_host_connection, container_config, container_target_dir):
-    """
-    Copy the contents of a local directory to a container directory.
-    """
-    dir_content = _get_dir_content(local_source_dir)
-    with container_host_connection.ssh_client.open_sftp() as sftp_client:
-        for item in dir_content:
-            source_path = local_source_dir.joinpath(item)
-            if os.path.isfile(source_path):
-                target_path = container_target_dir.joinpath(item)
-                _copy_textfile_to_container(container_host_connection, sftp_client, container_config, source_path, target_path)
-            
-
-def _get_dir_content(directory):
-    """
-    Returns a list of all files and directories in a directory with pathes relative to the given directory.
-    """
-    items = []
-    for dirpath, dirs, files in os.walk(directory):
-        relpath = PurePath(dirpath).relative_to(directory)
-        for dir in dirs:
-            items.append(relpath.joinpath(dir))
-        for file in files:
-            items.append(relpath.joinpath(file))
-    return items
+    def _configure_jenkins_users(self, config_file):
+        """
+        Copy user config xml files to user/<username>/config.xml
+        """
+        self._copy_jenkins_config_files(config_file, 'users', self.config.jenkins_config.account_config_files)
 
 
-def _configure_jenkins_users(config, config_file):
-    """
-    Copy user config xml files to user/<username>/config.xml
-    """
-    _copy_jenkins_config_files(config, config_file, 'users', config.jenkins_config.account_config_files )
+    def _configure_jenkins_jobs(self, config_file):
+        """
+        copy job config xml files to jobs/<jobname>/config.xml
+        """
+        self._copy_jenkins_config_files(config_file, 'jobs', self.config.jenkins_config.job_config_files)
 
 
-def _configure_jenkins_jobs(config, config_file):
-    """
-    copy job config xml files to jobs/<jobname>/config.xml
-    """
-    _copy_jenkins_config_files(config, config_file, 'jobs', config.jenkins_config.job_config_files)
+    def _copy_jenkins_config_files(self, config_file, config_dir, config_items):
+        """
+        Copies the config.xml files that are mentioned in a map under filesConfigKey
+        in the script config file to named directories under the given config dir
+        to the jenkins-master home directory.
+        """
+        master_connection = self._get_jenkins_master_host_connection()
 
-
-def _copy_jenkins_config_files(config, config_file, config_dir, config_items):
-    """
-    Copies the config.xml files that are mentioned in a map under filesConfigKey
-    in the script config file to named directories under the given config dir
-    to the jenkins-master home directory.
-    """
-    master_connection = _get_jenkins_master_host_connection(config)
-    with master_connection.ssh_client.open_sftp() as sftp_client:
         config_file_dir = config_file.parent
         jobs_config_dir = _JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath(config_dir)
         for config_item in config_items:
@@ -964,77 +726,164 @@ def _copy_jenkins_config_files(config, config_file, config_dir, config_items):
                 sourceconfig_file = config_item.xml_file
             job_config_dir = jobs_config_dir.joinpath(config_item.name)
             job_config_file = PurePosixPath('config.xml')
-            _copy_textfile_to_container(
+            fileutil.copy_textfile_to_container(
                 master_connection,
-                sftp_client,
-                config.jenkins_master_host_config.container_conf,
+                self.config.jenkins_master_host_config.container_conf,
                 sourceconfig_file,
                 job_config_dir.joinpath(job_config_file)
             )
 
 
-def _restart_jenkins(config):
-    master_connection = _get_jenkins_master_host_connection(config)
-    master_container = config.jenkins_master_host_config.container_conf.container_name
-    _stop_docker_container(master_connection, master_container)
-    _start_docker_container(master_connection, master_container)
+    def _restart_jenkins(self):
+        master_connection = self._get_jenkins_master_host_connection()
+        master_container = self.config.jenkins_master_host_config.container_conf.container_name
+        dockerutil.stop_docker_container(master_connection, master_container)
+        dockerutil.start_docker_container(master_connection, master_container)
 
 
-def _configure_jenkins_slaves(config):
+    def _configure_jenkins_slaves(self):
+        """
+        Create config files for the slave nodes.
+        All slave nodes are based on the ssh command execution start scheme from
+        the command-launcher plugin.
+        """
+        print("----- Configure jenkins slave nodes")
+
+        start_commands = []
+
+        for slave_config in self.config.jenkins_slave_configs:
+            slave_host_connection = self.connections.get_connection(slave_config.machine_id)
+            if self.config.is_linux_machine(slave_config.machine_id):
+                # create config file for the linux slave
+                linux_slave_start_command = _get_slave_start_command(
+                    slave_host_connection,
+                    slave_config.container_conf.container_user,
+                    slave_config.container_conf.mapped_ssh_host_port,
+                    '/home/jenkins/bin'
+                )
+                self._configure_node_config_file(
+                    slave_config.slave_name,
+                    'A Debian 8.9 build slave based on a docker container.',
+                    '/home/{0}/workspaces'.format(slave_config.container_conf.container_user),
+                    linux_slave_start_command,
+                    _get_slave_labels_string('Debian-8.9', 10),
+                    slave_config.executors
+                )
+                start_commands.append(linux_slave_start_command)
+
+            elif self.config.is_windows_machine(slave_config.machine_id):
+                # create config file for the windows slave
+                slave_workspace = 'C:/jenkins'
+                windows_slave_start_command = _get_slave_start_command(
+                    slave_host_connection,
+                    slave_host_connection.info.user_name,
+                    22,
+                    slave_workspace
+                )
+                self._configure_node_config_file(
+                    slave_config.slave_name,
+                    'A Windows 10 build slave based on a virtual machine.',
+                    slave_workspace,
+                    windows_slave_start_command,
+                    _get_slave_labels_string('Windows-10', 10),
+                    slave_config.executors
+                )
+                start_commands.append(windows_slave_start_command)
+
+            else:
+                raise Exception('Function misses case for operating system of slave ' + slave_config.machine_id)
+
+        return start_commands
+
+
+    def _configure_node_config_file(
+            self,
+            slave_name,
+            description,
+            slave_workspace_dir,
+            start_command,
+            slave_labels,
+            executors):
+        """
+        Uses a template file to create a config.xml file for a jenkins node that the master
+        controls via ssh.
+        """
+        
+        temp_dir = _SCRIPT_DIR.joinpath('temp')
+        fileutil.clear_dir(temp_dir)
+
+        createdconfig_file = temp_dir.joinpath('config.xml')
+        config_template_file = _SCRIPT_DIR.joinpath('jenkinsSlaveNodeConfig.xml.in')
+
+        # create a local config file
+        configure_file(config_template_file, createdconfig_file, {
+            '$SLAVE_NAME' : slave_name,
+            '$DESCRIPTION' : description,
+            '$WORKSPACE' : slave_workspace_dir,
+            '$START_COMMAND' : start_command,
+            '$LABELS' : slave_labels,
+            '$EXECUTORS' : str(executors),
+        })
+
+        # copy the file to the master container
+        master_connection = self._get_jenkins_master_host_connection()
+        nodes_dir = _JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath('nodes')
+        node_dir = nodes_dir.joinpath(slave_name)
+        target_file = node_dir.joinpath(createdconfig_file.name)
+        fileutil.copy_textfile_to_container(
+            master_connection,
+            self.config.jenkins_master_host_config.container_conf,
+            createdconfig_file,
+            target_file
+        )
+
+        fileutil.clear_dir(temp_dir)
+
+
+###############################################################################################################
+
+def dev_message(text):
     """
-    Create config files for the slave nodes.
-    All slave nodes are based on the ssh command execution start scheme from
-    the command-launcher plugin.
+    Print function emphasizes the printed string with some dashes.
+    It is intended to be used for debugging during development.
     """
-    print("----- Configure jenkins slave nodes")
+    print('--------------- ' + str(text))
 
-    start_commands = []
 
-    for slave_config in config.jenkins_slave_configs:
-        slave_host_connection = config.get_host_machine_info(slave_config.machine_id)
-        if config.is_linux_machine(slave_config.machine_id):
-            # create config file for the linux slave
-            linux_slave_start_command = _get_slave_start_command(
-                slave_host_connection,
-                slave_config.container_conf.container_user,
-                slave_config.container_conf.mapped_ssh_host_port,
-                '/home/jenkins/bin'
-            )
-            _configure_node_config_file(
-                config,
-                slave_config.slave_name,
-                'A Debian 8.9 build slave based on a docker container.',
-                '/home/{0}/workspaces'.format(slave_config.container_conf.container_user),
-                linux_slave_start_command,
-                _get_slave_labels_string('Debian-8.9', 10),
-                slave_config.executors
-            )
-            start_commands.append(linux_slave_start_command)
+def _get_buildcontext_dir(host_info, image_name):
+    return host_info.temp_dir.joinpath(image_name)
 
-        elif config.is_windows_machine(slave_config.machine_id):
-            # create config file for the windows slave
-            slave_workspace = 'C:/jenkins'
-            windows_slave_start_command = _get_slave_start_command(
-                slave_host_connection,
-                slave_host_connection.user_name,
-                22,
-                slave_workspace
-            )
-            _configure_node_config_file(
-                config,
-                slave_config.slave_name,
-                'A Windows 10 build slave based on a virtual machine.',
-                slave_workspace,
-                windows_slave_start_command,
-                _get_slave_labels_string('Windows-10', 10),
-                slave_config.executors
-            )
-            start_commands.append(windows_slave_start_command)
 
-        else:
-            raise Exception('Function misses case for operating system of slave ' + slave_config.machine_id)
+def _create_rsa_key_file_pair_on_container(connection, container_conf, container_home_directory):
+    # copy the scripts that does the job to the container
+    fileutil.copy_textfile_to_container(
+        connection,
+        container_conf,
+        _SCRIPT_DIR.joinpath(_CREATEKEYPAIR_SCRIPT),
+        container_home_directory.joinpath(_CREATEKEYPAIR_SCRIPT)
+    )
 
-    return start_commands
+    # This will create the key-pair on the container.
+    # We need to do this in the container or ssh will not accept the private key file.
+    dockerutil.run_command_in_container(
+        connection,
+        container_conf,
+        '/bin/bash ' + str(container_home_directory.joinpath(_CREATEKEYPAIR_SCRIPT)) + ' ' + container_conf.container_name
+        )
+
+def _get_public_key_filename(container):
+    return container + _PUBLIC_KEY_FILE_POSTFIX
+
+
+def _accept_remote_container_host_key(client_container_host_connection, client_container_config, host_host_name, ssh_port, host_container_user):
+    """
+    Opens a ssh connection from the client container to the host container and thereby accepting the hosts ssh key.
+    """
+    dockerutil.run_command_in_container(
+        client_container_host_connection,
+        client_container_config,
+        'ssh -oStrictHostKeyChecking=no -p {0} {1}@{2} "echo dummy"'.format(ssh_port, host_container_user, host_host_name)
+    )
 
 
 def _get_slave_start_command(host_connection, slave_user, ssh_port, slave_jar_dir):
@@ -1043,7 +892,7 @@ def _get_slave_start_command(host_connection, slave_user, ssh_port, slave_jar_di
     """
     start_command = (
         'ssh {0}@{1} -p {2} java -jar {3}/slave.jar'
-        ).format(slave_user , host_connection.host_name, ssh_port, slave_jar_dir)
+        ).format(slave_user , host_connection.info.host_name, ssh_port, slave_jar_dir)
     return start_command
 
 
@@ -1059,59 +908,33 @@ def _get_slave_labels_string(base_label_name, max_index):
     return ' '.join(labels)
 
 
-def _configure_node_config_file(
-        config,
-        slave_name,
-        description,
-        slave_workspace_dir,
-        start_command,
-        slave_labels,
-        executors):
-    """
-    Uses a template file to create a config.xml file for a jenkins node that the master
-    controls via ssh.
-    """
-    
-    temp_dir = _SCRIPT_DIR.joinpath('temp')
-    _clear_dir(temp_dir)
-
-    createdconfig_file = temp_dir.joinpath('config.xml')
-    config_template_file = _SCRIPT_DIR.joinpath('jenkinsSlaveNodeConfig.xml.in')
-
-    # create a local config file
-    configure_file(config_template_file, createdconfig_file, {
-        '$SLAVE_NAME' : slave_name,
-        '$DESCRIPTION' : description,
-        '$WORKSPACE' : slave_workspace_dir,
-        '$START_COMMAND' : start_command,
-        '$LABELS' : slave_labels,
-        '$EXECUTORS' : str(executors),
-    })
-
-    # copy the file to the master container
-    master_connection = _get_jenkins_master_host_connection(config)
-    with master_connection.ssh_client.open_sftp() as sftp_client:
-        nodes_dir = _JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath('nodes')
-        node_dir = nodes_dir.joinpath(slave_name)
-        target_file = node_dir.joinpath(createdconfig_file.name)
-        _copy_textfile_to_container(
-            master_connection,
-            sftp_client,
-            config.jenkins_master_host_config.container_conf,
-            createdconfig_file,
-            target_file
-        )
-
-    _clear_dir(temp_dir)
 
 
-def _clear_dir(directory):
-    """
-    After calling this function the directory will exist and be empty.
-    """
-    if os.path.isdir(directory):
-        shutil.rmtree(directory)
-    os.makedirs(directory)
+
+
+
+
+            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

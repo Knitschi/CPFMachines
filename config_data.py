@@ -53,13 +53,12 @@ KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES = 'JenkinsApprovedScriptSignatures'
 
 
 
-
 class ConfigData:
     """
     This class holds all the information from a CPFMachines config file.
     """
-    _DOCKER_SUBNET_BASE_IP = '172.19.0'
     _LINUX_SLAVE_BASE_NAME = 'jenkins-slave-linux'
+    _DOCKER_SUBNET_BASE_IP = '172.19.0'
 
     def __init__(self, config_dict):
         # objects that contain the config data
@@ -78,29 +77,54 @@ class ConfigData:
         self._import_config_data()
         self._check_data_validity()
         self._configure_container()
+        self._container_dict = self._get_container_machine_dictionary() 
 
 
+    def is_linux_machine(self, machine_id):
+        connection  = self._get_host_info(machine_id)
+        return connection.os_type == 'Linux'
 
 
-    def get_host_machine_info(self, machine_id):
+    def is_windows_machine(self, machine_id):
+        connection  = self._get_host_info(machine_id)
+        return connection.os_type == 'Windows'
+
+
+    def get_all_container(self):
+        """
+        Returns the names of all the containers in the infrastructure.
+        """
+        return self._container_dict.keys()
+
+    def get_container_machines(self):
+        """
+        Returns all ids of host machines that run a docker instance.
+        """
+        return set(self._container_dict.values())
+
+    def get_container_host(self, container):
+        return self._container_dict[container]
+
+
+    def _get_host_info(self, machine_id):
         """
         Get the connection data for a certain host machine.
         """
         return next((x for x in self.host_machine_infos if x.machine_id == machine_id), None)
 
 
-    def is_linux_machine(self, machine_id):
-        connection  = self.get_host_machine_info(machine_id)
-        return connection.os_type == 'Linux'
-
-
-    def is_windows_machine(self, machine_id):
-        connection  = self.get_host_machine_info(machine_id)
-        return connection.os_type == 'Windows'
-
-
-    def get_docker_subnet(self):
-        return self._DOCKER_SUBNET_BASE_IP + '.0/16'
+    def _get_container_machine_dictionary(self):
+        """
+        Returns a dictionary with all docker container as keys and
+        the associated host machine_ids as values.
+        """
+        id_dict = {}
+        id_dict[self.jenkins_master_host_config.container_conf.container_name] = self.jenkins_master_host_config.machine_id
+        id_dict[self.web_server_host_config.container_conf.container_name] = self.web_server_host_config.machine_id
+        for slave_config in self.jenkins_slave_configs:
+            if slave_config.container_conf:
+                id_dict[slave_config.container_conf.container_name] = slave_config.machine_id
+        return id_dict
 
 
     def _import_config_data(self):
@@ -304,6 +328,7 @@ class ConfigData:
     def _configure_container(self):
         """
         Sets values to the member variables that hold container names and ips.
+        Container names are unique across all hosts.
         """
         # jenkins-master
         self.jenkins_master_host_config.container_conf.container_name = 'jenkins-master'
@@ -350,6 +375,10 @@ class ConfigData:
                     mapped_ssh_port += 1
                 slave_config.container_conf.mapped_ssh_host_port = mapped_ssh_port
                 mapped_ssh_port += 1
+
+
+    def get_docker_subnet(self):
+        return self._DOCKER_SUBNET_BASE_IP + '.0/16'
 
 
 class HostMachineInfo:

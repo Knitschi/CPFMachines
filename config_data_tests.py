@@ -107,17 +107,6 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_config.approved_script_signatures[0] , '<script signature from my MyCustomJob jenkinsfile>')
 
 
-    def test_get_host_machine_info(self):
-        # setup
-        sut = ConfigData(get_example_config_dict())
-
-        # execute and verify
-        machine_ids = ['MyMaster','MyLinuxSlave','MyWindowsSlave']
-        for machine_id in machine_ids:
-            connection = sut.get_host_machine_info(machine_id)
-            self.assertEqual(machine_id, connection.machine_id)
-
-
     def test_validation_checks_version(self):
         """
         For now, the version in the file must exactly fit the version of the reading library.
