@@ -124,6 +124,140 @@ class MachinesController:
         self.connections = connections
 
 
+    def prepare_host_environment(self):
+        """
+        Removes docker containers and networks from previous runs.
+        Takes a config_data.ConfigData object as argument.
+        """
+        self._remove_all_container()
+        self._clear_directories()
+        # we do not clear the webshare directory to preserve the accumulated web content.
+        connection = self.connections.get_connection(self.config.web_server_host_config.machine_id)
+        fileutil.guarantee_directory_exists(connection.sftp_client, self.config.web_server_host_config.host_html_share_dir)
+
+
+    def build_jenkins_base(self):
+        """
+        This builds the base image of the jenkins-master container.
+        """
+        connection = self._get_jenkins_master_host_connection()
+
+        # crate the build-context on the host
+        source_dir = _SCRIPT_DIR.joinpath('../JenkinsciDocker')
+        docker_file = 'Dockerfile'
+        files = [
+            docker_file,
+            'tini_pub.gpg',
+            'init.groovy',
+            'jenkins-support',
+            'jenkins.sh',
+            'plugins.sh',
+            'install-plugins.sh',
+        ]
+
+        # Create the jenkins base image. This is required to customize the jenkins version.
+        dockerutil.build_docker_image(
+            connection,
+            _JENKINS_BASE_IMAGE,
+            source_dir,
+            docker_file,
+            ['JENKINS_VERSION=' + _JENKINS_VERSION, 'JENKINS_SHA=' + _JENKINS_SHA256],
+            files
+        )
+
+
+    def build_and_start_jenkins_master(self):
+
+        connection = self._get_jenkins_master_host_connection()
+        container_config = self.config.jenkins_master_host_config.container_conf
+        container_image = container_config.container_image_name
+
+        # create a directory on the host that contains all files that are needed for the container build
+        docker_file = 'DockerfileJenkinsMaster'
+        files = [
+            docker_file,
+            'installGcc.sh',
+            'buildGit.sh',
+            'buildCMake.sh',
+        ]
+
+        # Create the container image
+        dockerutil.build_docker_image(
+            connection,
+            container_image,
+            _SCRIPT_DIR,
+            docker_file,
+            ['JENKINS_BASE_IMAGE=' + _JENKINS_BASE_IMAGE],
+            files
+        )
+
+        dockerutil.docker_run_detached(connection, container_config)
+
+        # add global gitconfig after mounting the workspace volume, otherwise is gets deleted.
+        commands = [
+            'git config --global user.email not@valid.org',
+            'git config --global user.name jenkins'
+        ]
+        dockerutil.run_commands_in_container(
+            connection,
+            self.config.jenkins_master_host_config.container_conf,
+            commands
+            )
+
+
+    def build_and_start_web_server(self):
+        machine_id = self.config.web_server_host_config.machine_id
+        connection = self.connections.get_connection(machine_id)
+        container_config = self.config.web_server_host_config.container_conf
+        container_image = container_config.container_image_name
+        
+        # create build context
+        docker_file = 'DockerfileCPFWebServer'
+        files = [
+            docker_file,
+            'installClangTools.sh',
+            'installGcc.sh',
+            'buildDoxygen.sh',
+            'ssh_config',
+            'serve-cgi-bin.conf',
+            'supervisord.conf',
+        ]
+
+        # build container image
+        dockerutil.build_docker_image(
+            connection,
+            container_image,
+            _SCRIPT_DIR,
+            docker_file, 
+            [],
+            files
+            )
+
+        # start container
+        dockerutil.docker_run_detached(connection, container_config)
+
+        # copy the doxyserach.cgi to the html share
+        html_share_container = next(iter(container_config.host_volumes.values()))
+        cgi_bin_dir = html_share_container.joinpath('cgi-bin')
+        commands = [
+            'rm -fr ' + str(cgi_bin_dir),
+            'mkdir ' + str(cgi_bin_dir),
+            'mkdir ' + str(cgi_bin_dir) + '/doxysearch.db',
+            'cp -r -f /usr/local/bin/doxysearch.cgi ' + str(cgi_bin_dir),
+        ]
+        dockerutil.run_commands_in_container(
+            connection,
+            self.config.web_server_host_config.container_conf,
+            commands
+            )
+
+
+    def build_and_start_jenkins_linux_slaves(self):
+        for slave_config in self.config.jenkins_slave_configs:
+            if self.config.is_linux_machine(slave_config.machine_id):
+                self._build_and_start_jenkins_linux_slave(slave_config.container_conf, slave_config.machine_id)
+
+
     def setup_ssh_access_rights(self):
         # setup ssh accesses of the jenkins-master
         connection = self._get_jenkins_master_host_connection()
@@ -146,16 +280,35 @@ class MachinesController:
         # \todo Windows slaves need repository access as well. Did we do this manually?
 
 
-    def prepare_host_environment(self):
-        """
-        Removes docker containers and networks from previous runs.
-        Takes a config_data.ConfigData object as argument.
-        """
-        self._remove_all_container()
-        self._clear_directories()
-        # we do not clear the webshare directory to preserve the accumulated web content.
-        connection = self.connections.get_connection(self.config.web_server_host_config.machine_id)
-        fileutil.guarantee_directory_exists(connection.sftp_client, self.config.web_server_host_config.host_html_share_dir)
+    def configure_jenkins_master(self, config_file):
+        self._configure_general_jenkins_options()
+        self._configure_jenkins_users(config_file)
+        self._configure_jenkins_jobs(config_file)
+        slaveStartCommands = self._configure_jenkins_slaves()
+        self.config.jenkins_config.approved_system_commands.extend(slaveStartCommands)
+
+        # restart jenkins to make sure it as the desired configuration
+        # this is required because approveing the slaves scripts requires jenkins to be
+        # up and running.
+        self._restart_jenkins()
+
+        # Create object that helps with configuring jenkins over its web interface.
+        master_connection = self._get_jenkins_master_host_connection()
+        jenkins_accessor = JenkinsRESTAccessor(
+            'http://{0}:8080'.format(master_connection.info.host_name),
+            self.config.jenkins_config.admin_user,
+            self.config.jenkins_config.admin_user_password
+        )
+
+        # Approve system commands
+        jenkins_accessor.wait_until_online(90)
+        print("----- Approve system-commands")
+        pprint.pprint(self.config.jenkins_config.approved_system_commands)
+        jenkins_accessor.approve_system_commands(self.config.jenkins_config.approved_system_commands)
+        # Approve script signatures
+        print("----- Approve script signatures")
+        pprint.pprint(self.config.jenkins_config.approved_script_signatures)
+        jenkins_accessor.approve_script_signatures(self.config.jenkins_config.approved_script_signatures)
 
 
     def _remove_all_container(self):
@@ -193,133 +346,8 @@ class MachinesController:
             fileutil.clear_rdirectory(connection.sftp_client, host_info.temp_dir)
 
 
-    def build_jenkins_base(self):
-        """
-        This builds the base image of the jenkins-master container.
-        """
-        connection = self._get_jenkins_master_host_connection()
-
-        # crate the build-context on the host
-        source_dir = _SCRIPT_DIR.joinpath('../JenkinsciDocker')
-        docker_file = 'Dockerfile'
-        files = [
-            docker_file,
-            'tini_pub.gpg',
-            'init.groovy',
-            'jenkins-support',
-            'jenkins.sh',
-            'plugins.sh',
-            'install-plugins.sh',
-        ]
-        context_dir = _get_buildcontext_dir(connection.info, _JENKINS_BASE_IMAGE)
-        fileutil.copy_local_files_to_host(connection, source_dir, context_dir, files)
-
-        # Create the jenkins base image. This is required to customize the jenkins version.
-        dockerutil.build_docker_image(
-            connection,
-            _JENKINS_BASE_IMAGE,
-            context_dir.joinpath(docker_file),
-            context_dir,
-            ['JENKINS_VERSION=' + _JENKINS_VERSION, 'JENKINS_SHA=' + _JENKINS_SHA256])
-
-
     def _get_jenkins_master_host_connection(self):
         return self.connections.get_connection(self.config.jenkins_master_host_config.machine_id)
-
-
-    def build_and_start_jenkins_master(self):
-
-        connection = self._get_jenkins_master_host_connection()
-        container_config = self.config.jenkins_master_host_config.container_conf
-        container_name = container_config.container_name
-        container_image = container_config.container_image_name
-
-        # create a directory on the host that contains all files that are needed for the container build
-        docker_file = 'DockerfileJenkinsMaster'
-        files = [
-            docker_file,
-            'installGcc.sh',
-            'buildGit.sh',
-            'buildCMake.sh',
-        ]
-        context_dir = _get_buildcontext_dir(connection.info, container_name)
-        fileutil.copy_local_files_to_host(connection, _SCRIPT_DIR, context_dir, files)
-
-        # Create the container image
-        dockerutil.build_docker_image(
-            connection,
-            container_image,
-            context_dir.joinpath(docker_file),
-            context_dir,
-            ['JENKINS_BASE_IMAGE=' + _JENKINS_BASE_IMAGE])
-
-        dockerutil.docker_run_detached(connection, container_config)
-
-        # add global gitconfig after mounting the workspace volume, otherwise is gets deleted.
-        commands = [
-            'git config --global user.email not@valid.org',
-            'git config --global user.name jenkins'
-        ]
-        dockerutil.run_commands_in_container(
-            connection,
-            self.config.jenkins_master_host_config.container_conf,
-            commands
-            )
-
-
-
-    def build_and_start_web_server(self):
-        machine_id = self.config.web_server_host_config.machine_id
-        connection = self.connections.get_connection(machine_id)
-        container_config = self.config.web_server_host_config.container_conf
-        container_image = container_config.container_image_name
-        
-        # create build context
-        docker_file = 'DockerfileCPFWebServer'
-        files = [
-            docker_file,
-            'installClangTools.sh',
-            'installGcc.sh',
-            'buildDoxygen.sh',
-            'ssh_config',
-            'serve-cgi-bin.conf',
-            'supervisord.conf',
-        ]
-        context_dir = _get_buildcontext_dir(connection.info, container_image)
-        fileutil.copy_local_files_to_host(connection, _SCRIPT_DIR, context_dir, files)
-
-        # build container image
-        dockerutil.build_docker_image(
-            connection,
-            container_image,
-            context_dir.joinpath(docker_file),
-            context_dir, 
-            []
-            )
-
-        # start container
-        dockerutil.docker_run_detached(connection, container_config)
-
-        # copy the doxyserach.cgi to the html share
-        html_share_container = next(iter(container_config.host_volumes.values()))
-        cgi_bin_dir = html_share_container.joinpath('cgi-bin')
-        commands = [
-            'rm -fr ' + str(cgi_bin_dir),
-            'mkdir ' + str(cgi_bin_dir),
-            'mkdir ' + str(cgi_bin_dir) + '/doxysearch.db',
-            'cp -r -f /usr/local/bin/doxysearch.cgi ' + str(cgi_bin_dir),
-        ]
-        dockerutil.run_commands_in_container(
-            connection,
-            self.config.web_server_host_config.container_conf,
-            commands
-            )
-
-
-    def build_and_start_jenkins_linux_slaves(self):
-        for slave_config in self.config.jenkins_slave_configs:
-            if self.config.is_linux_machine(slave_config.machine_id):
-                self._build_and_start_jenkins_linux_slave(slave_config.container_conf, slave_config.machine_id)
 
 
     def _build_and_start_jenkins_linux_slave(self, container_conf, machine_id):
@@ -345,16 +373,16 @@ class MachinesController:
             binary_files = [
                 'slave.jar',
             ]
-            context_dir = _get_buildcontext_dir(connection.info, container_image)
-            fileutil.copy_local_files_to_host(connection, _SCRIPT_DIR, context_dir, text_files, binary_files)
 
             # Build the container.
             dockerutil.build_docker_image(
                 connection,
                 container_image,
-                context_dir.joinpath(docker_file),
-                context_dir,
-                []
+                _SCRIPT_DIR,
+                docker_file,
+                [],
+                text_files,
+                binary_files
                 )
 
             # Start the container.
@@ -380,27 +408,14 @@ class MachinesController:
 
         container_name = container_conf.container_name
         container_host_connection = self._get_container_host_connection(container_name)
-        sftp_client = container_host_connection.sftp_client
-        temp_dir_chost = container_host_connection.info.temp_dir
 
         print('----- Grant container ' + container_name + ' SSH access to the repository machine ' + repository_machine_id)
 
         # COPY AND REGISTER THE PUBLIC KEY WITH repositoryMachine
         public_key_file = _get_public_key_filename(container_name)
-
-        fileutil.guarantee_directory_exists(sftp_client, temp_dir_chost)
-        
-        # delete previously copied key-files
-        full_temp_public_key_file = temp_dir_chost.joinpath(public_key_file)
-        if fileutil.rexists(sftp_client, full_temp_public_key_file):
-            sftp_client.remove(full_temp_public_key_file)
-
-        # Copy the public key from the jenkins home directory to the
-        # jenkins-workspace directory on the host
-        container_host_connection.run_command('docker cp {0}:{1}/{2} {3}'.format(container_name, container_home_directory, public_key_file, temp_dir_chost))
-
-        # Then copy it to the repository machine
-        fileutil.rtorcopy(sftp_client, repository_connection.sftp_client, temp_dir_chost.joinpath(public_key_file) , repository_machine_ssh_dir.joinpath(public_key_file))
+        source_file = container_home_directory.joinpath(public_key_file)
+        target_file = repository_machine_ssh_dir.joinpath(public_key_file)
+        dockerutil.containertorcopy(container_host_connection, container_conf, repository_connection, source_file, target_file)
 
         # add the key file to authorized_keys
         authorized_keys_file = repository_machine_ssh_dir.joinpath('authorized_keys')
@@ -444,7 +459,7 @@ class MachinesController:
                 slave_connection = self.connections.get_connection(slave_config.machine_id)
                 authorized_keys_file = _JENKINS_HOME_JENKINS_SLAVE_CONTAINER.joinpath('.ssh/authorized_keys')
                 # add the masters public key to the authorized keys file of the slave
-                fileutil.rtocontainercopy(master_host_connection, slave_connection, slave_config.container_conf, public_key_file_master_host, authorized_keys_file)
+                dockerutil.rtocontainercopy(master_host_connection, slave_connection, slave_config.container_conf, public_key_file_master_host, authorized_keys_file)
                 
                 # authenticate the slave ssh host with the master
                 # we rely her on the fact that the slave container only have one published port
@@ -540,7 +555,7 @@ class MachinesController:
         webserver_container_config = self.config.web_server_host_config.container_conf
 
         # set the authorized keys file in the webserver container
-        fileutil.container_to_container_copy(
+        dockerutil.container_to_container_copy(
             master_host_connection, 
             master_container_config, 
             webserver_host_connection, 
@@ -580,45 +595,13 @@ class MachinesController:
                 )
 
 
-    def configure_jenkins_master(self, config_file):
-        self._configure_general_jenkins_options()
-        self._configure_jenkins_users(config_file)
-        self._configure_jenkins_jobs(config_file)
-        slaveStartCommands = self._configure_jenkins_slaves()
-        self.config.jenkins_config.approved_system_commands.extend(slaveStartCommands)
-
-        # restart jenkins to make sure it as the desired configuration
-        # this is required because approveing the slaves scripts requires jenkins to be
-        # up and running.
-        self._restart_jenkins()
-
-        
-        # Create object that helps with configuring jenkins over its web interface.
-        master_connection = self._get_jenkins_master_host_connection()
-        jenkins_accessor = JenkinsRESTAccessor(
-            'http://{0}:8080'.format(master_connection.info.host_name),
-            self.config.jenkins_config.admin_user,
-            self.config.jenkins_config.admin_user_password
-        )
-
-        # Approve system commands
-        jenkins_accessor.wait_until_online(90)
-        print("----- Approve system-commands")
-        pprint.pprint(self.config.jenkins_config.approved_system_commands)
-        jenkins_accessor.approve_system_commands(self.config.jenkins_config.approved_system_commands)
-        # Approve script signatures
-        print("----- Approve script signatures")
-        pprint.pprint(self.config.jenkins_config.approved_script_signatures)
-        jenkins_accessor.approve_script_signatures(self.config.jenkins_config.approved_script_signatures)
-
-
     def _configure_general_jenkins_options(self):
         """
         Configure the general options by copying the .xml config files from the JenkinsConfig
         directory to the jenkins master home directory.
         """
         connection = self._get_jenkins_master_host_connection()
-        fileutil.copy_local_textfile_tree_to_container(
+        dockerutil.copy_local_textfile_tree_to_container(
             _SCRIPT_DIR.joinpath('JenkinsConfig'),
             connection,
             self.config.jenkins_master_host_config.container_conf,
@@ -657,7 +640,7 @@ class MachinesController:
                 sourceconfig_file = config_item.xml_file
             job_config_dir = jobs_config_dir.joinpath(config_item.name)
             job_config_file = PurePosixPath('config.xml')
-            fileutil.copy_textfile_to_container(
+            dockerutil.copy_textfile_to_container(
                 master_connection,
                 self.config.jenkins_master_host_config.container_conf,
                 sourceconfig_file,
@@ -767,7 +750,7 @@ class MachinesController:
         nodes_dir = config_data.JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath('nodes')
         node_dir = nodes_dir.joinpath(slave_name)
         target_file = node_dir.joinpath(createdconfig_file.name)
-        fileutil.copy_textfile_to_container(
+        dockerutil.copy_textfile_to_container(
             master_connection,
             self.config.jenkins_master_host_config.container_conf,
             createdconfig_file,
@@ -787,13 +770,9 @@ def dev_message(text):
     print('--------------- ' + str(text))
 
 
-def _get_buildcontext_dir(host_info, image_name):
-    return host_info.temp_dir.joinpath(image_name)
-
-
 def _create_rsa_key_file_pair_on_container(connection, container_conf, container_home_directory):
     # copy the scripts that does the job to the container
-    fileutil.copy_textfile_to_container(
+    dockerutil.copy_textfile_to_container(
         connection,
         container_conf,
         _SCRIPT_DIR.joinpath(_CREATEKEYPAIR_SCRIPT),

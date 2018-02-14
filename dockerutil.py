@@ -2,8 +2,10 @@
 Contains functions for basic remote container operations.
 """
 
-from .connections import ConnectionHolder
+import os
 
+from .connections import ConnectionHolder
+from . import fileutil
 
 def container_exists(connection, container):
     """
@@ -49,14 +51,18 @@ def docker_container_image_exists(connection, image_name):
     return image_name in images
 
 
-def build_docker_image(connection, image_name, docker_file, build_context_directory, build_args):
+def build_docker_image(connection, image_name, context_source_dir, docker_file, build_args, text_files, binary_files=[]):
+    
+    context_target_dir = connection.info.temp_dir.joinpath(image_name)
+    fileutil.copy_local_files_to_host(connection, context_source_dir, context_target_dir, text_files, binary_files)
+    
     build_args_string = ''
     for arg in build_args:
         build_args_string += ' --build-arg ' + arg
 
     command = (
         'docker build' + build_args_string + ' -t ' + image_name +
-        ' -f ' + str(docker_file) + ' ' + str(build_context_directory)
+        ' -f ' + str(context_target_dir.joinpath(docker_file)) + ' ' + str(context_target_dir)
     )
     connection.run_command(command, print_output=True, print_command=True)
 
@@ -108,3 +114,76 @@ def run_command_in_container(connection, container_config, command, user=None, p
     command = 'docker exec ' + user_option + container_config.container_name + ' ' + command
     output = connection.run_command(command, print_command=print_command)
     return output
+
+
+def copy_textfile_to_container(connection, container_conf, source_path, target_path):
+    """
+    We first copy the file to host_temp_dir and then to the container.
+    """
+    host_file = connection.info.temp_dir.joinpath(source_path.name)
+    fileutil.copy_textfile_from_local_to_linux(connection, source_path, host_file)
+    copy_file_from_host_to_container(connection, container_conf, host_file, target_path)
+
+
+def copy_file_from_host_to_container(host_connection, container_conf, source_file, target_file):
+    run_command_in_container(
+        host_connection,
+        container_conf,
+        'mkdir -p {0}'.format(target_file.parent),
+        print_command=False
+    )
+    host_connection.run_command("docker cp {0} {1}:{2}".format(source_file, container_conf.container_name, target_file))
+
+
+def container_to_container_copy(source_host_connection, source_container_conf, target_host_connection, target_container_conf, source_file, target_file):
+    """
+    Copies a file from one container to another.
+    """
+    # copy from source container to source host
+    temp_path_source_host = source_host_connection.info.temp_dir.joinpath(source_file.name)
+    source_host_connection.run_command('docker cp {0}:{1} {2}'.format(source_container_conf.container_name, source_file, temp_path_source_host))
+
+    # copy from source host to target container
+    rtocontainercopy(source_host_connection, target_host_connection, target_container_conf, temp_path_source_host, target_file)
+
+
+def copy_local_textfile_tree_to_container(local_source_dir, container_host_connection, container_config, container_target_dir):
+    """
+    Copy the contents of a local directory to a container directory.
+    """
+    dir_content = fileutil.get_dir_content(local_source_dir)
+    for item in dir_content:
+        source_path = local_source_dir.joinpath(item)
+        if os.path.isfile(source_path):
+            target_path = container_target_dir.joinpath(item)
+            copy_textfile_to_container(container_host_connection, container_config, source_path, target_path)
+
+
+def rtocontainercopy(source_host_connection, target_host_connection, container_conf, source_file, target_file):
+    """
+    Copies the source_file from a host machine to the target target path target_file on a container.
+    """
+    temp_path_container_host = target_host_connection.info.temp_dir.joinpath(source_file.name)
+    fileutil.rtorcopy(source_host_connection.sftp_client, target_host_connection.sftp_client, source_file, temp_path_container_host)
+    copy_file_from_host_to_container(target_host_connection, container_conf, temp_path_container_host, target_file)
+
+
+def containertorcopy(source_host_connection, container_conf, target_host_connection, source_file, target_file):
+    """
+    Copies a file from a container to an ssh host.
+    """
+    sftp_client = source_host_connection.sftp_client
+    temp_dir_chost = source_host_connection.info.temp_dir
+    fileutil.guarantee_directory_exists(sftp_client, temp_dir_chost)
+    
+    # delete previously copied key-files
+    full_temp_public_key_file = temp_dir_chost.joinpath(source_file.name)
+    if fileutil.rexists(sftp_client, full_temp_public_key_file):
+        sftp_client.remove(full_temp_public_key_file)
+
+    # Copy the public key from the jenkins home directory to the
+    # jenkins-workspace directory on the host
+    source_host_connection.run_command('docker cp {0}:{1} {2}'.format(container_conf.container_name, source_file, full_temp_public_key_file))
+
+    # Then copy it to the repository machine
+    fileutil.rtorcopy(sftp_client, target_host_connection.sftp_client, full_temp_public_key_file, target_file)

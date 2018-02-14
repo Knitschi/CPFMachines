@@ -8,7 +8,6 @@ import shutil
 from pathlib import PureWindowsPath, PurePosixPath, PurePath
 
 from .connections import ConnectionHolder
-from . import dockerutil
 
 
 _SCRIPT_DIR = PurePath(os.path.dirname(os.path.realpath(__file__)))
@@ -117,25 +116,6 @@ def copy_file_from_local_to_remote(sftp_client, source_path, target_path):
     sftp_client.put( str(source_path), str(target_path) )
 
 
-def copy_textfile_to_container(connection, container_conf, source_path, target_path):
-    """
-    We first copy the file to host_temp_dir and then to the container.
-    """
-    host_file = connection.info.temp_dir.joinpath(source_path.name)
-    copy_textfile_from_local_to_linux(connection, source_path, host_file)
-    copy_file_from_host_to_container(connection, container_conf, host_file, target_path)
-
-
-def copy_file_from_host_to_container(host_connection, container_conf, source_file, target_file):
-    dockerutil.run_command_in_container(
-        host_connection,
-        container_conf,
-        'mkdir -p {0}'.format(target_file.parent),
-        print_command=False
-    )
-    host_connection.run_command("docker cp {0} {1}:{2}".format(source_file, container_conf.container_name, target_file))
-
-
 def rtorcopy(source_sftp_client, target_sftp_client, source_file, target_file):
     """
     Copy a file from one remote machine to another.
@@ -144,39 +124,6 @@ def rtorcopy(source_sftp_client, target_sftp_client, source_file, target_file):
     source_sftp_client.get(str(source_file), str(local_temp_file))
     target_sftp_client.put(str(local_temp_file), str(target_file))
     os.remove(local_temp_file)
-
-
-def rtocontainercopy(source_host_connection, target_host_connection, container_conf, source_file, target_file):
-    """
-    Copies the source_file from a host machine to the target target path target_file on a container.
-    """
-    temp_path_container_host = target_host_connection.info.temp_dir.joinpath(source_file.name)
-    rtorcopy(source_host_connection.sftp_client, target_host_connection.sftp_client, source_file, temp_path_container_host)
-    copy_file_from_host_to_container(target_host_connection, container_conf, temp_path_container_host, target_file)
-
-
-def container_to_container_copy(source_host_connection, source_container_conf, target_host_connection, target_container_conf, source_file, target_file):
-    """
-    Copies a file from one container to another.
-    """
-    # copy from source container to source host
-    temp_path_source_host = source_host_connection.info.temp_dir.joinpath(source_file.name)
-    source_host_connection.run_command('docker cp {0}:{1} {2}'.format(source_container_conf.container_name, source_file, temp_path_source_host))
-
-    # copy from source host to target container
-    rtocontainercopy(source_host_connection, target_host_connection, target_container_conf, temp_path_source_host, target_file)
-
-
-def copy_local_textfile_tree_to_container(local_source_dir, container_host_connection, container_config, container_target_dir):
-    """
-    Copy the contents of a local directory to a container directory.
-    """
-    dir_content = get_dir_content(local_source_dir)
-    for item in dir_content:
-        source_path = local_source_dir.joinpath(item)
-        if os.path.isfile(source_path):
-            target_path = container_target_dir.joinpath(item)
-            copy_textfile_to_container(container_host_connection, container_config, source_path, target_path)
 
 
 def get_dir_content(directory):
@@ -200,3 +147,4 @@ def clear_dir(directory):
     if os.path.isdir(directory):
         shutil.rmtree(directory)
     os.makedirs(directory)
+
