@@ -70,7 +70,7 @@ else
 //############################### FUNCTION SECTION ################################
 class Constants {
     // locations
-    static final WEBSERVER_HOST_NAME="root@172.19.0.2"      // This is defined by CPFMachines
+    static final WEBSERVER_HOST_NAME="root@buildmasterdebian9"
     static final CHECKOUT_FOLDER = 'Check out dir'
     static final CPFCMAKE_DIR = 'CPFCMake'
 
@@ -313,15 +313,15 @@ def addUpdateWebPageStage(repository, cpfConfigs, branchOrTag)
                 // sh "ls -l \"${tempHtmlDir}\""
 
                 // get the current html content from the web-server
-                sh "scp -r ${WEBSERVER_HOST_NAME}:/var/www/html/* \"${serverHtmlDir}\" || :" // || : suppresses the error message if the server html contains no files
+                sh "scp -p 23 -r ${WEBSERVER_HOST_NAME}:/var/www/html/* \"${serverHtmlDir}\" || :" // || : suppresses the error message if the server html contains no files
 
                 // merge the new html content into the old html content
                 // sh "ls -l \$PWD/${CHECKOUT_FOLDER}/Sources/cmake/Scripts"
                 sh "cmake -DSOURCE_DIR=\"${tempHtmlDir}\" -DTARGET_DIR=\"${serverHtmlDir}\" -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPFCMAKE_DIR}/Scripts/updateExistingWebPage.cmake\""
 
                 // copy the merge result back to the server
-                sh "ssh ${WEBSERVER_HOST_NAME} \"rm -rf /var/www/html/*\""
-                sh "scp -r \"${serverHtmlDir}\"/* ${WEBSERVER_HOST_NAME}:/var/www/html || :"
+                sh "ssh -p 23 ${WEBSERVER_HOST_NAME} \"rm -rf /var/www/html/*\""
+                sh "scp -p 23 -r \"${serverHtmlDir}\"/* ${WEBSERVER_HOST_NAME}:/var/www/html || :"
                 
                 echo '----- The project web-page was updated successfully. -----'
             }
