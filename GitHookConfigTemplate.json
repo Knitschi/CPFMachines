@@ -3,5 +3,5 @@
     "JenkinsUser": "",
     "JenkinsPassword": "",
     "JenkinsJobBasename": "",
-    "HookScriptTargetDirectories": []
+    "CPFPackageRepoHookDirectories": []
 }

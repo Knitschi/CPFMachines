@@ -14,8 +14,9 @@ import subprocess
 import json
 import pprint
 
-import addJenkinsJob
-import setup_docker_container_with_cpf_jobs
+from . import add_jenkinsjob
+from . import setup
+from ..CPFMachines import setup as machines_setup
 
 _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -47,12 +48,12 @@ def main():
             '@JENKINS_URL@' : jenkins_url,
             '@JENKINS_USER@' : jenkins_user,
             '@JENKINS_PASSWORD@' : jenkins_password,
-            '@JENKINS_JOB_NAME@' : setup_docker_container_with_cpf_jobs.get_job_name(jenkins_job_base_name),
+            '@JENKINS_JOB_NAME@' : setup.get_job_name(jenkins_job_base_name),
             '@CPF_PACKAGE@' : package
         }
         temp_script = _SCRIPT_DIR + '/post-receive_' + package
         temp_files.append(temp_script)
-        addJenkinsJob.configure_file(script_template, temp_script, replacement_dict)
+        machines_setup.configure_file(script_template, temp_script, replacement_dict)
 
         # copy the file to the repository
         dest_file = hook_directory + '/post-receive'
