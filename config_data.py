@@ -85,12 +85,12 @@ class ConfigData:
 
 
     def is_linux_machine(self, machine_id):
-        info  = self._get_host_info(machine_id)
+        info  = self.get_host_info(machine_id)
         return info.os_type == 'Linux'
 
 
     def is_windows_machine(self, machine_id):
-        info  = self._get_host_info(machine_id)
+        info  = self.get_host_info(machine_id)
         return info.os_type == 'Windows'
 
 
@@ -110,7 +110,7 @@ class ConfigData:
         return self._container_dict[container]
 
 
-    def _get_host_info(self, machine_id):
+    def get_host_info(self, machine_id):
         """
         Get the connection data for a certain host machine.
         """
