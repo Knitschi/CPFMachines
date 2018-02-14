@@ -41,9 +41,6 @@ _JENKINS_VERSION = '2.89.1'
 _JENKINS_SHA256 = 'f9f363959042fce1615ada81ae812e08d79075218c398ed28e68e1302c4b272f'
 _JENKINS_BASE_IMAGE = 'jenkins-image-' + _JENKINS_VERSION
 
-# docker network
-_DOCKER_NETWORK_NAME = 'CPFNetwork'
-
 # Files
 _PUBLIC_KEY_FILE_POSTFIX = '_ssh_key.rsa.pub'
 _CREATEKEYPAIR_SCRIPT = PurePath('createSSHKeyFilePair.sh')
@@ -163,12 +160,10 @@ class MachinesController:
         Takes a config_data.ConfigData object as argument.
         """
         self._remove_all_container()
-        self._remove_all_docker_networks(_DOCKER_NETWORK_NAME)
         self._clear_directories()
         # we do not clear the webshare directory to preserve the accumulated web content.
         connection = self.connections.get_connection(self.config.web_server_host_config.machine_id)
         fileutil.guarantee_directory_exists(connection.sftp_client, self.config.web_server_host_config.host_html_share_dir)
-        self._create_docker_networks()
 
 
     def _remove_all_container(self):
@@ -196,16 +191,6 @@ class MachinesController:
         return self.connections.get_connection(machine_id)
 
 
-    def _remove_all_docker_networks(self, network_name):
-        """
-        Removes the CFP docker networks from all docker instances.
-        """
-        container_machines = self.config.get_container_machines()
-        for machine_id in container_machines:
-            connection = self.connections.get_connection(machine_id)
-            dockerutil.remove_docker_network(connection, network_name)
-
-
     def _clear_directories(self):
         # the master share directory
         connection = self.connections.get_connection(self.config.jenkins_master_host_config.machine_id)
@@ -214,12 +199,6 @@ class MachinesController:
         for host_info in self.config.host_machine_infos:
             connection = self.connections.get_connection(host_info.machine_id)
             fileutil.clear_rdirectory(connection.sftp_client, host_info.temp_dir)
-
-
-    def _create_docker_networks(self):
-        for machine_id in self.config.get_container_machines():
-            connection = self.connections.get_connection(machine_id)
-            dockerutil.create_docker_network(connection, _DOCKER_NETWORK_NAME, self.config.get_docker_subnet())
 
 
     def build_jenkins_base(self):
@@ -301,11 +280,7 @@ class MachinesController:
             + no_setup_wizard_option +
             # The jenkins webinterface is available under this port.
             '--publish 8080:8080 '
-            # Only needed for hnlp slaves. We leave it here in case we need hnlp slave later.
-            #'--publish 50000:50000 '
             '--name ' + container_name + ' '
-            '--net ' + _DOCKER_NETWORK_NAME + ' '
-            '--ip ' + self.config.jenkins_master_host_config.container_conf.container_ip + ' '
             + container_image
         )
         connection.run_command(command, print_command=True)
@@ -360,8 +335,6 @@ class MachinesController:
             '--publish ' + str(self.config.web_server_host_config.container_conf.mapped_ssh_host_port) + ':22 ' # publish the port of the ssh server
             '--volume ' + str(self.config.web_server_host_config.host_html_share_dir) + ':' + str(_HTML_SHARE_WEB_SERVER_CONTAINER) + ' '
             '--name ' + container_name + ' '
-            '--net ' + _DOCKER_NETWORK_NAME + ' '
-            '--ip ' + self.config.web_server_host_config.container_conf.container_ip + ' '
             + container_image
         )
         connection.run_command(command, print_command=True)
@@ -427,8 +400,6 @@ class MachinesController:
             'docker run '
             '--detach '
             '--name ' + container_conf.container_name + ' '
-            '--net ' + _DOCKER_NETWORK_NAME + ' '
-            '--ip ' + container_conf.container_ip + ' '
             '--publish ' + str(container_conf.mapped_ssh_host_port) + ':22 '
             + container_image
         )
@@ -906,35 +877,6 @@ def _get_slave_labels_string(base_label_name, max_index):
         # the nodes and still build old versions of a package no the old nodes.
         labels.append(base_label_name + '-' + cpfmachines_version.CPFMACHINES_VERSION + '-' + str(i))
     return ' '.join(labels)
-
-
-
-
-
-
-
-
-            
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -44,21 +44,6 @@ def remove_container(connection, container):
     connection.run_command('docker rm -f ' + container)
 
 
-def remove_docker_network(connection, network):
-    network_lines = connection.run_command('docker network ls')
-    networks = []
-    for line in network_lines:
-        columns = line.split()
-        networks.append(columns[1])
-
-    if network in networks:
-        connection.run_command('docker network rm ' + network)
-
-
-def create_docker_network(connection, name, subnet_ip):
-    connection.run_command("docker network create --driver bridge --subnet={0} {1}".format(subnet_ip, name))
-
-
 def docker_container_image_exists(connection, image_name):
     images = connection.run_command('docker images')
     return image_name in images

@@ -58,7 +58,6 @@ class ConfigData:
     This class holds all the information from a CPFMachines config file.
     """
     _LINUX_SLAVE_BASE_NAME = 'jenkins-slave-linux'
-    _DOCKER_SUBNET_BASE_IP = '172.19.0'
 
     def __init__(self, config_dict):
         # objects that contain the config data
@@ -333,12 +332,10 @@ class ConfigData:
         # jenkins-master
         self.jenkins_master_host_config.container_conf.container_name = 'jenkins-master'
         self.jenkins_master_host_config.container_conf.container_user = 'jenkins'
-        self.jenkins_master_host_config.container_conf.container_ip = self._DOCKER_SUBNET_BASE_IP + '.3'
         self.jenkins_master_host_config.container_conf.container_image_name = 'jenkins-master-image'
         # cft-web-server
         self.web_server_host_config.container_conf.container_name = 'cpf-web-server'
         self.web_server_host_config.container_conf.container_user = 'root'
-        self.web_server_host_config.container_conf.container_ip = self._DOCKER_SUBNET_BASE_IP + '.2'
         self.web_server_host_config.container_conf.container_image_name = 'cpf-web-server-image'
 
         # set names and ips to linux slave container
@@ -352,7 +349,6 @@ class ConfigData:
                 slave_config.container_conf.container_name = "{0}-{1}".format(self._LINUX_SLAVE_BASE_NAME, linux_name_index)
                 linux_name_index += 1
                 slave_config.container_conf.container_user = 'jenkins'
-                slave_config.container_conf.container_ip = "{0}.{1}".format(self._DOCKER_SUBNET_BASE_IP,ip_index)
                 ip_index += 1
                 slave_config.container_conf.container_image_name = self._LINUX_SLAVE_BASE_NAME + '-image'
 
@@ -376,9 +372,6 @@ class ConfigData:
                 slave_config.container_conf.mapped_ssh_host_port = mapped_ssh_port
                 mapped_ssh_port += 1
 
-
-    def get_docker_subnet(self):
-        return self._DOCKER_SUBNET_BASE_IP + '.0/16'
 
 
 class HostMachineInfo:
@@ -411,10 +404,8 @@ class ContainerConfig:
     def __init__(self):
         self.container_name = ''            # The name of the container.
         self.container_user = ''            # The name of the user that runs the services in the container.
-        self.container_ip = ''              # The ip of the container in the docker network.
         self.container_image_name = ''      # The name of the image which is used to instantiate the container.
         self.mapped_ssh_host_port = None    # The port on the host machine that is mapped to port 22 on the container.
-
 
 
 class WebserverHostConfig:
