@@ -61,6 +61,31 @@ def build_docker_image(connection, image_name, docker_file, build_context_direct
     connection.run_command(command, print_output=True, print_command=True)
 
 
+def docker_run_detached(host_connection, container_config):
+    
+    publish_port_args = ''
+    for host_port, container_port in container_config.published_ports.items():
+        publish_port_args += '--publish {0}:{1} '.format(host_port, container_port)
+
+    volume_args = ''
+    for host_dir, container_dir in container_config.host_volumes.items():
+        volume_args += '--volume {0}:{1} '.format(host_dir, container_dir)
+
+    env_args = ''
+    for variable in container_config.envvar_definitions:
+        env_args += '--env {0} '.format(variable)
+
+    command = (
+        'docker run '
+        '--detach '
+        '--name ' + container_config.container_name + ' '
+        + publish_port_args 
+        + volume_args
+        + env_args
+        + container_config.container_image_name
+    )
+    host_connection.run_command(command, print_command=True)
+
 def run_commands_in_container(host_connection, container_config, commands, user=None):
     for command in commands:
         run_command_in_container(

@@ -52,6 +52,11 @@ KEY_JENKINS_APPROVED_SYSTEM_COMMANDS = 'JenkinsApprovedSystemCommands'
 KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES = 'JenkinsApprovedScriptSignatures'
 
 
+# directories on jenkins-master
+# This is the location of the jenkins configuration files on the jenkins-master.
+JENKINS_HOME_JENKINS_MASTER_CONTAINER = PurePosixPath('/var/jenkins_home')
+_HTML_SHARE_WEB_SERVER_CONTAINER = PurePosixPath('/var/www/html')
+
 
 class ConfigData:
     """
@@ -80,13 +85,13 @@ class ConfigData:
 
 
     def is_linux_machine(self, machine_id):
-        connection  = self._get_host_info(machine_id)
-        return connection.os_type == 'Linux'
+        info  = self._get_host_info(machine_id)
+        return info.os_type == 'Linux'
 
 
     def is_windows_machine(self, machine_id):
-        connection  = self._get_host_info(machine_id)
-        return connection.os_type == 'Windows'
+        info  = self._get_host_info(machine_id)
+        return info.os_type == 'Windows'
 
 
     def get_all_container(self):
@@ -333,10 +338,21 @@ class ConfigData:
         self.jenkins_master_host_config.container_conf.container_name = 'jenkins-master'
         self.jenkins_master_host_config.container_conf.container_user = 'jenkins'
         self.jenkins_master_host_config.container_conf.container_image_name = 'jenkins-master-image'
+        self.jenkins_master_host_config.container_conf.published_ports = {8080:8080}
+        self.jenkins_master_host_config.container_conf.host_volumes = { self.jenkins_master_host_config.jenkins_home_share : JENKINS_HOME_JENKINS_MASTER_CONTAINER}
+        if not self.jenkins_config.use_unconfigured_jenkins: # Switch off the jenkins configuration wizard at startup when jenkins is configured by the script.
+            self.jenkins_master_host_config.container_conf.envvar_definitions = ['JAVA_OPTS="-Djenkins.install.runSetupWizard=false"']
+
         # cft-web-server
         self.web_server_host_config.container_conf.container_name = 'cpf-web-server'
         self.web_server_host_config.container_conf.container_user = 'root'
         self.web_server_host_config.container_conf.container_image_name = 'cpf-web-server-image'
+        mapped_ssh_port = 23
+        self.web_server_host_config.container_ssh_port = mapped_ssh_port
+        self.web_server_host_config.container_conf.published_ports = {80:80, mapped_ssh_port:22}
+        mapped_ssh_port += 1
+        self.web_server_host_config.container_conf.host_volumes = {self.web_server_host_config.host_html_share_dir : _HTML_SHARE_WEB_SERVER_CONTAINER}
+        
 
         # set names and ips to linux slave container
         ip_index = 4
@@ -361,15 +377,12 @@ class ConfigData:
 
         # set the mapped ssh ports
         forbidden_ports = (80, 8080) # these are already used by jenkins and the webserver
-        mapped_ssh_port = 23
-        self.web_server_host_config.container_conf.mapped_ssh_host_port = mapped_ssh_port
-        mapped_ssh_port += 1
         for slave_config in self.jenkins_slave_configs:
             if self.is_linux_machine(slave_config.machine_id):
                 # do not use ports that are used othervise
                 while mapped_ssh_port in forbidden_ports:
                     mapped_ssh_port += 1
-                slave_config.container_conf.mapped_ssh_host_port = mapped_ssh_port
+                slave_config.container_conf.published_ports = {mapped_ssh_port:22}
                 mapped_ssh_port += 1
 
 
@@ -397,6 +410,7 @@ class JenkinsMasterHostConfig:
         self.jenkins_home_share = PurePosixPath()   # The directory on the host that is shared with the containers home directory.
         self.container_conf = ContainerConfig()     # Information about the container.
 
+
 class ContainerConfig:
     """
     Data class that holds information about a container.
@@ -405,7 +419,9 @@ class ContainerConfig:
         self.container_name = ''            # The name of the container.
         self.container_user = ''            # The name of the user that runs the services in the container.
         self.container_image_name = ''      # The name of the image which is used to instantiate the container.
-        self.mapped_ssh_host_port = None    # The port on the host machine that is mapped to port 22 on the container.
+        self.published_ports = {}           # The key is the port on the host, the value the port in the container.
+        self.host_volumes = {}              # The key is the path on the host, the value the path in the container.
+        self.envvar_definitions = []         # Environment variables that are defined in the container.
 
 
 class WebserverHostConfig:
@@ -414,7 +430,8 @@ class WebserverHostConfig:
     """
     def __init__(self):
         self.machine_id = ''
-        self.host_html_share_dir = PurePosixPath()
+        self.host_html_share_dir = PurePosixPath()      
+        self.container_ssh_port = None                  # The port on the host that is mapped to the containers ssh port.
         self.container_conf = ContainerConfig()
 
 

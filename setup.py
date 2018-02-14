@@ -47,17 +47,9 @@ _CREATEKEYPAIR_SCRIPT = PurePath('createSSHKeyFilePair.sh')
 _ADDKNOWNHOST_SCRIPT = PurePath('addKnownSSHHost.sh')
 _ADDAUTHORIZEDKEYSBITWISESSH_SCRIPT = PurePath('addAuthorizedBitwiseSSHKey.bat')
 
-# directories on jenkins-master
-# This is the location of the jenkins configuration files on the jenkins-master.
-_JENKINS_HOME_JENKINS_MASTER_CONTAINER = PurePosixPath('/var/jenkins_home')
-# This is the location of the html-share volume on the jenkins master.
-_HTML_SHARE_JENKINS_MASTER = _JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath('html')
 
 # directories on jenkins-slave-linux
 _JENKINS_HOME_JENKINS_SLAVE_CONTAINER =  PurePosixPath('/home/jenkins')
-
-# directories on cpf-web-server
-_HTML_SHARE_WEB_SERVER_CONTAINER =  PurePosixPath('/var/www/html')
 
 
 def configure_file(source_file, dest_file, replacement_dictionary):
@@ -138,11 +130,11 @@ class MachinesController:
         _create_rsa_key_file_pair_on_container(
             connection,
             self.config.jenkins_master_host_config.container_conf,
-            _JENKINS_HOME_JENKINS_MASTER_CONTAINER)
+            config_data.JENKINS_HOME_JENKINS_MASTER_CONTAINER)
 
         self._grant_container_ssh_access_to_repository(
             self.config.jenkins_master_host_config.container_conf,
-            _JENKINS_HOME_JENKINS_MASTER_CONTAINER)
+            config_data.JENKINS_HOME_JENKINS_MASTER_CONTAINER)
 
         self._grant_jenkins_master_ssh_access_to_jenkins_linux_slaves()
         self._grant_jenkins_master_ssh_access_to_jenkins_windows_slaves()
@@ -238,8 +230,9 @@ class MachinesController:
     def build_and_start_jenkins_master(self):
 
         connection = self._get_jenkins_master_host_connection()
-        container_name = self.config.jenkins_master_host_config.container_conf.container_name
-        container_image = self.config.jenkins_master_host_config.container_conf.container_image_name
+        container_config = self.config.jenkins_master_host_config.container_conf
+        container_name = container_config.container_name
+        container_image = container_config.container_image_name
 
         # create a directory on the host that contains all files that are needed for the container build
         docker_file = 'DockerfileJenkinsMaster'
@@ -260,30 +253,7 @@ class MachinesController:
             context_dir,
             ['JENKINS_BASE_IMAGE=' + _JENKINS_BASE_IMAGE])
 
-        # Start the container
-        # --env JAVA_OPTS="-Djenkins.install.runSetupWizard=false"
-        # The jenkins master and its slaves communicate over the bridge network.
-        # This means the master and the slaves must be on the same host.
-        # This should later be upgraded to a swarm.
-
-        # When the user already has a jenkins configuration
-        # we add an option that prevents the first startup wizard from popping up.
-        no_setup_wizard_option = ''
-        if not self.config.jenkins_config.use_unconfigured_jenkins:
-            no_setup_wizard_option = '--env JAVA_OPTS="-Djenkins.install.runSetupWizard=false" '
-
-        command = (
-            'docker run '
-            '--detach '
-            # This makes the jenkins home directory accessible on the host. This eases debugging.
-            '--volume ' + str(self.config.jenkins_master_host_config.jenkins_home_share) + ':' + str(_JENKINS_HOME_JENKINS_MASTER_CONTAINER) + ' '
-            + no_setup_wizard_option +
-            # The jenkins webinterface is available under this port.
-            '--publish 8080:8080 '
-            '--name ' + container_name + ' '
-            + container_image
-        )
-        connection.run_command(command, print_command=True)
+        dockerutil.docker_run_detached(connection, container_config)
 
         # add global gitconfig after mounting the workspace volume, otherwise is gets deleted.
         commands = [
@@ -301,8 +271,8 @@ class MachinesController:
     def build_and_start_web_server(self):
         machine_id = self.config.web_server_host_config.machine_id
         connection = self.connections.get_connection(machine_id)
-        container_name = self.config.web_server_host_config.container_conf.container_name
-        container_image = self.config.web_server_host_config.container_conf.container_image_name
+        container_config = self.config.web_server_host_config.container_conf
+        container_image = container_config.container_image_name
         
         # create build context
         docker_file = 'DockerfileCPFWebServer'
@@ -328,19 +298,11 @@ class MachinesController:
             )
 
         # start container
-        command = (
-            'docker run '
-            '--detach '
-            '--publish 80:80 '      # The web-page is reached under port 80
-            '--publish ' + str(self.config.web_server_host_config.container_conf.mapped_ssh_host_port) + ':22 ' # publish the port of the ssh server
-            '--volume ' + str(self.config.web_server_host_config.host_html_share_dir) + ':' + str(_HTML_SHARE_WEB_SERVER_CONTAINER) + ' '
-            '--name ' + container_name + ' '
-            + container_image
-        )
-        connection.run_command(command, print_command=True)
+        dockerutil.docker_run_detached(connection, container_config)
 
         # copy the doxyserach.cgi to the html share
-        cgi_bin_dir = _HTML_SHARE_WEB_SERVER_CONTAINER.joinpath('cgi-bin')
+        html_share_container = next(iter(container_config.host_volumes.values()))
+        cgi_bin_dir = html_share_container.joinpath('cgi-bin')
         commands = [
             'rm -fr ' + str(cgi_bin_dir),
             'mkdir ' + str(cgi_bin_dir),
@@ -395,15 +357,8 @@ class MachinesController:
                 []
                 )
 
-        # Start the container.
-        command = (
-            'docker run '
-            '--detach '
-            '--name ' + container_conf.container_name + ' '
-            '--publish ' + str(container_conf.mapped_ssh_host_port) + ':22 '
-            + container_image
-        )
-        connection.run_command(command, print_command=True)
+            # Start the container.
+            dockerutil.docker_run_detached(connection, container_conf)
 
 
     def _create_rsa_key_file_pairs_on_slave_container(self):
@@ -490,12 +445,17 @@ class MachinesController:
                 authorized_keys_file = _JENKINS_HOME_JENKINS_SLAVE_CONTAINER.joinpath('.ssh/authorized_keys')
                 # add the masters public key to the authorized keys file of the slave
                 fileutil.rtocontainercopy(master_host_connection, slave_connection, slave_config.container_conf, public_key_file_master_host, authorized_keys_file)
+                
                 # authenticate the slave ssh host with the master
+                # we rely her on the fact that the slave container only have one published port
+                # which is the ssh port
+                if not len(slave_config.container_conf.published_ports.keys()) == 1:
+                    raise Exception('Function assumes only one published port for slave containers')
                 _accept_remote_container_host_key(
                     master_host_connection, 
                     self.config.jenkins_master_host_config.container_conf, 
                     slave_connection.info.host_name, 
-                    slave_config.container_conf.mapped_ssh_host_port, 
+                    next(iter(slave_config.container_conf.published_ports.keys())),
                     slave_config.container_conf.container_user
                     )
 
@@ -518,7 +478,7 @@ class MachinesController:
         full_authorized_keys_script = _SCRIPT_DIR.joinpath(authorized_keys_script)
 
         master_connection = self._get_jenkins_master_host_connection()
-        public_key_file_master = _JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath('.ssh/' + _get_public_key_filename(master_container) )
+        public_key_file_master = config_data.JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath('.ssh/' + _get_public_key_filename(master_container) )
         public_key = dockerutil.run_command_in_container(
             master_connection,
             self.config.jenkins_master_host_config.container_conf,
@@ -572,7 +532,7 @@ class MachinesController:
 
         master_container_config = self.config.jenkins_master_host_config.container_conf
         master_container = master_container_config.container_name
-        master_public_key_file = _JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath('.ssh/' + _get_public_key_filename(master_container))
+        master_public_key_file = config_data.JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath('.ssh/' + _get_public_key_filename(master_container))
         master_host_connection = self._get_jenkins_master_host_connection()
         
         authorized_keys_file = PurePosixPath('/root/.ssh/authorized_keys')
@@ -606,7 +566,7 @@ class MachinesController:
             master_host_connection, 
             master_container_config, 
             webserver_host_connection.info.host_name, 
-            webserver_container_config.mapped_ssh_host_port, 
+            self.config.web_server_host_config.container_ssh_port, 
             webserver_container_config.container_user
         )
 
@@ -662,7 +622,7 @@ class MachinesController:
             _SCRIPT_DIR.joinpath('JenkinsConfig'),
             connection,
             self.config.jenkins_master_host_config.container_conf,
-            _JENKINS_HOME_JENKINS_MASTER_CONTAINER
+            config_data.JENKINS_HOME_JENKINS_MASTER_CONTAINER
         )
 
 
@@ -689,7 +649,7 @@ class MachinesController:
         master_connection = self._get_jenkins_master_host_connection()
 
         config_file_dir = config_file.parent
-        jobs_config_dir = _JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath(config_dir)
+        jobs_config_dir = config_data.JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath(config_dir)
         for config_item in config_items:
             if config_file_dir:
                 sourceconfig_file = config_file_dir.joinpath(config_item.xml_file)
@@ -725,11 +685,17 @@ class MachinesController:
         for slave_config in self.config.jenkins_slave_configs:
             slave_host_connection = self.connections.get_connection(slave_config.machine_id)
             if self.config.is_linux_machine(slave_config.machine_id):
+                
+                # we rely her on the fact that the slave container only have one published port
+                # which is the ssh port
+                if not len(slave_config.container_conf.published_ports.keys()) == 1:
+                    raise Exception('Function assumes only one published port for slave containers')
+                
                 # create config file for the linux slave
                 linux_slave_start_command = _get_slave_start_command(
                     slave_host_connection,
                     slave_config.container_conf.container_user,
-                    slave_config.container_conf.mapped_ssh_host_port,
+                    next(iter(slave_config.container_conf.published_ports.keys())),
                     '/home/jenkins/bin'
                 )
                 self._configure_node_config_file(
@@ -798,7 +764,7 @@ class MachinesController:
 
         # copy the file to the master container
         master_connection = self._get_jenkins_master_host_connection()
-        nodes_dir = _JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath('nodes')
+        nodes_dir = config_data.JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath('nodes')
         node_dir = nodes_dir.joinpath(slave_name)
         target_file = node_dir.joinpath(createdconfig_file.name)
         fileutil.copy_textfile_to_container(

@@ -53,15 +53,20 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_master_host_config.container_conf.container_name, 'jenkins-master')
         self.assertEqual( sut.jenkins_master_host_config.container_conf.container_user, 'jenkins')
         self.assertEqual( sut.jenkins_master_host_config.container_conf.container_image_name, 'jenkins-master-image')
-        self.assertEqual( sut.jenkins_master_host_config.container_conf.mapped_ssh_host_port, None)
+        self.assertEqual( sut.jenkins_master_host_config.container_conf.published_ports, {8080:8080})
+        self.assertEqual( sut.jenkins_master_host_config.container_conf.host_volumes, { PurePosixPath('/home/fritz/jenkins_home') : PurePosixPath('/var/jenkins_home')})
+        self.assertEqual( sut.jenkins_master_host_config.container_conf.envvar_definitions, ['JAVA_OPTS="-Djenkins.install.runSetupWizard=false"']) 
         
         # web server host data
         self.assertEqual( sut.web_server_host_config.machine_id, 'MyMaster')
         self.assertEqual( sut.web_server_host_config.host_html_share_dir, PurePosixPath('/home/fritz/cpf_html_share'))
+        self.assertEqual( sut.web_server_host_config.container_ssh_port, 23)
         self.assertEqual( sut.web_server_host_config.container_conf.container_name, 'cpf-web-server')
         self.assertEqual( sut.web_server_host_config.container_conf.container_user, 'root')
         self.assertEqual( sut.web_server_host_config.container_conf.container_image_name, 'cpf-web-server-image')
-        self.assertEqual( sut.web_server_host_config.container_conf.mapped_ssh_host_port, 23)
+        self.assertEqual( sut.web_server_host_config.container_conf.published_ports, {80:80, 23:22})
+        self.assertEqual( sut.web_server_host_config.container_conf.host_volumes, {PurePosixPath('/home/fritz/cpf_html_share') : PurePosixPath('/var/www/html')})
+        self.assertEqual( sut.web_server_host_config.container_conf.envvar_definitions, [])
 
         # repository host data
         self.assertEqual( sut.repository_host_config.machine_id , 'MyMaster')
@@ -74,7 +79,9 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_slave_configs[0].container_conf.container_name , 'jenkins-slave-linux-0')
         self.assertEqual( sut.jenkins_slave_configs[0].container_conf.container_user , 'jenkins')
         self.assertEqual( sut.jenkins_slave_configs[0].container_conf.container_image_name , 'jenkins-slave-linux-image')
-        self.assertEqual( sut.jenkins_slave_configs[0].container_conf.mapped_ssh_host_port , 24)
+        self.assertEqual( sut.jenkins_slave_configs[0].container_conf.published_ports , {24:22})
+        self.assertEqual( sut.jenkins_slave_configs[0].container_conf.host_volumes , {})
+        self.assertEqual( sut.jenkins_slave_configs[0].container_conf.envvar_definitions , [])
 
         self.assertEqual( sut.jenkins_slave_configs[1].machine_id , 'MyMaster')
         self.assertEqual( sut.jenkins_slave_configs[1].slave_name , 'CPF-' + cpfmachines_version.CPFMACHINES_VERSION + '-linux-slave-1' )
@@ -82,7 +89,9 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_slave_configs[1].container_conf.container_name , 'jenkins-slave-linux-1')
         self.assertEqual( sut.jenkins_slave_configs[1].container_conf.container_user , 'jenkins')
         self.assertEqual( sut.jenkins_slave_configs[1].container_conf.container_image_name , 'jenkins-slave-linux-image')
-        self.assertEqual( sut.jenkins_slave_configs[1].container_conf.mapped_ssh_host_port , 25)
+        self.assertEqual( sut.jenkins_slave_configs[1].container_conf.published_ports , {25:22})
+        self.assertEqual( sut.jenkins_slave_configs[1].container_conf.host_volumes , {})
+        self.assertEqual( sut.jenkins_slave_configs[1].container_conf.envvar_definitions , [])
 
         self.assertEqual( sut.jenkins_slave_configs[2].machine_id , 'MyWindowsSlave')
         self.assertEqual( sut.jenkins_slave_configs[2].slave_name , 'CPF-' + cpfmachines_version.CPFMACHINES_VERSION + '-windows-slave-0' )
