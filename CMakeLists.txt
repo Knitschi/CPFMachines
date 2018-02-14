@@ -10,7 +10,6 @@ cpfInitPackageProject(
 
 set( sources
     documentation/CPFMachines.dox
-    addKnownSSHHost.sh
     buildCMake.sh
     buildCurl.sh
     buildDoxygen.sh
