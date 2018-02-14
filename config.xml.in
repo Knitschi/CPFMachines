@@ -131,6 +131,13 @@ serializes the integration of new commits and the versioning mechanics rely on i
 </description>
           <defaultValue>$BUILD_REPOSITORY</defaultValue>
         </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>webserverHost</name>
+          <description>The name of the machine that hosts the cfp-web-server container.
+This parameter is not supposed to be changed by the user.
+</description>
+          <defaultValue>$WEBSERVER_HOST</defaultValue>
+        </hudson.model.StringParameterDefinition>
       </parameterDefinitions>
     </hudson.model.ParametersDefinitionProperty>
     <org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty/>

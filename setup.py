@@ -46,28 +46,30 @@ def main(config_file):
         config_file = os.getcwd() + '/' + config_file
 
     # read .json config file
-    config_values = _readconfig_file(config_file)
+    config_dict = config_data.read_json_file(config_file)
+    config = config_data.ConfigData(config_dict)
     config_file_dir = os.path.dirname(config_file)
     temp_config_file = 'TempConfig.json'
     abs_temp_config_file = config_file_dir + '/' + temp_config_file
 
     # create the job .xml files that are used by jenkins.
-    cpf_jobs_dict = config_values[config_data.KEY_JENKINS_CONFIG][config_data.KEY_CPF_JOBS]
     temp_dir = 'temp'
     abs_temp_dir = config_file_dir + '/' + temp_dir
     if not os.path.exists(abs_temp_dir):
         os.makedirs(abs_temp_dir)
+
     job_dict = {}
-    for job_base_name, build_repository in cpf_jobs_dict.items():
-        job_name = get_job_name(job_base_name)
+    for cpf_job_config in config.jenkins_config.cpf_jobs:
+        job_name = get_job_name(cpf_job_config.job_name)
         xml_file = job_name + '.xml'
         xml_file_path = temp_dir + '/' + xml_file
         abs_xml_file_path = abs_temp_dir + '/' + xml_file
         job_dict[job_name] = xml_file_path
-        configure_job_config_file(abs_xml_file_path, job_name, build_repository, _JENKINSJOB_REPOSITORY)
+        webserver_host = config.get_host_info(config.web_server_host_config.machine_id).host_name
+        configure_job_config_file(abs_xml_file_path, job_name, cpf_job_config.repository, _JENKINSJOB_REPOSITORY, webserver_host)
 
     # Extend the config values with the generated jobs.
-    config_values[config_data.KEY_JENKINS_CONFIG][config_data.KEY_JENKINS_JOB_CONFIG_FILES].update(job_dict)
+    config_dict[config_data.KEY_JENKINS_CONFIG][config_data.KEY_JENKINS_JOB_CONFIG_FILES].update(job_dict)
 
     # Extend the config values with the scripts that need to
     # be approved to run the jenkinsfile.
@@ -76,11 +78,11 @@ def main(config_file):
         'method groovy.json.JsonSlurperClassic parseText java.lang.String',
         'staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods matches java.lang.String java.util.regex.Pattern'
     ]
-    config_values[config_data.KEY_JENKINS_CONFIG][config_data.KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES].extend(approved_script_signatures)
+    config_dict[config_data.KEY_JENKINS_CONFIG][config_data.KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES].extend(approved_script_signatures)
     
     # Write extended config to a temporary config file for the setup script from CPFMachines.
     with open(abs_temp_config_file, 'w') as outfile:
-        json.dump(config_values, outfile)
+        json.dump(config_dict, outfile)
 
     # run the setup script from CPFMachines
     setup.main(temp_config_file)
@@ -97,7 +99,7 @@ def get_job_name(job_base_name):
     return job_base_name + '-' + cpfjenkinsjob_version.CPFJENKINSJOB_VERSION
 
 
-def configure_job_config_file(xml_file_path, job_name, build_repository_address, jenkinsjob_repository_address):
+def configure_job_config_file(xml_file_path, job_name, build_repository_address, jenkinsjob_repository_address, webserver_host):
     """
     Fills in the blanks in the config file and copies it to the given job
     directory.
@@ -108,15 +110,9 @@ def configure_job_config_file(xml_file_path, job_name, build_repository_address,
         '$JOB_NAME' : job_name,
         '$JENKINSFILE_TAG_OR_BRANCH' : tag_or_branch,
         '$BUILD_REPOSITORY' : build_repository_address,
-        '$JENKINSJOB_REPOSITORY' : jenkinsjob_repository_address
+        '$JENKINSJOB_REPOSITORY' : jenkinsjob_repository_address,
+        '$WEBSERVER_HOST' : webserver_host,
     })
-
-
-def _readconfig_file(config_file):
-    print('----- Read configuration file ' + config_file)
-    with open(config_file) as file:
-        data = json.load(file)
-    return data
 
 
 def _configure_file(source_file, dest_file, replacement_dictionary):
