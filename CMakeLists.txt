@@ -10,17 +10,18 @@ cpfInitPackageProject(
 )
 
 set( sources 
+    documentation/CPFJenkinsjob.dox
+    add_jenkinsjob.py
     config.xml.in
+    cpfjenkinsjob_version.py
+    deploy_githooks.py
+    hook_config_tests.py
+    hook_config.py
+    JenkinsPipelineScript.groovy
     post-receive.in
     README.md
-    JenkinsPipelineScript.groovy
-    add_jenkinsjob.py
-    deploy_githooks.py
-    GitHookConfigTemplate.json
+    run_tests.py
     setup.py
-    cpfjenkinsjob_version.py
-    hook_config.py
-    hook_config_tests.py
 )
 
 add_custom_target( 
