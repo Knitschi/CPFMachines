@@ -19,6 +19,8 @@ set( sources
     GitHookConfigTemplate.json
     setup.py
     cpfjenkinsjob_version.py
+    hook_config.py
+    hook_config_tests.py
 )
 
 add_custom_target( 
