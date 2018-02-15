@@ -7,9 +7,11 @@ The CPF infrastructure includes a Jenkins server, build slaves and a web-server 
 This package provides a python script for setting up these servers. The setup script requires a user provided configuration file
 and ssh access to all involved machines in the network. 
 
-# Usage #
+<HR>
 
-## Requirements ##
+\section CPFMachinesUsageSection Usage
+
+\subsection CPFMachinesRequirementsSubsection Requirements
 
 - At least one Linux Machine.
 - For Windows builds, an additional Windows machine is required.
@@ -22,15 +24,50 @@ and ssh access to all involved machines in the network.
 
 \todo Setup infrastructure on fresh systems and complete the list.
 
-## Creating a config file ##
 
-The setup script reads a config file that can be used to define the number and location of build-slave, some jenkins configuration etc.
+\subsection CPFMachinesSetupSubsection Setting up the infrastructure
+
+After setting up the host-machines and getting the CPFMachines package, 
+you are ready to set up the servers that are involved in the CPF infrastructure.
+If you want to use the infrastructure for multiple projects, it is recommended
+that you create an extra CPF-project that holds the configuration files that
+are needed when running the setup scripts. If you use the jenkins server for a
+single CPF-project you can add the configuration files to the global files if 
+that project. In both cases you will have to add the CPFMachines and most likely
+the CPFJenkinsjob package to the CPF-project that holds the configuration files.
 
 
-\todo Describe how to generate an empty file and add documentation of parameters here.
+\subsubsection CPFMachinesConfigurationsSubsubsection Machine configuration
+
+\todo Automatically add the content of the example config file here and manually add comments.
 
 
-# Problems #
+\subsubsection CPFMachinesRunningSubsubsection Running the script
+
+When you added the configuration file to the project, you are ready to go.
+Start the setup script by running
+
+\code{.sh}
+python -m Sources.CPFMachines.setup Sources/MyCPFMachinesConfig.json
+\endcode
+
+in the root directory of your project. This may take some time because some of
+the tools required for the pipeline build need to be compiled while setting up
+the docker container. If everything went well the script ends with the output
+
+\code{.sh}
+Successfully startet jenkins master, build slaves and the documentation server.
+\endcode
+
+If you used the example config file, you should now be able to access the Jenkins
+web-interface under [http://MyMaster:8080](http://MyMaster:8080) and the projects
+web-server under [http://MyMaster:80](http://MyMaster:80). However, the links to your
+projects will only work after running their build-jobs.
+
+\todo Change webserver file structure, that multiple project pages can be served (serachindex?)
+and an index.html in the base directory provides links to the single projects.
+
+\section CPFMachinesProblemsSection Problems
 
 - Machine names in the config.json files should be given in lower case only, or problems with authenticating ssh server hosts can occur.
 - I was not able to make name resolution for windows machines in the host network work inside the docker containers. The machine names for the windows build-slaves
