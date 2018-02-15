@@ -15,17 +15,17 @@ class ConnectionsHolder:
     This class holds the ssh connections to all the host machines in the CPF infrastucture.
     """
 
-    def __init__(self, config):
+    def __init__(self, host_machine_infos):
         self._connection_holders = {}
-        self._establish_host_machine_connections(config)
+        self._establish_host_machine_connections(host_machine_infos)
 
 
-    def _establish_host_machine_connections(self,config):
+    def _establish_host_machine_connections(self, host_machine_infos):
         """
         Reads the machine login date from a config file dictionary.
         Returns a map that contains machine ids as keys and HostMachineInfo objects as values.
         """
-        for info in config.host_machine_infos:
+        for info in host_machine_infos:
             self._connection_holders[info.machine_id] = ConnectionHolder(info)
 
 
@@ -39,7 +39,7 @@ class ConnectionHolder:
     closes them when deleted.
     """
 
-    _CONNECTION_TIMEOUT = 2
+    _CONNECTION_TIMEOUT = 10
     _DEFAULT_SSH_PORT = 22
 
     @property
@@ -72,7 +72,7 @@ class ConnectionHolder:
                 timeout=self._CONNECTION_TIMEOUT
             )
         except Exception as err:
-            print('Failed to connect to ssh account {0}@{1}'.format(self.info.user_name, self.info.host_name))
+            print('Failed to connect to ssh account {0}@{1} with {2} seconds timeout'.format(self.info.user_name, self.info.host_name, self._CONNECTION_TIMEOUT))
             raise err
 
         self.sftp_client = self._ssh_client.open_sftp()

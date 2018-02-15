@@ -81,7 +81,7 @@ def main(config_file):
     config = config_data.ConfigData(config_dict)
 
     print('----- Establish ssh connections to host machines')
-    connections = ConnectionsHolder(config)
+    connections = ConnectionsHolder(config.host_machine_infos)
 
     # Create the object that does the work.
     controller = MachinesController(config, connections)

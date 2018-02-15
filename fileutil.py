@@ -5,6 +5,7 @@ Contains functions for fileoperations between the local machine, host machines a
 import stat
 import os
 import shutil
+import platform
 from pathlib import PureWindowsPath, PurePosixPath, PurePath
 
 from .connections import ConnectionHolder
@@ -99,12 +100,12 @@ def copy_textfile_from_local_to_linux(connection, source_path, target_path):
     convention after the copy.
     """
     copy_file_from_local_to_remote(connection.sftp_client, source_path, target_path)
-    # Remove \r from file from windows line endings.
-    # This may be necessary when the machine that executes this script
-    # is a windows machine.
-    temp_file = target_path.parent.joinpath('temp.txt')
-    format_line_endings_command = "tr -d '\r' < '{0}' > '{1}' && mv {1} {0}".format(str(target_path), str(temp_file))
-    connection.run_command(format_line_endings_command)
+    
+    # Remove \r from file from windows line endings if the script is executed on windows.
+    if platform.system() == 'Windows':
+        temp_file = target_path.parent.joinpath('temp.txt')
+        format_line_endings_command = "tr -d '\r' < '{0}' > '{1}' && mv {1} {0}".format(str(target_path), str(temp_file))
+        connection.run_command(format_line_endings_command)
 
 
 def copy_file_from_local_to_remote(sftp_client, source_path, target_path):
@@ -147,4 +148,12 @@ def clear_dir(directory):
     if os.path.isdir(str(directory)):
         shutil.rmtree(str(directory))
     os.makedirs(str(directory))
+
+
+def make_remote_file_executable(connection, file):
+    if not connection.info.is_linux_machine():
+        raise Exception('Function must be extended for non linux os')
+
+    connection.run_command('chmod +x "{0}"'.format(file))
+    
 

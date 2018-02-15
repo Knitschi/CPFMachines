@@ -85,13 +85,11 @@ class ConfigData:
 
 
     def is_linux_machine(self, machine_id):
-        info  = self.get_host_info(machine_id)
-        return info.os_type == 'Linux'
+        return self.get_host_info(machine_id).is_linux_machine()
 
 
     def is_windows_machine(self, machine_id):
-        info  = self.get_host_info(machine_id)
-        return info.os_type == 'Windows'
+        return self.get_host_info(machine_id).is_windows_machine()
 
 
     def get_all_container(self):
@@ -151,22 +149,7 @@ class ConfigData:
         """
         host_machines = _get_checked_value(self._config_file_dict, KEY_LOGIN_DATA)
         for machine_dict in host_machines:
-            machine = HostMachineInfo()
-            machine.machine_id = _get_checked_value(machine_dict, KEY_MACHINE_ID)
-            machine.host_name = _get_checked_value(machine_dict, KEY_MACHINE_NAME)
-            machine.user_name = _get_checked_value(machine_dict, KEY_USER)
-            if KEY_PASSWORD in machine_dict: # password is optional
-                machine.user_password = machine_dict[KEY_PASSWORD]
-            machine.os_type = _get_checked_value(machine_dict, KEY_OSTYPE)
-
-            if machine.os_type == "Windows":
-                machine.temp_dir = PureWindowsPath(_get_checked_value(machine_dict, KEY_TEMPDIR))
-            elif machine.os_type == "Linux":
-                machine.temp_dir = PurePosixPath(_get_checked_value(machine_dict, KEY_TEMPDIR))
-            else:
-                raise Exception('Function needs to be extended to handle os type ' + machine.os_type)
-
-            self.host_machine_infos.append(machine)
+            self.host_machine_infos.append(HostMachineInfo(machine_dict))
 
 
     def _read_jenkins_master_host_config(self):
@@ -392,13 +375,29 @@ class HostMachineInfo:
     Objects of this class hold the information that is required for an ssh login
     """
 
-    def __init__(self):
-        self.machine_id = ''
-        self.host_name = ''
-        self.user_name = ''
+    def __init__(self, host_info_dict):
+        self.machine_id = _get_checked_value(host_info_dict, KEY_MACHINE_ID)
+        self.host_name = _get_checked_value(host_info_dict, KEY_MACHINE_NAME)
+        self.user_name = _get_checked_value(host_info_dict, KEY_USER)
+        
         self.user_password = ''
-        self.os_type = ''
+        if KEY_PASSWORD in host_info_dict: # password is optional
+            self.user_password = host_info_dict[KEY_PASSWORD]
+        
+        self.os_type = _get_checked_value(host_info_dict, KEY_OSTYPE)
         self.temp_dir = None
+        if self.os_type == "Windows":
+            self.temp_dir = PureWindowsPath(_get_checked_value(host_info_dict, KEY_TEMPDIR))
+        elif self.os_type == "Linux":
+            self.temp_dir = PurePosixPath(_get_checked_value(host_info_dict, KEY_TEMPDIR))
+        else:
+            raise Exception('Function needs to be extended to handle os type ' + self.os_type)
+
+    def is_windows_machine(self):
+        return self.os_type == "Windows"
+
+    def is_linux_machine(self):
+        return self.os_type == "Linux"
 
 
 class JenkinsMasterHostConfig:
