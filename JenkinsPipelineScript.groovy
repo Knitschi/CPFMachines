@@ -112,11 +112,11 @@ def addRepositoryOperationsStage( repository, mainBranch, createTempBranch, deve
 def getBuildConfigurations()
 {
     // read the CiBuiltConfigurations.json file
-    def fileContent = readFile(file:"${CHECKOUT_FOLDER}/Sources/CIBuildConfigurations.json")
+    def fileContent = readFile(file:"${CHECKOUT_FOLDER}/Sources/cpfCIBuildConfigurations.json")
     def configurations = new JsonSlurperClassic().parseText(fileContent)
     if(configurations.isEmpty())
     {
-        echo "Error! The CIBuildConfigurations.json file does not seem to contain any build configurations."
+        echo "Error! The cpfCIBuildConfigurations.json file does not seem to contain any build configurations."
         throw new Exception('No build configurations defined.')
     }
 
@@ -150,7 +150,7 @@ def assertConfigurationExists(configurations, requestedConfig)
 
     if(!configNames.contains(requestedConfig))
     {
-        echo "Error! Requested configuration ${requestedConfig} is not contained in the CIBuildConfigurations.json file."
+        echo "Error! Requested configuration ${requestedConfig} is not contained in the cpfCIBuildConfigurations.json file."
         def configurationsString = configNames.join(', ')
         echo "Available configurations are ${configurationsString}"
         currentBuild.result = 'FAILURE'

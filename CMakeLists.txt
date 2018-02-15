@@ -13,12 +13,12 @@ set( sources
     config.xml.in
     post-receive.in
     README.md
-    instantiateJob.cmake
-    triggerJenkinsjob.sh
     JenkinsPipelineScript.groovy
-    addJenkinsJob.py
-    deployGitHooks.py
+    add_jenkinsjob.py
+    deploy_githooks.py
     GitHookConfigTemplate.json
+    setup.py
+    cpfjenkinsjob_version.py
 )
 
 add_custom_target( 
