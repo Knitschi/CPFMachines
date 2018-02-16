@@ -87,7 +87,7 @@ def main(config_file):
     controller = MachinesController(config, connections)
 
     # prepare environment
-    print('----- Cleanup existing docker container and networks')
+    print('----- Cleanup existing docker container and shared directories')
     controller.prepare_host_environment()
 
     # build container

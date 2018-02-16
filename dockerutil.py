@@ -84,7 +84,8 @@ def docker_run_detached(host_connection, container_config):
     command = (
         'docker run '
         '--detach '
-        '--name ' + container_config.container_name + ' '
+        '--name ' + container_config.container_name + ' ' +
+        '--restart unless-stopped '
         + publish_port_args 
         + volume_args
         + env_args
