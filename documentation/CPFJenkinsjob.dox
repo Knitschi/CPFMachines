@@ -55,9 +55,11 @@ when pushing commits to an integration branch of the build repository or one of 
 To do an integration job following parameters must be set:
 
 - <b>branchOrTag:</b> origin/\<name\>-int-\<MainBranch\>
-- <b>package:</b>     If a package was changed, this must be set to the package name.
+- <b>task:</b> integration
+- <b>package:</b>   If a package was changed, this must be set to the package name.
                     Note that this must be a package that has its versioning handled by
                     this build project.
+
 
 all other can be left at their defaults.
 
@@ -81,11 +83,11 @@ all other can be left at their defaults.
 
 Sometimes it is necessary to rebuild an already integrated commit in order to recreate build artifacts.
 In this mode, the job will not touch the version tags are changed. This will also update the projects web-page.
+When none of the jobs default parameters are changed, it executes this task for the master branch.
 
 To rebuild an existing commit the following parameters must be set:
 
 - <b>branchOrTag:</b>  \<version-tag\>
-- <b>task:</b>         rebuild
 
 all other can be left at their defaults.
 
