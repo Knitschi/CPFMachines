@@ -8,8 +8,7 @@ cpfInitPackageProject(
 	${PACKAGE_NAMESPACE}
 )
 
-set( sources
-    documentation/CPFMachines.dox
+set( otherFiles
     buildCMake.sh
     buildCurl.sh
     buildDoxygen.sh
@@ -17,36 +16,47 @@ set( sources
     BuildHostLinux/shutdownVms
     BuildHostLinux/shutdownVms.service
     buildQt.sh
-    cpfmachines_version.py
     createSSHKeyFilePair.sh
     DockerfileCPFWebServer
     DockerfileJenkinsMaster
     DockerfileJenkinsSlaveLinux
+    documentation/CPFMachines.dox
     installAbiComplianceChecker.sh
     installClangTools.sh
     installCTags.sh
     installGcc.sh
-    JenkinsConfig/secrets/slave-to-master-security-kill-switch
     JenkinsConfig/config.xml
     JenkinsConfig/jenkins.CLI.xml 
     JenkinsConfig/jenkins.model.DownloadSettings.xml
     JenkinsConfig/jenkins.security.UpdateSiteWarningsConfiguration.xml
     JenkinsConfig/org.jenkinsci.plugins.xvfb.Xvfb.xml
+    JenkinsConfig/secrets/slave-to-master-security-kill-switch
     jenkinsSlaveNodeConfig.xml.in
     serve-cgi-bin.conf
-    setup.py
     slave.jar
     ssh_config
     supervisord.conf
     updateAuthorizedKeysBitvise.bat.in
-    jenkins_remote_access.py
+)
+
+set( pythonFiles
+    config_data_tests.py
+    config_data.py
     connections.py
+    cpfmachines_version.py
     dockerutil.py
     fileutil.py
+    jenkins_remote_access.py
+    run_tests.py
+    setup.py
 )
 
 add_custom_target( 
     ${PACKAGE_NAME}
-    SOURCES ${sources}
+    SOURCES ${otherFiles} ${pythonFiles}
 )
 set_property( TARGET ${PACKAGE_NAME} PROPERTY FOLDER ${PACKAGE_NAME} )
+
+
+# Add a runAllTests target to run the unit tests.
+cpfAddRunPython3TestTarget( ${PACKAGE_NAME} run_tests.py ${pythonFiles} )
