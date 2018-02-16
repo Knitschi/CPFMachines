@@ -29,6 +29,7 @@ netcat \
 tree \
 unzip \
 python3 \
+python3-pip \
 xvfb \
 graphviz \
 valgrind \
@@ -115,6 +116,14 @@ RUN chown -R jenkins:jenkins /home/jenkins/bin
 
 RUN apt-get update &&\
     apt-get install -y openjdk-8-jdk
+
+# ----------------- PYTHON Modules --------------
+# This should be done in the cmake code of the package-project
+RUN python3 -m pip install \
+paramiko \
+requests
+
+
 
 # Run the sshd server as command to keep the container alive.
 CMD ["/usr/sbin/sshd", "-D"]
