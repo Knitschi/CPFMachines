@@ -9,23 +9,30 @@ cpfInitPackageProject(
 	${PACKAGE_NAMESPACE}
 )
 
-set( sources 
+set( otherFiles
     documentation/CPFJenkinsjob.dox
-    add_jenkinsjob.py
     config.xml.in
+    JenkinsPipelineScript.groovy
+    post-receive.in
+    README.md
+)
+
+set( pythonFiles
+    add_jenkinsjob.py
     cpfjenkinsjob_version.py
     deploy_githooks.py
     hook_config_tests.py
     hook_config.py
-    JenkinsPipelineScript.groovy
-    post-receive.in
-    README.md
     run_tests.py
     setup.py
 )
 
 add_custom_target( 
     ${PACKAGE_NAME}
-    SOURCES ${sources}
+    SOURCES ${otherFiles} ${pythonFiles}
 )
 set_property( TARGET ${PACKAGE_NAME} PROPERTY FOLDER ${PACKAGE_NAME} )
+
+
+# Add a runAllTests target to run the unit tests.
+cpfAddRunPython3TestTarget( ${PACKAGE_NAME} run_tests.py ${pythonFiles} )
