@@ -112,7 +112,7 @@ def addRepositoryOperationsStage( repository, mainBranch, createTempBranch, deve
 def getBuildConfigurations()
 {
     // read the CiBuiltConfigurations.json file
-    def fileContent = readFile(file:"${CHECKOUT_FOLDER}/Sources/cpfCIBuildConfigurations.json")
+    def fileContent = readFile(file:"${CHECKOUT_FOLDER}/Sources/CIBuildConfigurations/cpfCIBuildConfigurations.json")
     def configurations = new JsonSlurperClassic().parseText(fileContent)
     if(configurations.isEmpty())
     {
