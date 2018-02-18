@@ -32,7 +32,7 @@ function triggerJenkinsJob()
     curl $jenkinsUrl/job/$jenkinsJobName/build \
     --user $jenkinsUser:$jenkinsPassword \
     --header $jenkinsCrumb \
-    --data-urlencode json='{"parameter": [{"name":"branchOrTag", "value":"'$branch'"},{"name":"package", "value":"'$cpfPackage'"}]}'
+    --data-urlencode json='{"parameter": [{"name":"branchOrTag", "value":"'$branch'"},{"name":"packages", "value":"'$cpfPackage'"}]}'
     set +x
 }
 
