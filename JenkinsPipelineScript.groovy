@@ -29,6 +29,8 @@ addUpdateWebPageStage(repository, configurations, params.branchOrTag)
 
 //############################### FUNCTION SECTION ################################
 class Constants {
+    static final CPF_JENKINSJOB_VERSION = '0.0.0' // how can we get this from a generated file?
+    
     // locations
     static final CHECKOUT_FOLDER = 'Check out dir'
     static final CPFCMAKE_DIR = 'CPFCMake'
@@ -44,9 +46,9 @@ def addRepositoryOperationsStage( repository, branchOrTag)
 {
     def usedConfigurations = []
 
-    stage('Create Tmp Branch')
+    stage('Get Build-Configurations')
     {
-        node('Debian-8.9')
+        node(getDebianNodeLabel())
         {
             ws(getRepositoryName(repository))
             {
@@ -62,6 +64,11 @@ def addRepositoryOperationsStage( repository, branchOrTag)
     }
 
     return usedConfigurations
+}
+
+def getDebianNodeLabel()
+{
+    return "Debian-8.9-${CPF_JENKINSJOB_VERSION}-0"
 }
 
 def getBuildConfigurations()
@@ -217,7 +224,7 @@ def addTaggingStage(repository, taggingOption)
 
     stage('Integrate Tmp Branch')
     {
-        node('Debian-8.9')
+        node(getDebianNodeLabel())
         {
             ws(getRepositoryName(repository))
             {
