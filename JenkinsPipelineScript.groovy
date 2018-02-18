@@ -2,6 +2,17 @@
 
 /**
 The jenkins pipeline script for a CPF project.
+
+The script expects the job parameters:
+
+params.buildRepository
+params.branchOrTag
+params.taggingOption
+params.packages
+params.cpfConfiguration
+params.target
+params.webserverHost
+
 */
 
 import static Constants.*
@@ -21,9 +32,9 @@ if( params.target == '')
 parts = params.buildRepository.split(':')
 def repository = parts[0] + ':' + parts[1] + parts[2]
 
-def configurations = addRepositoryOperationsStage(repository, params.branchOrTag)
+def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, params.packages)
 addPipelineStage(configurations, repository, params.branchOrTag, params.target)
-addTaggingStage(repository, params.branchOrTag, params.taggingOption)
+addTaggingStage(repository, params.branchOrTag, params.taggingOption, params.packages)
 addUpdateWebPageStage(repository, configurations, params.branchOrTag)
 
 
@@ -42,7 +53,7 @@ class Constants {
 // Create a temporary branch that contains the the latest revision of the
 // main branch (e.g. master) and merge the revisions into it that were pushed to
 // the developer branch.
-def addRepositoryOperationsStage( repository, branchOrTag)
+def addRepositoryOperationsStage( repository, branchOrTag, packages)
 {
     def usedConfigurations = []
 
@@ -53,9 +64,11 @@ def addRepositoryOperationsStage( repository, branchOrTag)
             ws(getRepositoryName(repository))
             {
                 checkoutBranch(repository, branchOrTag)
-                
+
                 // TODO
-                // Add code changeing script execution here.
+                // - update packages here.
+                // - do code formating here.
+                // - Make and push commit.
 
                 // read the CiBuiltConfigurations.json file
                 usedConfigurations = getBuildConfigurations()
@@ -215,7 +228,7 @@ def createBuildNode( nodeLabel, cpfConfig, repository, tagOrBranch, target, comp
     }
 }
 
-def addTaggingStage(repository, branchOrTag, taggingOption)
+def addTaggingStage(repository, branchOrTag, taggingOption, packages)
 {
     if(taggingOption == 'noTagging')
     {
@@ -231,12 +244,19 @@ def addTaggingStage(repository, branchOrTag, taggingOption)
                 checkoutBranch(repository, branchOrTag)
                 dir(CHECKOUT_FOLDER)
                 {
-                    // TODO Add format target, build it and commit the changes.
-
                     // Merge the tmp branch into the main branch and tag it.
-                    sh "cmake -DROOT_DIR=\"\$PWD\" -DINCREMENT_VERSION_OPTION=${taggingOption} -P Sources/${CPFCMAKE_DIR}/Scripts/addVersionTag.cmake"
-                
-                    echo "----- Added new tag for succefully built commit. -----"
+                    def package = ''
+                    if( taggingOption != 'internal' )
+                    {
+                        if( packages.size() != 1)
+                        {
+                            echo "Tagging a new release can only be done for one package at a time."
+                            throw new Exception('Invalid value for build argument "packages".')
+                        }
+                        package = packages[0]
+                    }
+
+                    sh "cmake -DROOT_DIR=\"\$PWD\" -DINCREMENT_VERSION_OPTION=${taggingOption} -DPACKAGE=\"${package}\" -P Sources/${CPFCMAKE_DIR}/Scripts/addVersionTag.cmake"
                 }
             }
         }

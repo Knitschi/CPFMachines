@@ -43,7 +43,7 @@ Possible values are: noTagging, internal, incrementMajor, incrementMinor, increm
           <defaultValue>internal</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
-          <name>package</name>
+          <name>packages</name>
           <description>Determines the integration target.
 This parameter can be left empty or set to the name of a package subdirectory.
 </description>
