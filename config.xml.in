@@ -36,11 +36,11 @@ Tag: 0.1.3
           <defaultValue>origin/master</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
-          <name>task</name>
-          <description>Determines the operation that the job will do (see job description). 
-Possible values are: integration, rebuild, incrementMajor, incrementMinor, incrementPatch
+          <name>taggingOption</name>
+          <description>Determines if and how a successful build should be tagged. 
+Possible values are: noTagging, internal, incrementMajor, incrementMinor, incrementPatch
 </description>
-          <defaultValue>rebuild</defaultValue>
+          <defaultValue>internal</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>package</name>

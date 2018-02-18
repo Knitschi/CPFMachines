@@ -21,56 +21,15 @@ if( params.target == '')
 parts = params.buildRepository.split(':')
 def repository = parts[0] + ':' + parts[1] + parts[2]
 
-if(params.task == 'integration')
-{
-    // Build a new commit and merge it into the main branch.
-
-    // split branch name to get main branch
-    // We assume here that the branch has a name of the from <developer>-int-<mainBranch>
-    def pathParts = params.branchOrTag.split('/')
-    def branchName = pathParts.last()
-    def parts = branchName.split('-int-')
-    def mainBranch = parts[1]
-    def tempBranch = parts[0] + '-tmp-' + parts[1]
-    def developer = parts[0]
-
-    def configurations = addRepositoryOperationsStage(repository, mainBranch, true, developer)
-    addPipelineStage(configurations, tempBranch, params.target)
-    addUpdateMainBranchStage( developer, mainBranch, tempBranch)
-    addUpdateWebPageStage(repository, configurations, params.branchOrTag)
-}
-else if( params.task == 'rebuild' ) 
-{
-    // Rebuild an existing tag.
-    def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, false, '')
-
-    def configStrings = configurations.join(';')
-    echo configStrings
-
-
-    addPipelineStage(configurations, repository, params.branchOrTag, params.target)
-    addUpdateWebPageStage(repository, configurations, params.branchOrTag)
-}
-else if( params.task == 'incrementMajor' || params.task == 'incrementMinor' || params.task == 'incrementPatch' )
-{
-    // Add a release version tag and rebuild.
-    def pathParts = params.branchOrTag.split('/')
-    def branchName = pathParts.last()
-
-    def configurations = addCreateReleaseTagStage(repository, params.task, branchName)
-    addPipelineStage(configurations, branchName, params.target)
-    addUpdateWebPageStage(repository, configurations, params.branchOrTag)
-}
-else
-{
-    echo "Job parameter \"task\" has invalid value \"${params.task}\"."
-}
+def configurations = addRepositoryOperationsStage(repository, params.branchOrTag)
+addPipelineStage(configurations, repository, params.branchOrTag, params.target)
+addTaggingStage(repository, params.taggingOption)
+addUpdateWebPageStage(repository, configurations, params.branchOrTag)
 
 
 //############################### FUNCTION SECTION ################################
 class Constants {
     // locations
-    static final WEBSERVER_HOST_NAME="root@buildmasterdebian9"
     static final CHECKOUT_FOLDER = 'Check out dir'
     static final CPFCMAKE_DIR = 'CPFCMake'
 
@@ -81,24 +40,20 @@ class Constants {
 // Create a temporary branch that contains the the latest revision of the
 // main branch (e.g. master) and merge the revisions into it that were pushed to
 // the developer branch.
-def addRepositoryOperationsStage( repository, mainBranch, createTempBranch, developer)
+def addRepositoryOperationsStage( repository, branchOrTag)
 {
     def usedConfigurations = []
 
     stage('Create Tmp Branch')
     {
-        node('master')
+        node('Debian-8.9')
         {
             ws(getRepositoryName(repository))
             {
-                checkoutBranch(repository, params.branchOrTag)
-
-                if(createTempBranch)
-                {
-                    // execute the cmake script that does the git operations and changes the source files
-                    echo 'Create temporary build branch'
-                    sh "cmake -DDEVELOPER=${developer} -DMAIN_BRANCH=${mainBranch} -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPFCMAKE_DIR}/Scripts/prepareTmpBranch.cmake\""
-                }
+                checkoutBranch(repository, branchOrTag)
+                
+                // TODO
+                // Add code changeing script execution here.
 
                 // read the CiBuiltConfigurations.json file
                 usedConfigurations = getBuildConfigurations()
@@ -179,19 +134,9 @@ def checkoutBranch(repository, branch)
             submoduleCfg: []
         ]
     )
-
-    /*
-    deleteDir()
-    runCommand("git clone --recursive ${repository} \"${CHECKOUT_FOLDER}\"")
-
-    dir(CHECKOUT_FOLDER){
-        runCommand("git checkout ${branch}")
-        runCommand("git submodule update")
-    }
-    */
 }
 
-def addPipelineStage( cpfConfigs, repository, tempBranch, target)
+def addPipelineStage( cpfConfigs, repository, tagOrBranch, target)
 {
     stage('Build Pipeline')
     {
@@ -205,7 +150,7 @@ def addPipelineStage( cpfConfigs, repository, tempBranch, target)
             echo "Create build node " + config
             def nodeLabel = config.BuildSlaveLabel + '-' + nodeIndex
             echo "Build ${config.ConfigName} under label ${nodeLabel}"
-            def myNode = createBuildNode( nodeLabel, config.ConfigName, repository, tempBranch, target, config?.CompilerConfig)
+            def myNode = createBuildNode( nodeLabel, config.ConfigName, repository, tagOrBranch, target, config?.CompilerConfig)
             parallelNodes[config.ConfigName] = myNode
             nodeIndex++
         }
@@ -215,7 +160,7 @@ def addPipelineStage( cpfConfigs, repository, tempBranch, target)
     }
 }
 
-def createBuildNode( nodeLabel, cpfConfig, repository, builtTagOrBranch, target, compilerConfig)
+def createBuildNode( nodeLabel, cpfConfig, repository, tagOrBranch, target, compilerConfig)
 {
     return { 
         node(nodeLabel)
@@ -225,7 +170,7 @@ def createBuildNode( nodeLabel, cpfConfig, repository, builtTagOrBranch, target,
             
             ws("${getRepositoryName(repository)}-${cpfConfig}") 
             { 
-                checkoutBranch(repository, builtTagOrBranch)
+                checkoutBranch(repository, tagOrBranch)
 
                 dir(CHECKOUT_FOLDER)
                 {
@@ -263,8 +208,13 @@ def createBuildNode( nodeLabel, cpfConfig, repository, builtTagOrBranch, target,
     }
 }
 
-def addUpdateMainBranchStage( repository, developer, mainBranch, tempBranch)
+def addTaggingStage(repository, taggingOption)
 {
+    if(taggingOption == 'noTagging')
+    {
+        return
+    }
+
     stage('Integrate Tmp Branch')
     {
         node('Debian-8.9')
@@ -277,9 +227,9 @@ def addUpdateMainBranchStage( repository, developer, mainBranch, tempBranch)
                     // TODO Add format target, build it and commit the changes.
 
                     // Merge the tmp branch into the main branch and tag it.
-                    sh "cmake -DDEVELOPER=${developer} -DMAIN_BRANCH=${mainBranch} -DROOT_DIR=\"\$PWD\" -P Sources/${CPFCMAKE_DIR}/Scripts/integrateTmpBranch.cmake"
+                    sh "cmake -DROOT_DIR=\"\$PWD\" -DINCREMENT_VERSION_OPTION=${taggingOption} -P Sources/${CPFCMAKE_DIR}/Scripts/addVersionTag.cmake"
                 
-                    echo "----- The commits from branch ${params.branchOrTag} were successfully integrated into the main branch. -----"
+                    echo "----- Added new tag for succefully built commit. -----"
                 }
             }
         }
