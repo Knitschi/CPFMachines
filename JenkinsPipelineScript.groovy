@@ -23,7 +23,7 @@ def repository = parts[0] + ':' + parts[1] + parts[2]
 
 def configurations = addRepositoryOperationsStage(repository, params.branchOrTag)
 addPipelineStage(configurations, repository, params.branchOrTag, params.target)
-addTaggingStage(repository, params.taggingOption)
+addTaggingStage(repository, params.branchOrTag, params.taggingOption)
 addUpdateWebPageStage(repository, configurations, params.branchOrTag)
 
 
@@ -215,7 +215,7 @@ def createBuildNode( nodeLabel, cpfConfig, repository, tagOrBranch, target, comp
     }
 }
 
-def addTaggingStage(repository, taggingOption)
+def addTaggingStage(repository, branchOrTag, taggingOption)
 {
     if(taggingOption == 'noTagging')
     {
@@ -228,7 +228,7 @@ def addTaggingStage(repository, taggingOption)
         {
             ws(getRepositoryName(repository))
             {
-                checkoutBranch(repository, tempBranch)
+                checkoutBranch(repository, branchOrTag)
                 dir(CHECKOUT_FOLDER)
                 {
                     // TODO Add format target, build it and commit the changes.
