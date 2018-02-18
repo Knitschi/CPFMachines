@@ -25,31 +25,15 @@ function triggerJenkinsJob()
 {
     branch=$1
 
-    # filter out pushes that do noot seem to belong to an integration branch
-    filterPattern="^.*-int-.*$"
+    echo "Trigger jenkins job" $jenkinsJobName "for branch" $branch
 
-    if [[ "$branch" =~ $filterPattern ]]; then 
-        echo "Trigger integration jenkins job" $jenkinsJobName "for branch" $branch
-
-        # Trigger the parameterized build-job and pass it the branch name as argument.
-        set -x
-        curl $jenkinsUrl/job/$jenkinsJobName/build \
-        --user $jenkinsUser:$jenkinsPassword \
-        --header $jenkinsCrumb \
-        --data-urlencode json='{"parameter": [{"name":"branchOrTag", "value":"'$branch'"},{"name":"package", "value":"'$cpfPackage'"}]}'
-        set +x
-    
-    else
-        echo "Trigger jenkins job" $jenkinsJobName "for branch" $branch
-
-        # Trigger the parameterized build-job and pass it the branch name as argument.
-        set -x
-        curl $jenkinsUrl/job/$jenkinsJobName/build \
-        --user $jenkinsUser:$jenkinsPassword \
-        --header $jenkinsCrumb \
-        --data-urlencode json='{"parameter": [{"name":"branchOrTag", "value":"'$branch'"},{"name":"package", "value":"'$cpfPackage'"},{"name":"task", "value":"rebuild"}]}'
-        set +x
-    fi
+    # Trigger the parameterized build-job and pass it the branch name as argument.
+    set -x
+    curl $jenkinsUrl/job/$jenkinsJobName/build \
+    --user $jenkinsUser:$jenkinsPassword \
+    --header $jenkinsCrumb \
+    --data-urlencode json='{"parameter": [{"name":"branchOrTag", "value":"'$branch'"},{"name":"package", "value":"'$cpfPackage'"}]}'
+    set +x
 }
 
 # The information about pushed branches is given to script over the input stream
