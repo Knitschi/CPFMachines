@@ -248,12 +248,15 @@ def addTaggingStage(repository, branchOrTag, taggingOption, packages)
                     def releasedPackage = ""
                     if( taggingOption != 'internal' )
                     {
-                        if( packages.size() != 1)
+                        if( packages.size() > 1)
                         {
-                            echo "Tagging a new release can only be done for one package at a time."
+                            echo "When setting a release version, the packages option must contain at max one package name."
                             throw new Exception('Invalid value for build argument "packages".')
                         }
-                        releasedPackage = packages[0]
+                        if(packages.size == 1)
+                        {
+                            releasedPackage = packages[0]
+                        }
                     }
 
                     sh "cmake -DROOT_DIR=\"\$PWD\" -DINCREMENT_VERSION_OPTION=${taggingOption} -DPACKAGE=\"${releasedPackage}\" -P Sources/${CPFCMAKE_DIR}/Scripts/addVersionTag.cmake"
