@@ -253,7 +253,7 @@ def addTaggingStage(repository, branchOrTag, taggingOption, packages)
                             echo "When setting a release version, the packages option must contain at max one package name."
                             throw new Exception('Invalid value for build argument "packages".')
                         }
-                        if(packages.size == 1)
+                        if(packages.size() == 1)
                         {
                             releasedPackage = packages[0]
                         }
