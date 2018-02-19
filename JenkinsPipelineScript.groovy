@@ -19,27 +19,6 @@ import static Constants.*
 import groovy.json.JsonSlurperClassic
 
 
-//############################### SCRIPT SECTION ################################
-echo "----------- Working on branch/tag ${params.branchOrTag} -----------"
-
-if( params.target == '')
-(
-    params.target = pipeline
-)
-def packages = params.packages.split(' ')
-echo packages.join(';')
-
-// For unknown reasons, the repo url can not contain the second : after the machine name
-// when used with the GitSCM class. So we remove it here.
-parts = params.buildRepository.split(':')
-def repository = parts[0] + ':' + parts[1] + parts[2]
-
-def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, packages)
-addPipelineStage(configurations, repository, params.branchOrTag, params.target)
-addTaggingStage(repository, params.branchOrTag, params.taggingOption, packages)
-addUpdateWebPageStage(repository, configurations, params.branchOrTag)
-
-
 //############################### FUNCTION SECTION ################################
 class Constants {
     static final CPF_JENKINSJOB_VERSION = '0.0.0' // how can we get this from a generated file?
@@ -50,12 +29,68 @@ class Constants {
 
     // stash names
     static final HTML_STASH = "html"
+
+    static final RELEASE_TAGGING_OPTIONS = ['incrementMajor', 'incrementMinor', 'incrementPatch']
+    static final TAGGING_OPTIONS = [ 'noTagging', 'internal'] + RELEASE_TAGGING_OPTIONS
+    static final TASK_OPTIONS = ['rebuild','integrateNewCommit']
 }
+
+
+//############################### SCRIPT SECTION ################################
+echo "----------- Working on branch/tag ${params.branchOrTag} -----------"
+
+if( params.target == '')
+{
+    params.target = pipeline
+}
+
+def taggingOptionList = params.taggingOption.split(' ')
+def taggingOption = ""
+def taggedPackage = ""
+if( taggingOptionList.size() == 0 || taggingOptionList[0] == '')
+{
+    echo "No parameter taggingOption given. Use default tagging option \"internal\"."
+    taggingOption = 'internal'
+}
+else
+{
+    // check that option has an valid value
+    taggingOption = taggingOptionList[0]
+    if( !TAGGING_OPTIONS.contains(taggingOption) )
+    {
+        echo "Error! Invalid value  \"${taggingOption}\" for job parameter taggingOption."
+        throw new Exception('Invalid build-job parameter.')
+    }
+
+    // Get the package option
+    if(taggingOptionList.size() == 2)
+    {
+        taggedPackage = taggingOptionList[1]
+    }
+}
+
+if( !TASK_OPTIONS.contains(params.task))
+{
+    echo "Error! Invalid value  \"${params.task}\" for job parameter task."
+    throw new Exception('Invalid build-job parameter.')
+}
+
+
+// For unknown reasons, the repo url can not contain the second : after the machine name
+// when used with the GitSCM class. So we remove it here.
+parts = params.buildRepository.split(':')
+def repository = parts[0] + ':' + parts[1] + parts[2]
+
+def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, task)
+addPipelineStage(configurations, repository, params.branchOrTag, params.target)
+addTaggingStage(repository, params.branchOrTag, taggingOption, taggedPackage)
+addUpdateWebPageStage(repository, configurations, params.branchOrTag)
+
 
 // Create a temporary branch that contains the the latest revision of the
 // main branch (e.g. master) and merge the revisions into it that were pushed to
 // the developer branch.
-def addRepositoryOperationsStage( repository, branchOrTag, packages)
+def addRepositoryOperationsStage( repository, branchOrTag, task)
 {
     def usedConfigurations = []
 
@@ -184,7 +219,7 @@ def addPipelineStage( cpfConfigs, repository, tagOrBranch, target)
 
 def createBuildNode( nodeLabel, cpfConfig, repository, tagOrBranch, target, compilerConfig)
 {
-    return { 
+    return {
         node(nodeLabel)
         {
             // get the main name of repository
@@ -230,7 +265,7 @@ def createBuildNode( nodeLabel, cpfConfig, repository, tagOrBranch, target, comp
     }
 }
 
-def addTaggingStage(repository, branchOrTag, taggingOption, packages)
+def addTaggingStage(repository, branchOrTag, taggingOption, taggedPackage)
 {
     if(taggingOption == 'noTagging')
     {

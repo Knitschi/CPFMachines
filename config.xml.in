@@ -27,27 +27,28 @@ A documentation of the jobs parameters can be found at: http://buildmasterdebian
     <hudson.model.ParametersDefinitionProperty>
       <parameterDefinitions>
         <hudson.model.StringParameterDefinition>
-          <name>branchOrTag</name>
-          <description>Determines the git reference that will be build. This can be a branch or a tag.
-Examples:
-Branch: origin/Hans-int-master
-Tag: 0.1.3
+          <name>task</name>
+          <description>Switch between executing the first build for a new commit and
+rebuilding an old commit.
+Possible values are: integrateNewCommit, rebuild
 </description>
-          <defaultValue>origin/master</defaultValue>
+          <defaultValue>integrateNewCommit</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>taggingOption</name>
           <description>Determines if and how a successful build should be tagged. 
-Possible values are: noTagging, internal, incrementMajor, incrementMinor, incrementPatch
+Possible values are: noTagging, internal, incrementMajor &lt;package&gt;, incrementMinor &lt;package&gt;, incrementPatch &lt;package&gt;
 </description>
           <defaultValue>internal</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
-          <name>packages</name>
-          <description>Determines the integration target.
-This parameter can be left empty or set to the name of a package subdirectory.
+          <name>branchOrTag</name>
+          <description>Determines the git reference that will be build. This can be a branch or a tag.
+Examples:
+Branch: origin/master
+Tag: 0.1.3
 </description>
-          <defaultValue></defaultValue>
+          <defaultValue>origin/master</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>cpfConfiguration</name>
