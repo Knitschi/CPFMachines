@@ -3,6 +3,7 @@ Contains functions for basic remote container operations.
 """
 
 import os
+import socket
 
 from .connections import ConnectionHolder
 from . import fileutil
@@ -67,7 +68,13 @@ def build_docker_image(connection, image_name, context_source_dir, docker_file, 
     connection.run_command(command, print_output=True, print_command=True)
 
 
-def docker_run_detached(host_connection, container_config):
+def docker_run_detached(host_connection, container_config, resolved_hosts=[]):
+    """
+    Executes the docker run command for a container on a given container host.
+
+    resolved_hosts:     A list of hosts machine names that are accessed by the container.
+                        This makes sure name resolution of these machines works within the container.
+    """
     
     publish_port_args = ''
     for host_port, container_port in container_config.published_ports.items():
@@ -81,6 +88,11 @@ def docker_run_detached(host_connection, container_config):
     for variable in container_config.envvar_definitions:
         env_args += '--env {0} '.format(variable)
 
+    add_host_args = ''
+    for host in resolved_hosts:
+        ip = socket.gethostbyname(host)
+        add_host_args += '--add-host {0}:{1} '.format(host,ip)
+
     command = (
         'docker run '
         '--detach '
@@ -89,6 +101,7 @@ def docker_run_detached(host_connection, container_config):
         + publish_port_args 
         + volume_args
         + env_args
+        + add_host_args
         + container_config.container_image_name
     )
     host_connection.run_command(command, print_command=True)
@@ -103,7 +116,7 @@ def run_commands_in_container(host_connection, container_config, commands, user=
         )
 
 
-def run_command_in_container(connection, container_config, command, user=None, print_command=True):
+def run_command_in_container(connection, container_config, command, user=None, print_command=True, print_output=False):
     """
     The user option can be used to run the command for a different user then
     the containers default user.
@@ -113,7 +126,7 @@ def run_command_in_container(connection, container_config, command, user=None, p
         user = container_config.container_user
     user_option = '--user ' + user + ':' + user + ' '
     command = 'docker exec ' + user_option + container_config.container_name + ' ' + command
-    output = connection.run_command(command, print_command=print_command)
+    output = connection.run_command(command, print_command=print_command, print_output=print_output)
     return output
 
 

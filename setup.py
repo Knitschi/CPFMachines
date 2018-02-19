@@ -23,6 +23,7 @@ import json
 import pprint
 import time
 import paramiko
+import socket
 
 from . import cpfmachines_version
 from . import config_data
@@ -191,7 +192,10 @@ class MachinesController:
             files
         )
 
-        dockerutil.docker_run_detached(connection, container_config)
+        resolved_hosts = self._get_slave_machine_host_names()
+        resolved_hosts.add(self._get_web_server_host_name())
+        resolved_hosts.add(self._get_repository_host_name())
+        dockerutil.docker_run_detached(connection, container_config, resolved_hosts=resolved_hosts)
 
         # add global gitconfig after mounting the workspace volume, otherwise is gets deleted.
         commands = [
@@ -204,6 +208,18 @@ class MachinesController:
             commands
             )
 
+    def _get_slave_machine_host_names(self):
+        host_names = []
+        for slave_config in self.config.jenkins_slave_configs:
+            connection = self.connections.get_connection(slave_config.machine_id)
+            host_names.append(connection.info.host_name)
+        return set(host_names)
+
+    def _get_web_server_host_name(self):
+        return self.connections.get_connection(self.config.web_server_host_config.machine_id).info.host_name
+
+    def _get_repository_host_name(self):
+        return self.connections.get_connection(self.config.repository_host_config.machine_id).info.host_name
 
     def build_and_start_web_server(self):
         machine_id = self.config.web_server_host_config.machine_id
@@ -302,6 +318,7 @@ class MachinesController:
 
         # Approve system commands
         jenkins_accessor.wait_until_online(90)
+
         print("----- Approve system-commands")
         pprint.pprint(self.config.jenkins_config.approved_system_commands)
         jenkins_accessor.approve_system_commands(self.config.jenkins_config.approved_system_commands)
@@ -386,7 +403,11 @@ class MachinesController:
                 )
 
             # Start the container.
-            dockerutil.docker_run_detached(connection, container_conf)
+            resolved_hosts = [
+                self._get_repository_host_name(),
+                self._get_web_server_host_name(),   # slaves may need to copy files to the webserver
+            ]
+            dockerutil.docker_run_detached(connection, container_conf, resolved_hosts=resolved_hosts)
 
 
     def _create_rsa_key_file_pairs_on_slave_container(self):
@@ -449,7 +470,8 @@ class MachinesController:
         that contains the public key of the master.
         """
         master_host_connection = self._get_jenkins_master_host_connection()
-        master_container = self.config.jenkins_master_host_config.container_conf.container_name
+        master_conf = self.config.jenkins_master_host_config.container_conf
+        master_container = master_conf.container_name
         public_key_file_master_host = master_host_connection.info.temp_dir.joinpath(
             _get_public_key_filename(master_container)
             )
@@ -460,7 +482,7 @@ class MachinesController:
                 authorized_keys_file = _JENKINS_HOME_JENKINS_SLAVE_CONTAINER.joinpath('.ssh/authorized_keys')
                 # add the masters public key to the authorized keys file of the slave
                 dockerutil.rtocontainercopy(master_host_connection, slave_connection, slave_config.container_conf, public_key_file_master_host, authorized_keys_file)
-                
+
                 # authenticate the slave ssh host with the master
                 # we rely her on the fact that the slave container only have one published port
                 # which is the ssh port
@@ -468,7 +490,7 @@ class MachinesController:
                     raise Exception('Function assumes only one published port for slave containers')
                 _accept_remote_container_host_key(
                     master_host_connection, 
-                    self.config.jenkins_master_host_config.container_conf, 
+                    master_conf, 
                     slave_connection.info.host_name, 
                     next(iter(slave_config.container_conf.published_ports.keys())),
                     slave_config.container_conf.container_user
@@ -484,7 +506,8 @@ class MachinesController:
 
     def _grant_jenkins_master_ssh_access_to_jenkins_windows_slave(self, slave_host_connection ):
 
-        master_container = self.config.jenkins_master_host_config.container_conf.container_name
+        master_config = self.config.jenkins_master_host_config.container_conf
+        master_container = master_config.container_name
         print(("----- Grant {0} ssh access to {1}").format(master_container, slave_host_connection.info.host_name))
 
         # configure the script for adding an authorized key to the bitwise ssh server on the
@@ -496,7 +519,7 @@ class MachinesController:
         public_key_file_master = config_data.JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath('.ssh/' + _get_public_key_filename(master_container) )
         public_key = dockerutil.run_command_in_container(
             master_connection,
-            self.config.jenkins_master_host_config.container_conf,
+            master_config,
             'cat {0}'.format(public_key_file_master)
         )[0]
 
@@ -532,7 +555,7 @@ class MachinesController:
         try:
             _accept_remote_container_host_key(
                 master_connection, 
-                self.config.jenkins_master_host_config.container_conf, 
+                master_config, 
                 slave_host_connection.info.host_name, 
                 22, 
                 slave_host_connection.info.user_name
@@ -789,7 +812,6 @@ def _create_rsa_key_file_pair_on_container(connection, container_conf, container
 
 def _get_public_key_filename(container):
     return container + _PUBLIC_KEY_FILE_POSTFIX
-
 
 def _accept_remote_container_host_key(client_container_host_connection, client_container_config, host_host_name, ssh_port, host_container_user):
     """
