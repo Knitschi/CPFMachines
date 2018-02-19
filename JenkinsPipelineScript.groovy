@@ -20,7 +20,7 @@ import groovy.json.JsonSlurperClassic
 
 
 //############################### SCRIPT SECTION ################################
-echo "----------- Working on branch ${params.branchOrTag} -----------"
+echo "----------- Working on branch/tag ${params.branchOrTag} -----------"
 
 if( params.target == '')
 (
