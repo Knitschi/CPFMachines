@@ -78,6 +78,7 @@ def main(config_file):
         'method groovy.json.JsonSlurperClassic parseText java.lang.String',
         'staticMethod org.codehaus.groovy.runtime.DefaultGroovyMethods matches java.lang.String java.util.regex.Pattern',
         'new java.lang.Exception java.lang.String',
+        'method java.lang.String join java.lang.CharSequence java.lang.CharSequence[]'
     ]
     config_dict[config_data.KEY_JENKINS_CONFIG][config_data.KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES].extend(approved_script_signatures)
     

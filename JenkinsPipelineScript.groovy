@@ -26,15 +26,17 @@ if( params.target == '')
 (
     params.target = pipeline
 )
+def packages = params.packages.split(' ')
+echo packages.join(';')
 
 // For unknown reasons, the repo url can not contain the second : after the machine name
 // when used with the GitSCM class. So we remove it here.
 parts = params.buildRepository.split(':')
 def repository = parts[0] + ':' + parts[1] + parts[2]
 
-def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, params.packages)
+def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, packages)
 addPipelineStage(configurations, repository, params.branchOrTag, params.target)
-addTaggingStage(repository, params.branchOrTag, params.taggingOption, params.packages)
+addTaggingStage(repository, params.branchOrTag, params.taggingOption, packages)
 addUpdateWebPageStage(repository, configurations, params.branchOrTag)
 
 
@@ -250,7 +252,8 @@ def addTaggingStage(repository, branchOrTag, taggingOption, packages)
                     {
                         if( packages.size() > 1)
                         {
-                            echo "When setting a release version, the packages option must contain at max one package name. The value was \"${packages.join(';')}\"."
+                            def packagesString = packages.join(';')
+                            echo "When setting a release version, the packages option must contain at max one package name. The value was \"${packagesString}\"."
                             throw new Exception('Invalid value for build argument "packages".')
                         }
                         if(packages.size() == 1)
