@@ -96,7 +96,7 @@ addUpdateWebPageStage(repository, configurations, commitID)
 def addRepositoryOperationsStage( repository, branchOrTag, task)
 {
     def usedConfigurations = []
-    def commitId = ""
+    def commitID = ""
 
     stage('Get Build-Configurations')
     {
@@ -125,18 +125,18 @@ def addRepositoryOperationsStage( repository, branchOrTag, task)
                     // Get the id of HEAD, which will be used in all further steps that do repository check outs.
                     // Using a specific commit instead of a branch makes us invulnerable against changes the may
                     // be pushed to the repo while we run the job.
-                    commitId = sh "git rev-parse HEAD"
+                    commitID = sh "git rev-parse HEAD"
 
                     echo "---------------- VERIFY PIPELINE FOR COMMIT ${commitID} ----------------"
                 }
-                
+
                 // read the CiBuiltConfigurations.json file
                 usedConfigurations = getBuildConfigurations()
             }
         }
     }
 
-    return [usedConfigurations,commitId]
+    return [usedConfigurations,commitID]
 }
 
 def getDebianNodeLabel()
