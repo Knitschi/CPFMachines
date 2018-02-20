@@ -104,9 +104,19 @@ def addRepositoryOperationsStage( repository, branchOrTag, task)
                 checkoutBranch(repository, branchOrTag)
                 if( task == INTEGRATE_OPTION )
                 {
+                    // make sure the paramter is branch
+                    branchParts = branchOrTag.split("/")
+                    if(!branchParts.size() == 2)
+                    {
+                        echo "Error! Invalid value  \"${branchOrTag}\" for job parameter branchOrTag."
+                        echo "The paramter must contain a valid branch address like \"origin/master\" when setting the task paramter to \"${INTEGRATE_OPTION}\"."
+                        throw new Exception('Invalid build-job parameter.')
+                    }
+
+                    def branch = branchParts[1]
                     dir(CHECKOUT_FOLDER)
                     {
-                        sh "cmake -DROOT_DIR=\"\$PWD\" -DBRANCH=${branchOrTag} -P Sources/${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
+                        sh "cmake -DROOT_DIR=\"\$PWD\" -DBRANCH=${branch} -P Sources/${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
                     }
                 }
 
