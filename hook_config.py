@@ -107,7 +107,6 @@ class CPFProjectHookConfig:
         self.jenkins_job_basename = ''
         self.machine_id = ''
         self.hook_dir = ''
-        self.buildjob_package_arg = ''
 
 
 
@@ -147,13 +146,11 @@ def get_example_config_dict():
                 KEY_HOOKED_REPOSITORIES : [
                     {
                         config_data.KEY_MACHINE_ID : 'MyMaster',
-                        KEY_HOOK_DIRECTORY : '/home/fritz/repositories/BuildMyCPFProject.git/hooks',
-                        KEY_BUILDJOB_PACKAGE_ARGUMENT : '',
+                        KEY_HOOK_DIRECTORY : '/home/fritz/repositories/BuildMyCPFProject.git/hooks'
                     },
                     {
                         config_data.KEY_MACHINE_ID : 'MyMaster',
-                        KEY_HOOK_DIRECTORY : '/home/fritz/repositories/MyPackage.git/hooks',
-                        KEY_BUILDJOB_PACKAGE_ARGUMENT : 'MyPackage',
+                        KEY_HOOK_DIRECTORY : '/home/fritz/repositories/MyPackage.git/hooks'
                     },
                 ]
             }

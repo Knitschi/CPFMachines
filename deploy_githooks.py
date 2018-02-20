@@ -59,7 +59,6 @@ def main(config_file):
             '@JENKINS_USER@' : config.jenkins_account_info.user,
             '@JENKINS_PASSWORD@' : config.jenkins_account_info.password,
             '@JENKINS_JOB_NAME@' : setup.get_job_name(hook.jenkins_job_basename),
-            '@CPF_PACKAGE@' : hook.buildjob_package_arg
         }
         machines_setup.configure_file(script_template, generated_hook_script, replacement_dict)
 

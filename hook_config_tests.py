@@ -35,12 +35,9 @@ class TestHookConfig(unittest.TestCase):
         self.assertEqual( sut.hook_configs[0].jenkins_job_basename, 'BuildMyCPFProject' )
         self.assertEqual( sut.hook_configs[0].machine_id, 'MyMaster' )
         self.assertEqual( sut.hook_configs[0].hook_dir, PurePosixPath('/home/fritz/repositories/BuildMyCPFProject.git/hooks') )
-        self.assertEqual( sut.hook_configs[0].buildjob_package_arg, '' )
 
         # job hook configs
         self.assertEqual( sut.hook_configs[1].jenkins_job_basename, 'BuildMyCPFProject' )
         self.assertEqual( sut.hook_configs[1].machine_id, 'MyMaster' )
         self.assertEqual( sut.hook_configs[1].hook_dir, PurePosixPath('/home/fritz/repositories/MyPackage.git/hooks') )
-        self.assertEqual( sut.hook_configs[1].buildjob_package_arg, 'MyPackage' )
-
 

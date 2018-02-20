@@ -15,8 +15,7 @@ jenkinsUser=@JENKINS_USER@
 jenkinsPassword=@JENKINS_PASSWORD@
 # The name of the job that is triggered.
 jenkinsJobName=@JENKINS_JOB_NAME@
-# The name of the package in the build repository to which this hook belongs
-cpfPackage=@CPF_PACKAGE@
+
 
 jenkinsCrumb=$(curl --user $jenkinsUser:$jenkinsPassword "$jenkinsUrl/crumbIssuer/api/xml?xpath=concat(//crumbRequestField,\":\",//crumb)" )
 echo $jenkinsCrumb
@@ -36,7 +35,7 @@ function triggerJenkinsJob()
         curl $jenkinsUrl/job/$jenkinsJobName/build \
         --user $jenkinsUser:$jenkinsPassword \
         --header $jenkinsCrumb \
-        --data-urlencode json='{"parameter": [{"name":"branchOrTag", "value":"'$branch'"},{"name":"packages", "value":"'$cpfPackage'"}]}'
+        --data-urlencode json='{"parameter": [{"name":"branchOrTag", "value":"'$branch'"},{"name":"task", "value":"integrateNewCommit"}]}'
         set +x
     fi
 }

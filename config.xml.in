@@ -45,10 +45,10 @@ Possible values are: noTagging, internal, incrementMajor &lt;package&gt;, increm
           <name>branchOrTag</name>
           <description>Determines the git reference that will be build. This can be a branch or a tag.
 Examples:
-Branch: origin/master
+Branch: master
 Tag: 0.1.3
 </description>
-          <defaultValue>origin/master</defaultValue>
+          <defaultValue>master</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>cpfConfiguration</name>
