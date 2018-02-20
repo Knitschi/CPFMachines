@@ -27,14 +27,6 @@ A documentation of the jobs parameters can be found at: http://buildmasterdebian
     <hudson.model.ParametersDefinitionProperty>
       <parameterDefinitions>
         <hudson.model.StringParameterDefinition>
-          <name>task</name>
-          <description>Switch between executing the first build for a new commit and
-rebuilding an old commit.
-Possible values are: integrateNewCommit, rebuild
-</description>
-          <defaultValue>integrateNewCommit</defaultValue>
-        </hudson.model.StringParameterDefinition>
-        <hudson.model.StringParameterDefinition>
           <name>taggingOption</name>
           <description>Determines if and how a successful build should be tagged. 
 Possible values are: noTagging, internal, incrementMajor &lt;package&gt;, incrementMinor &lt;package&gt;, incrementPatch &lt;package&gt;
