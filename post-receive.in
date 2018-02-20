@@ -26,7 +26,6 @@ function triggerJenkinsJob()
 
     # Do not trigger the job if the dontTr1gger not is set.
     # The note is set before internal pushes in the buildjob.
-     &> /dev/null
     if [[ $(git show -s HEAD | grep "dontTr1gger") != "dontTr1gger" ]]; then
         echo "Trigger jenkins job" $jenkinsJobName "for branch" $branch
 
