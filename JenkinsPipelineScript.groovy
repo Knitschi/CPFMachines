@@ -82,10 +82,12 @@ if( !TASK_OPTIONS.contains(params.task))
 parts = params.buildRepository.split(':')
 def repository = parts[0] + ':' + parts[1] + parts[2]
 
-def configurations = addRepositoryOperationsStage(repository, params.branchOrTag, task)
-addPipelineStage(configurations, repository, params.branchOrTag, params.target)
-addTaggingStage(repository, params.branchOrTag, taggingOption, taggedPackage)
-addUpdateWebPageStage(repository, configurations, params.branchOrTag)
+def configurations = []
+def commitID = ''
+(configurations,commitID) = addRepositoryOperationsStage(repository, params.branchOrTag, task)
+addPipelineStage(configurations, repository, commitID, params.target)
+addTaggingStage(repository, commitID, taggingOption, taggedPackage)
+addUpdateWebPageStage(repository, configurations, commitID)
 
 
 // Create a temporary branch that contains the the latest revision of the
@@ -94,6 +96,7 @@ addUpdateWebPageStage(repository, configurations, params.branchOrTag)
 def addRepositoryOperationsStage( repository, branchOrTag, task)
 {
     def usedConfigurations = []
+    def commitId = ""
 
     stage('Get Build-Configurations')
     {
@@ -102,31 +105,36 @@ def addRepositoryOperationsStage( repository, branchOrTag, task)
             ws(getRepositoryName(repository))
             {
                 checkoutBranch(repository, branchOrTag)
-                if( task == INTEGRATE_OPTION )
+                dir(CHECKOUT_FOLDER)
                 {
-                    // make sure the paramter is branch
-                    branchParts = branchOrTag.split("/")
-                    if(!branchParts.size() == 2)
+                    if( task == INTEGRATE_OPTION )
                     {
-                        echo "Error! Invalid value  \"${branchOrTag}\" for job parameter branchOrTag."
-                        echo "The paramter must contain a valid branch address like \"origin/master\" when setting the task paramter to \"${INTEGRATE_OPTION}\"."
-                        throw new Exception('Invalid build-job parameter.')
-                    }
+                        // make sure the paramter is branch
+                        branchParts = branchOrTag.split("/")
+                        if(!branchParts.size() == 2)
+                        {
+                            echo "Error! Invalid value  \"${branchOrTag}\" for job parameter branchOrTag."
+                            echo "The paramter must contain a valid branch address like \"origin/master\" when setting the task paramter to \"${INTEGRATE_OPTION}\"."
+                            throw new Exception('Invalid build-job parameter.')
+                        }
 
-                    def branch = branchParts[1]
-                    dir(CHECKOUT_FOLDER)
-                    {
+                        def branch = branchParts[1]
                         sh "cmake -DROOT_DIR=\"\$PWD\" -DBRANCH=${branch} -P Sources/${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
                     }
-                }
 
-                // read the CiBuiltConfigurations.json file
-                usedConfigurations = getBuildConfigurations()
+                    // Get the id of HEAD, which will be used in all further steps that do repository check outs.
+                    // Using a specific commit instead of a branch makes us invulnerable against changes the may
+                    // be pushed to the repo while we run the job.
+                    commitId = sh "git rev-parse HEAD"
+
+                    // read the CiBuiltConfigurations.json file
+                    usedConfigurations = getBuildConfigurations()
+                }
             }
         }
     }
 
-    return usedConfigurations
+    return [usedConfigurations,commitId]
 }
 
 def getDebianNodeLabel()
@@ -186,7 +194,6 @@ def assertConfigurationExists(configurations, requestedConfig)
 
 def checkoutBranch(repository, branch)
 {
-
     checkout([$class: 'GitSCM',
             userRemoteConfigs: [[url: repository]],
             branches: [[name: branch]],
@@ -206,7 +213,7 @@ def checkoutBranch(repository, branch)
     )
 }
 
-def addPipelineStage( cpfConfigs, repository, tagOrBranch, target)
+def addPipelineStage( cpfConfigs, repository, commitId, target)
 {
     stage('Build Pipeline')
     {
@@ -220,7 +227,7 @@ def addPipelineStage( cpfConfigs, repository, tagOrBranch, target)
             echo "Create build node " + config
             def nodeLabel = config.BuildSlaveLabel + '-' + nodeIndex
             echo "Build ${config.ConfigName} under label ${nodeLabel}"
-            def myNode = createBuildNode( nodeLabel, config.ConfigName, repository, tagOrBranch, target, config?.CompilerConfig)
+            def myNode = createBuildNode( nodeLabel, config.ConfigName, repository, commitId, target, config?.CompilerConfig)
             parallelNodes[config.ConfigName] = myNode
             nodeIndex++
         }
@@ -230,7 +237,7 @@ def addPipelineStage( cpfConfigs, repository, tagOrBranch, target)
     }
 }
 
-def createBuildNode( nodeLabel, cpfConfig, repository, tagOrBranch, target, compilerConfig)
+def createBuildNode( nodeLabel, cpfConfig, repository, commitId, target, compilerConfig)
 {
     return {
         node(nodeLabel)
@@ -240,7 +247,7 @@ def createBuildNode( nodeLabel, cpfConfig, repository, tagOrBranch, target, comp
             
             ws("${getRepositoryName(repository)}-${cpfConfig}") 
             { 
-                checkoutBranch(repository, tagOrBranch)
+                checkoutBranch(repository, commitId)
 
                 dir(CHECKOUT_FOLDER)
                 {
@@ -278,7 +285,7 @@ def createBuildNode( nodeLabel, cpfConfig, repository, tagOrBranch, target, comp
     }
 }
 
-def addTaggingStage(repository, branchOrTag, taggingOption, taggedPackage)
+def addTaggingStage(repository, commitID, taggingOption, taggedPackage)
 {
     if(taggingOption == 'noTagging')
     {
@@ -291,7 +298,7 @@ def addTaggingStage(repository, branchOrTag, taggingOption, taggedPackage)
         {
             ws(getRepositoryName(repository))
             {
-                checkoutBranch(repository, branchOrTag)
+                checkoutBranch(repository, commitID)
                 dir(CHECKOUT_FOLDER)
                 {
                     // Merge the tmp branch into the main branch and tag it.
@@ -317,7 +324,7 @@ def addTaggingStage(repository, branchOrTag, taggingOption, taggedPackage)
     }
 }
 
-def addUpdateWebPageStage(repository, cpfConfigs, branchOrTag)
+def addUpdateWebPageStage(repository, cpfConfigs, commitID)
 {
     stage('Update Project Web-Page')
     {
@@ -325,7 +332,7 @@ def addUpdateWebPageStage(repository, cpfConfigs, branchOrTag)
         {
             ws(getRepositoryName(repository))
             {
-                checkoutBranch(repository, branchOrTag) // get the scripts
+                checkoutBranch(repository, commitID) // get the scripts
 
                 def serverHtmlDir = '$PWD/html-on-server'
                 def tempHtmlDir = '$PWD/html'
@@ -370,29 +377,6 @@ def getRepositoryName(repository)
         lastPart = lastPart[0..-5]
     }
     return lastPart
-}
-
-def addCreateReleaseTagStage(repository, incrementTaskType, branch)
-{
-    def usedConfigurations = []
-
-    stage('Create Release Tag')
-    {
-        node('master')
-        {
-            ws(getRepositoryName(repository))
-            {
-                checkoutBranch(repository, branch)
-
-                // execute the cmake script that does the git operations
-                sh "cmake -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -DBRANCH=${branch} -DDIGIT_OPTION=${incrementTaskType} -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPFCMAKE_DIR}/Scripts/incrementVersionNumber.cmake\""
-            
-                usedConfigurations = getBuildConfigurations()
-            }
-        }
-    }
-
-    return usedConfigurations
 }
 
 def unstashFiles(String stashName, String toolchain)
