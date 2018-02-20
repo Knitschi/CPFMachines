@@ -284,23 +284,7 @@ def addTaggingStage(repository, commitID, taggingOption, taggedPackage)
                 checkoutBranch(repository, commitID)
                 dir(CHECKOUT_FOLDER)
                 {
-                    // Merge the tmp branch into the main branch and tag it.
-                    def releasedPackage = ""
-                    if( taggingOption != 'internal' )
-                    {
-                        if( packages.size() > 1)
-                        {
-                            def packagesString = packages.join(';')
-                            echo "When setting a release version, the packages option must contain at max one package name. The value was \"${packagesString}\"."
-                            throw new Exception('Invalid value for build argument "packages".')
-                        }
-                        if(packages.size() == 1)
-                        {
-                            releasedPackage = packages[0]
-                        }
-                    }
-
-                    sh "cmake -DROOT_DIR=\"\$PWD\" -DINCREMENT_VERSION_OPTION=${taggingOption} -DPACKAGE=\"${releasedPackage}\" -P Sources/${CPFCMAKE_DIR}/Scripts/addVersionTag.cmake"
+                    sh "cmake -DROOT_DIR=\"\$PWD\" -DINCREMENT_VERSION_OPTION=${taggingOption} -DPACKAGE=\"${taggedPackage}\" -P Sources/${CPFCMAKE_DIR}/Scripts/addVersionTag.cmake"
                 }
             }
         }
