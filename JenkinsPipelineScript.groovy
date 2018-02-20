@@ -32,7 +32,8 @@ class Constants {
 
     static final RELEASE_TAGGING_OPTIONS = ['incrementMajor', 'incrementMinor', 'incrementPatch']
     static final TAGGING_OPTIONS = [ 'noTagging', 'internal'] + RELEASE_TAGGING_OPTIONS
-    static final TASK_OPTIONS = ['rebuild','integrateNewCommit']
+    static final INTEGRATE_OPTION = 'integrateNewCommit'
+    static final TASK_OPTIONS = ['rebuild',INTEGRATE_OPTION]
 }
 
 
@@ -101,11 +102,13 @@ def addRepositoryOperationsStage( repository, branchOrTag, task)
             ws(getRepositoryName(repository))
             {
                 checkoutBranch(repository, branchOrTag)
-
-                // TODO
-                // - update packages here.
-                // - do code formating here.
-                // - Make and push commit.
+                if( task == INTEGRATE_OPTION )
+                {
+                    dir(CHECKOUT_FOLDER)
+                    {
+                        sh "cmake -DROOT_DIR=\"\$PWD\" -DBRANCH=${branchOrTag} -P Sources/${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
+                    }
+                }
 
                 // read the CiBuiltConfigurations.json file
                 usedConfigurations = getBuildConfigurations()

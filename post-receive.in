@@ -25,15 +25,20 @@ function triggerJenkinsJob()
 {
     branch=$1
 
-    echo "Trigger jenkins job" $jenkinsJobName "for branch" $branch
+    # Do not trigger the job if the dontTr1gger not is set.
+    # The note is set before internal pushes in the buildjob.
+    git show -s HEAD | grep "dontTr1gger" &> /dev/null
+    if [ $? == 1 ]; then
+        echo "Trigger jenkins job" $jenkinsJobName "for branch" $branch
 
-    # Trigger the parameterized build-job and pass it the branch name as argument.
-    set -x
-    curl $jenkinsUrl/job/$jenkinsJobName/build \
-    --user $jenkinsUser:$jenkinsPassword \
-    --header $jenkinsCrumb \
-    --data-urlencode json='{"parameter": [{"name":"branchOrTag", "value":"'$branch'"},{"name":"packages", "value":"'$cpfPackage'"}]}'
-    set +x
+        # Trigger the parameterized build-job and pass it the branch name as argument.
+        set -x
+        curl $jenkinsUrl/job/$jenkinsJobName/build \
+        --user $jenkinsUser:$jenkinsPassword \
+        --header $jenkinsCrumb \
+        --data-urlencode json='{"parameter": [{"name":"branchOrTag", "value":"'$branch'"},{"name":"packages", "value":"'$cpfPackage'"}]}'
+        set +x
+    fi
 }
 
 # The information about pushed branches is given to script over the input stream
