@@ -125,7 +125,7 @@ def addRepositoryOperationsStage( repository, branchOrTag, task)
                     // Get the id of HEAD, which will be used in all further steps that do repository check outs.
                     // Using a specific commit instead of a branch makes us invulnerable against changes the may
                     // be pushed to the repo while we run the job.
-                    commitID = sh "git rev-parse HEAD"
+                    commitID = sh( script:"git rev-parse HEAD", returnStdout: true)
 
                     echo "---------------- VERIFY PIPELINE FOR COMMIT ${commitID} ----------------"
                 }
