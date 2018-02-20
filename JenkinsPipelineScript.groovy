@@ -32,8 +32,6 @@ class Constants {
 
     static final RELEASE_TAGGING_OPTIONS = ['incrementMajor', 'incrementMinor', 'incrementPatch']
     static final TAGGING_OPTIONS = [ 'noTagging', 'internal'] + RELEASE_TAGGING_OPTIONS
-    static final INTEGRATE_OPTION = 'integrateNewCommit'
-    static final TASK_OPTIONS = ['rebuild',INTEGRATE_OPTION]
 }
 
 
@@ -70,12 +68,6 @@ else
     }
 }
 
-if( !TASK_OPTIONS.contains(params.task))
-{
-    echo "Error! Invalid value  \"${params.task}\" for job parameter task."
-    throw new Exception('Invalid build-job parameter.')
-}
-
 
 // For unknown reasons, the repo url can not contain the second : after the machine name
 // when used with the GitSCM class. So we remove it here.
@@ -84,7 +76,7 @@ def repository = parts[0] + ':' + parts[1] + parts[2]
 
 def configurations = []
 def commitID = ''
-(configurations,commitID) = addRepositoryOperationsStage(repository, params.branchOrTag, task)
+(configurations,commitID) = addRepositoryOperationsStage(repository, params.branchOrTag)
 addPipelineStage(configurations, repository, commitID, params.target)
 addTaggingStage(repository, commitID, taggingOption, taggedPackage)
 addUpdateWebPageStage(repository, configurations, commitID)
@@ -93,7 +85,7 @@ addUpdateWebPageStage(repository, configurations, commitID)
 // Create a temporary branch that contains the the latest revision of the
 // main branch (e.g. master) and merge the revisions into it that were pushed to
 // the developer branch.
-def addRepositoryOperationsStage( repository, branchOrTag, task)
+def addRepositoryOperationsStage( repository, branchOrTag)
 {
     def usedConfigurations = []
     def commitID = ""
@@ -107,10 +99,9 @@ def addRepositoryOperationsStage( repository, branchOrTag, task)
                 checkoutBranch(repository, branchOrTag)
                 dir(CHECKOUT_FOLDER)
                 {
-                    if( task == INTEGRATE_OPTION )
-                    {
-                        sh "cmake -DROOT_DIR=\"\$PWD\" -DBRANCH=${branchOrTag} -P Sources/${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
-                    }
+                    // Update all owned packages if the commit is at the end of a branch.
+                    // Otherwise do nothing
+                    sh "cmake -DROOT_DIR=\"\$PWD\" -DBRANCH=${branchOrTag} -P Sources/${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
 
                     // Get the id of HEAD, which will be used in all further steps that do repository check outs.
                     // Using a specific commit instead of a branch makes us invulnerable against changes the may
