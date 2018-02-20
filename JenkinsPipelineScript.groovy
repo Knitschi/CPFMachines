@@ -127,7 +127,7 @@ def addRepositoryOperationsStage( repository, branchOrTag, task)
                     // be pushed to the repo while we run the job.
                     commitID = sh( script:"git rev-parse HEAD", returnStdout: true)
 
-                    echo "---------------- VERIFY PIPELINE FOR COMMIT ${commitID} ----------------"
+                    echo "-- VERIFY PIPELINE FOR COMMIT ${commitID} --"
                 }
 
                 // read the CiBuiltConfigurations.json file
