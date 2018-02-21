@@ -76,10 +76,11 @@ echo '---------------------------- in Script'
 parts = params.buildRepository.split(':')
 def repository = parts[0] + ':' + parts[1] + parts[2]
 
-def configurations = []
-def commitID = ''
 //(configurations,commitID) = addRepositoryOperationsStage(repository, params.branchOrTag, taggingOption, taggedPackage)
-configurations = addRepositoryOperationsStage(repository, params.branchOrTag, taggingOption, taggedPackage)
+def retlist = addRepositoryOperationsStage(repository, params.branchOrTag, taggingOption, taggedPackage)
+def configurations = retlist[0]
+def commitID = retlist[1]
+
 addPipelineStage(configurations, repository, commitID, params.target)
 addTaggingStage(repository, commitID)
 addUpdateWebPageStage(repository, configurations, commitID)
