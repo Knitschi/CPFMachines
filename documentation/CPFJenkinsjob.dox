@@ -106,4 +106,15 @@ In this case the following parameters must be set:
 - <b>cpfConfiguration:</b>  The configuration you are interested in.
 - <b>target:</b>            The target that is build.
   
+
+\section CPFCMakeNotesSection Notes
+
+- With the current implementation, parallel execution of the build-job is not possible.
+This is because the version of a commit must stay the same while the job is running, because
+the current version number is retrieved multiple times from the repository while the job is running.
+Chaning the number in the meantime would lead to inconsistencies. In the longer run it would be
+good to remove this limitation, which could be a showstopper for highly frequented projects with long
+buildtimes.
+
+
 */

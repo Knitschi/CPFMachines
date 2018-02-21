@@ -29,7 +29,7 @@ A documentation of the jobs parameters can be found at: http://buildmasterdebian
         <hudson.model.StringParameterDefinition>
           <name>taggingOption</name>
           <description>Determines if and how a successful build should be tagged. 
-Possible values are: noTagging, internal, incrementMajor &lt;package&gt;, incrementMinor &lt;package&gt;, incrementPatch &lt;package&gt;
+Possible values are: internal, incrementMajor &lt;package&gt;, incrementMinor &lt;package&gt;, incrementPatch &lt;package&gt;
 </description>
           <defaultValue>internal</defaultValue>
         </hudson.model.StringParameterDefinition>
@@ -74,6 +74,7 @@ This parameter is an implementation detail and is not supposed to be changed by 
         </hudson.model.StringParameterDefinition>
       </parameterDefinitions>
     </hudson.model.ParametersDefinitionProperty>
+    <org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty/>
     <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
       <triggers/>
     </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
