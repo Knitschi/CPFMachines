@@ -226,8 +226,6 @@ def createBuildNode( nodeLabel, cpfConfig, repository, commitId, target, compile
         node(nodeLabel)
         {
             // get the main name of repository
-
-            
             ws("${getRepositoryName(repository)}-${cpfConfig}") 
             { 
                 checkoutBranch(repository, commitId)
