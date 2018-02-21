@@ -69,8 +69,6 @@ else
 }
 
 
-echo '---------------------------- in Script'
-
 // For unknown reasons, the repo url can not contain the second : after the machine name
 // when used with the GitSCM class. So we remove it here.
 parts = params.buildRepository.split(':')
