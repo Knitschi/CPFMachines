@@ -90,10 +90,16 @@ def addRepositoryOperationsStage( repository, branchOrTag, taggingOption, tagged
     def usedConfigurations = []
     def commitID = ""
 
+    echo '---------------------------- in Function'
+
     stage('Get Build-Configurations')
     {
+        echo '---------------------------- in Stage'
+
         node(getDebianNodeLabel())
         {
+            echo '---------------------------- in Node'
+
             ws(getRepositoryName(repository))
             {
                 checkoutBranch(repository, branchOrTag)
