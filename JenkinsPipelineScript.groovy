@@ -270,11 +270,6 @@ def createBuildNode( nodeLabel, cpfConfig, repository, commitId, target, compile
 
 def addTaggingStage(repository, commitID)
 {
-    if(taggingOption == 'noTagging')
-    {
-        return
-    }
-
     stage('Integrate Tmp Branch')
     {
         node(getDebianNodeLabel())
