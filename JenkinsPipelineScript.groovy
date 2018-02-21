@@ -31,7 +31,7 @@ class Constants {
     static final HTML_STASH = "html"
 
     static final RELEASE_TAGGING_OPTIONS = ['incrementMajor', 'incrementMinor', 'incrementPatch']
-    static final TAGGING_OPTIONS = [ 'noTagging', 'internal'] + RELEASE_TAGGING_OPTIONS
+    static final TAGGING_OPTIONS = ['internal'] + RELEASE_TAGGING_OPTIONS
 }
 
 
@@ -76,16 +76,16 @@ def repository = parts[0] + ':' + parts[1] + parts[2]
 
 def configurations = []
 def commitID = ''
-(configurations,commitID) = addRepositoryOperationsStage(repository, params.branchOrTag)
+(configurations,commitID) = addRepositoryOperationsStage(repository, params.branchOrTag, taggingOption, taggedPackage)
 addPipelineStage(configurations, repository, commitID, params.target)
-addTaggingStage(repository, commitID, taggingOption, taggedPackage)
+addTaggingStage(repository, commitID)
 addUpdateWebPageStage(repository, configurations, commitID)
 
 
 // Create a temporary branch that contains the the latest revision of the
 // main branch (e.g. master) and merge the revisions into it that were pushed to
 // the developer branch.
-def addRepositoryOperationsStage( repository, branchOrTag)
+def addRepositoryOperationsStage( repository, branchOrTag, taggingOption, taggedPackage)
 {
     def usedConfigurations = []
     def commitID = ""
@@ -101,7 +101,7 @@ def addRepositoryOperationsStage( repository, branchOrTag)
                 {
                     // Update all owned packages if the commit is at the end of a branch.
                     // Otherwise do nothing
-                    sh "cmake -DROOT_DIR=\"\$PWD\" -DBRANCH=${branchOrTag} -P Sources/${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
+                    sh "cmake -DROOT_DIR=\"\$PWD\" -DBRANCH=${branchOrTag} -DTAGGING_OPTION=${taggingOption} -DRELEASED_PACKAGE=\"${taggedPackage}\" -P Sources/${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
 
                     // Get the id of HEAD, which will be used in all further steps that do repository check outs.
                     // Using a specific commit instead of a branch makes us invulnerable against changes the may
@@ -268,7 +268,7 @@ def createBuildNode( nodeLabel, cpfConfig, repository, commitId, target, compile
     }
 }
 
-def addTaggingStage(repository, commitID, taggingOption, taggedPackage)
+def addTaggingStage(repository, commitID)
 {
     if(taggingOption == 'noTagging')
     {
@@ -284,23 +284,7 @@ def addTaggingStage(repository, commitID, taggingOption, taggedPackage)
                 checkoutBranch(repository, commitID)
                 dir(CHECKOUT_FOLDER)
                 {
-                    // Merge the tmp branch into the main branch and tag it.
-                    def releasedPackage = ""
-                    if( taggingOption != 'internal' )
-                    {
-                        if( packages.size() > 1)
-                        {
-                            def packagesString = packages.join(';')
-                            echo "When setting a release version, the packages option must contain at max one package name. The value was \"${packagesString}\"."
-                            throw new Exception('Invalid value for build argument "packages".')
-                        }
-                        if(packages.size() == 1)
-                        {
-                            releasedPackage = packages[0]
-                        }
-                    }
-
-                    sh "cmake -DROOT_DIR=\"\$PWD\" -DINCREMENT_VERSION_OPTION=${taggingOption} -DPACKAGE=\"${releasedPackage}\" -P Sources/${CPFCMAKE_DIR}/Scripts/addVersionTag.cmake"
+                    sh "cmake -DROOT_DIR=\"\$PWD\" -P Sources/${CPFCMAKE_DIR}/Scripts/addVersionTag.cmake"
                 }
             }
         }
