@@ -78,7 +78,8 @@ def repository = parts[0] + ':' + parts[1] + parts[2]
 
 def configurations = []
 def commitID = ''
-(configurations,commitID) = addRepositoryOperationsStage(repository, params.branchOrTag, taggingOption, taggedPackage)
+//(configurations,commitID) = addRepositoryOperationsStage(repository, params.branchOrTag, taggingOption, taggedPackage)
+configurations = addRepositoryOperationsStage(repository, params.branchOrTag, taggingOption, taggedPackage)
 addPipelineStage(configurations, repository, commitID, params.target)
 addTaggingStage(repository, commitID)
 addUpdateWebPageStage(repository, configurations, commitID)
@@ -125,7 +126,8 @@ def addRepositoryOperationsStage( repository, branchOrTag, taggingOption, tagged
         }
     }
 
-    return [usedConfigurations,commitID]
+    //return [usedConfigurations,commitID]
+    return usedConfigurations
 }
 
 def getDebianNodeLabel()
