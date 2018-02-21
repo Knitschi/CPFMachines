@@ -35,10 +35,11 @@ Possible values are: internal, incrementMajor &lt;package&gt;, incrementMinor &l
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>branchOrTag</name>
-          <description>Determines the git reference that will be build. This can be a branch or a tag.
+          <description>Determines the git reference that will be build. This can be a branch, tag or a commit hash.
 Examples:
 Branch: master
 Tag: 0.1.3
+Commit ID: 95e0a6
 </description>
           <defaultValue>master</defaultValue>
         </hudson.model.StringParameterDefinition>

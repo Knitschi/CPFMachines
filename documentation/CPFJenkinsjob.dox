@@ -107,14 +107,28 @@ In this case the following parameters must be set:
 - <b>target:</b>            The target that is build.
   
 
-\section CPFCMakeNotesSection Notes
+\section CPFJenkinsjobNotesSection Notes
 
 - With the current implementation, parallel execution of the build-job is not possible.
 This is because the version of a commit must stay the same while the job is running, because
 the current version number is retrieved multiple times from the repository while the job is running.
 Chaning the number in the meantime would lead to inconsistencies. In the longer run it would be
 good to remove this limitation, which could be a showstopper for highly frequented projects with long
-buildtimes.
+buildtimes. Another problem is that we do not get a build for each push, which makes it harder to pinpoint
+failed builds to a specific push/developer.
 
+
+\section CPFJenkinsjobTestsSection
+
+This is a list of non automated tests. This should only be a stopgap solution until
+they are automated.
+
+
+\subsection CPFJenkinsjobTestsVerioningSection
+- Running a successful build for an already pushed commit without a version tag should add an internl version tag to that commit.
+- Setting a release version tag should only work when the build is run on an internal version tag.
+- It should not be possible to create a release version tag that already exists.
+- When createin a release version, the old internal version tag should be deleted.
+- Owned packages should be updated during the job run if new commits are available.
 
 */
