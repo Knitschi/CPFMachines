@@ -22,12 +22,25 @@ echo $jenkinsCrumb
 
 function triggerJenkinsJob()
 {
-    branch=$1
+    refPath=$1
+
+    # Only trigger the job after pushes to branches.
+    # This allows us to ignore pushes to the notes which is necessary as we need the
+    # notes to suppress triggering builds for pushes from within the pipeline script.
+    refsName=$(basename $(dirname $refpath))
+    if [ "$refsName" != "heads" ]; then
+        echo ----- The build was not triggered because no commits where pushed -----
+        return
+    fi
+
+    branch=$(basename $refpath)
 
     # Do not trigger the job if the dontTr1gger not is set.
     # The note is set before internal pushes in the buildjob.
-    if [[ $(git show -s HEAD | grep "dontTr1gger") != "dontTr1gger" ]]; then
-        echo "Trigger jenkins job" $jenkinsJobName "for branch" $branch
+    if git show -s HEAD | grep -q "dontTr1gger"; then
+        echo ----- The build was not triggered because of a dontTr1gger note -----
+    else
+        echo "----- Trigger jenkins job "$jenkinsJobName" for branch "$branch" -----" 
 
         # Trigger the parameterized build-job and pass it the branch name as argument.
         set -x
@@ -40,14 +53,11 @@ function triggerJenkinsJob()
 }
 
 # The information about pushed branches is given to script over the input stream
-# This stream contains a line for each branch that was pushed.
-# Each line looks something like 2b3a00c587a4df993d608b82ab31321b88037dc9 18f998b61f0fe5069e5666a33863b70bf44a12f8 refs/heads/Knitschi-master
+# This stream contains a line for each reference that was pushed. This can not only be branches but also tags or notes.
+# Each line looks something like 2b3a00c587a4df993d608b82ab31321b88037dc9 18f998b61f0fe5069e5666a33863b70bf44a12f8 refs/heads/master
 # Where the first hash probably marks the first pushed commit and the second the last pushed commit.
-# The last element contains the name of the branch.
-while read oldrev newrev refname
+# The last element contains the name of the branch. This can also be something like refs/notes/commits
+while read oldrev newrev refpath
 do
-    # get the latest version of trigger script
-    # get the pure branch name
-    pushedBranch=$(basename $refname)
-    triggerJenkinsJob $pushedBranch
+    triggerJenkinsJob $refpath
 done
