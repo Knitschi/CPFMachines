@@ -126,8 +126,8 @@ def addRepositoryOperationsStage( repository, branchOrTag, taggingOption, tagged
         }
     }
 
-    //return [usedConfigurations,commitID]
-    return usedConfigurations
+    return [usedConfigurations,commitID]
+    //return usedConfigurations
 }
 
 def getDebianNodeLabel()
