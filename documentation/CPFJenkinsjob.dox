@@ -130,5 +130,7 @@ they are automated.
 - It should not be possible to create a release version tag that already exists.
 - When createin a release version, the old internal version tag should be deleted.
 - Owned packages should be updated during the job run if new commits are available.
+- The job should fail when release tagging a non owned package
+
 
 */
