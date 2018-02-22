@@ -36,15 +36,18 @@ class Constants {
 
 
 //############################### SCRIPT SECTION ################################
-println( """----------- Working on branch/tag ${params.branchOrTag} -----------
-Build Parameter
+println( """
+####################################################
+------------------ Build Parameter -----------------
 taggingOption: ${params.taggingOption}
 branchOrTag: ${params.branchOrTag}
 cpfConfiguration: ${params.cpfConfiguration}
 target: ${params.target}
 buildRepository: ${params.buildRepository}
 webserverHost: ${params.webserverHost}
------------------------------------------------------------------""")
+----------------------------------------------------
+####################################################
+""")
 
 if( params.target == '')
 {
@@ -86,6 +89,16 @@ def repository = parts[0] + ':' + parts[1] + parts[2]
 def retlist = addRepositoryOperationsStage(repository, params.branchOrTag, taggingOption, taggedPackage)
 def configurations = retlist[0]
 def commitID = retlist[1]
+def author = retlist[2]
+
+println(
+"""
+####################################################
+This job is run for commit: ${commitID}
+The author of this commit is: ${author}
+####################################################
+""" 
+)
 
 addPipelineStage(configurations, repository, commitID, params.target)
 addTaggingStage(repository, commitID)
@@ -99,6 +112,7 @@ def addRepositoryOperationsStage( repository, branchOrTag, taggingOption, tagged
 {
     def usedConfigurations = []
     def commitID = ""
+    def author = ""
 
     stage('Get Build-Configurations')
     {
@@ -117,8 +131,7 @@ def addRepositoryOperationsStage( repository, branchOrTag, taggingOption, tagged
                     // Using a specific commit instead of a branch makes us invulnerable against changes the may
                     // be pushed to the repo while we run the job.
                     commitID = sh( script:"git rev-parse HEAD", returnStdout: true).trim()
-
-                    echo "---- VERIFY PIPELINE FOR COMMIT ${commitID} ----"
+                    author = sh( script:"git --no-pager show -s --format=\"%aN <%aE>\" ${commitID}", returnStdout: true).trim()
                 }
 
                 // read the CiBuiltConfigurations.json file
@@ -127,7 +140,7 @@ def addRepositoryOperationsStage( repository, branchOrTag, taggingOption, tagged
         }
     }
 
-    return [usedConfigurations,commitID]
+    return [usedConfigurations,commitID,author]
     //return usedConfigurations
 }
 
