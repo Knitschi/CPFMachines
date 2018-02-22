@@ -36,15 +36,15 @@ class Constants {
 
 
 //############################### SCRIPT SECTION ################################
-echo "----------- Working on branch/tag ${params.branchOrTag} -----------\n"\
-"Build Parameter\n"\
-"taggingOption: ${params.taggingOption}\n"\
-"branchOrTag: ${params.branchOrTag}\n"\
-"cpfConfiguration: ${params.cpfConfiguration}\n"\
-"target: ${params.target}\n"\
-"buildRepository: ${params.buildRepository}\n"\
-"webserverHost: ${params.webserverHost}\n"\
-"-----------------------------------------------------------------\n"
+println( """----------- Working on branch/tag ${params.branchOrTag} -----------
+Build Parameter
+taggingOption: ${params.taggingOption}
+branchOrTag: ${params.branchOrTag}
+cpfConfiguration: ${params.cpfConfiguration}
+target: ${params.target}
+buildRepository: ${params.buildRepository}
+webserverHost: ${params.webserverHost}
+-----------------------------------------------------------------""")
 
 if( params.target == '')
 {
