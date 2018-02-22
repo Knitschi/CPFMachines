@@ -60,7 +60,7 @@ This parameter is intended for reducing build times during debugging.
           <defaultValue>pipeline</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
-          <name>buildRepository</name>
+          <name>cpfCIRepository</name>
           <description>The address of the CPF project repository that is build by this job.
 This parameter is an implementation detail and is not supposed to be changed by the user.
 </description>

@@ -5,7 +5,7 @@ The jenkins pipeline script for a CPF project.
 
 The script expects the job parameters:
 
-params.buildRepository
+params.cpfCIRepository
 params.branchOrTag
 params.taggingOption
 params.packages
@@ -43,7 +43,7 @@ taggingOption: ${params.taggingOption}
 branchOrTag: ${params.branchOrTag}
 cpfConfiguration: ${params.cpfConfiguration}
 target: ${params.target}
-buildRepository: ${params.buildRepository}
+cpfCIRepository: ${params.cpfCIRepository}
 webserverHost: ${params.webserverHost}
 ----------------------------------------------------
 ####################################################
@@ -82,7 +82,7 @@ else
 
 // For unknown reasons, the repo url can not contain the second : after the machine name
 // when used with the GitSCM class. So we remove it here.
-parts = params.buildRepository.split(':')
+parts = params.cpfCIRepository.split(':')
 def repository = parts[0] + ':' + parts[1] + parts[2]
 
 //(configurations,commitID) = addRepositoryOperationsStage(repository, params.branchOrTag, taggingOption, taggedPackage)
@@ -131,7 +131,7 @@ def addRepositoryOperationsStage( repository, branchOrTag, taggingOption, tagged
                     // Using a specific commit instead of a branch makes us invulnerable against changes the may
                     // be pushed to the repo while we run the job.
                     commitID = sh( script:"git rev-parse HEAD", returnStdout: true).trim()
-                    author = sh( script:"git --no-pager show -s --format=\"%aN <%aE>\" ${commitID}", returnStdout: true).trim()
+                    author = sh( script:"git --no-pager show -s --format=\"%aN\" ${commitID}", returnStdout: true).trim()
                 }
 
                 // read the CiBuiltConfigurations.json file
