@@ -210,7 +210,7 @@ def checkoutBranch(repository, branch)
                     parentCredentials: false, 
                     recursiveSubmodules: false, 
                     reference: '', 
-                    trackingSubmodules: true ]],
+                    trackingSubmodules: false ]],
             submoduleCfg: []
         ]
     )
