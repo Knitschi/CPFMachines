@@ -35,10 +35,6 @@ function triggerJenkinsJob()
 
     branch=$(basename $refpath)
 
-    set -x
-    git show -s HEAD
-    set +x
-
     # Do not trigger the job if the dontTr1gger not is set.
     # The note is set before internal pushes in the buildjob.
     if git show -s HEAD | grep -q "dontTr1gger"; then
