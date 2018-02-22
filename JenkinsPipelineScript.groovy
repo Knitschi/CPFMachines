@@ -95,7 +95,6 @@ println(
 """
 ####################################################
 This job is run for commit: ${commitID}
-The author of this commit is: ${author}
 ####################################################
 """ 
 )
@@ -112,7 +111,6 @@ def addRepositoryOperationsStage( repository, branchOrTag, taggingOption, tagged
 {
     def usedConfigurations = []
     def commitID = ""
-    def author = ""
 
     stage('Get Build-Configurations')
     {
@@ -131,7 +129,6 @@ def addRepositoryOperationsStage( repository, branchOrTag, taggingOption, tagged
                     // Using a specific commit instead of a branch makes us invulnerable against changes the may
                     // be pushed to the repo while we run the job.
                     commitID = sh( script:"git rev-parse HEAD", returnStdout: true).trim()
-                    author = sh( script:"git --no-pager show -s --format=\"%aN\" ${commitID}", returnStdout: true).trim()
                 }
 
                 // read the CiBuiltConfigurations.json file
@@ -140,8 +137,7 @@ def addRepositoryOperationsStage( repository, branchOrTag, taggingOption, tagged
         }
     }
 
-    return [usedConfigurations,commitID,author]
-    //return usedConfigurations
+    return [usedConfigurations,commitID]
 }
 
 def getDebianNodeLabel()
