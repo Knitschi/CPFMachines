@@ -29,6 +29,7 @@ from ..CPFMachines import setup
 from ..CPFMachines import config_data
 
 from . import cpfjenkinsjob_version
+from . import cpf_job_config
 
 _SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -66,7 +67,7 @@ def main(config_file):
         abs_xml_file_path = abs_temp_dir + '/' + xml_file
         job_dict[job_name] = xml_file_path
         webserver_host = config.get_host_info(config.web_server_host_config.machine_id).host_name
-        configure_job_config_file(abs_xml_file_path, job_name, cpf_job_config.repository, _JENKINSJOB_REPOSITORY, webserver_host)
+        _configure_job_config_file(abs_xml_file_path, job_name, cpf_job_config.repository, _JENKINSJOB_REPOSITORY, webserver_host)
 
     # Extend the config values with the generated jobs.
     config_dict[config_data.KEY_JENKINS_CONFIG][config_data.KEY_JENKINS_JOB_CONFIG_FILES].update(job_dict)
@@ -108,7 +109,7 @@ def configure_job_config_file(xml_file_path, job_name, build_repository_address,
     """
     # TODO this should be the version tag once automatic versioning for CPFJenkinsjob works.
     tag_or_branch = 'master'
-    _configure_file(_TEMPLATE_FILE, xml_file_path, {
+    setup.configure_file(_TEMPLATE_FILE, xml_file_path, {
         '$JOB_NAME' : job_name,
         '$JENKINSFILE_TAG_OR_BRANCH' : tag_or_branch,
         '$BUILD_REPOSITORY' : build_repository_address,
@@ -116,77 +117,6 @@ def configure_job_config_file(xml_file_path, job_name, build_repository_address,
         '$WEBSERVER_HOST' : webserver_host,
     })
 
-
-def _configure_file(source_file, dest_file, replacement_dictionary):
-    """
-    Searches in sourceFile for the keys in replacementDictionary, replaces them
-    with the values and writes the result to destFile.
-    """
-    # Open target file
-    config_file = io.open(dest_file, 'w')
-
-    # Read the lines from the template, substitute the values, and write to the new config file
-    for line in io.open(source_file, 'r'):
-        for key, value in replacement_dictionary.items():
-            line = line.replace(key, value)
-        config_file.write(line)
-
-    # Close target file
-    config_file.close()
-
-
-def _run_command(command, print_output=False, print_command=False, ignore_return_code=False):
-    """
-    Runs the given command and returns its standard output.
-    The function throws if the command fails. In this case the output is always printed.
-
-    Problems:
-    This fails to return the complete output of "docker logs jenkins-master"
-    However when print_output is set to true, it prints everything on the command line.
-    """
-    working_dir = os.getcwd()
-    process = subprocess.Popen(
-        command,
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        stdin=subprocess.PIPE,
-        cwd=working_dir)
-
-    # print output as soon as it is generated.
-    output = ''
-    lines_iterator = iter(process.stdout.readline, b"")
-    while process.poll() is None:
-        for line in lines_iterator:
-            nline = line.rstrip()
-            line_string = nline.decode("utf-8")
-            output += line_string + "\r\n"
-            if print_output:
-                print(line_string, end="\r\n", flush=True) # yield line
-
-    out, err = process.communicate()
-    retcode = process.returncode
-
-    if print_command:
-        output = command + '\n'
-
-    # the iso codec helped to fix a problem with the output when sshing on the windows container.
-    err_output = err.decode("ISO-8859-1")
-
-    if print_output:
-        print(output)
-        print(err_output)
-
-    if not ignore_return_code and retcode != 0:
-        if not print_output:                         # always print the output in case of an error
-            print(output)
-            print(err_output)
-        error = (
-            'Command "{0}" executed in directory "{1}" returned error code {2}.'
-            ).format(command, working_dir, str(retcode))
-        raise Exception(error)
-
-    return output
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv[1]))

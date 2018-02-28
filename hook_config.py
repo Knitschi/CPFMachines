@@ -7,6 +7,7 @@ from pathlib import PurePosixPath, PureWindowsPath
 from ..CPFMachines import config_data
 from ..CPFMachines.setup import dev_message 
 
+from . import cpf_job_config
 
 KEY_JENKINS_ACCOUNT = 'JenkinsAccount'
 KEY_JENKINS_URL = 'JenkinsUrl'
@@ -16,7 +17,6 @@ KEY_JENKINS_PASSWORD = 'JenkinsPassword'
 KEY_REPOSITORY_MACHINES = 'RepositoryMachines'
 
 KEY_CPF_BUILDJOBS = 'CPFBuildJobs'
-KEY_JENKINSJOB_BASE_NAME = 'JenkinsJobBasename'
 KEY_HOOKED_REPOSITORIES = 'HookedRepositories'
 
 KEY_HOOK_DIRECTORY = 'HookDirectory'
@@ -49,8 +49,8 @@ class HookConfigData:
 
     def _read_jenkins_account_info(self, config_dict):
         account_dict = config_dict[KEY_JENKINS_ACCOUNT]
-        self.jenkins_account_info.url = config_data._get_checked_value(account_dict, KEY_JENKINS_URL)
-        self.jenkins_account_info.user = config_data._get_checked_value(account_dict, KEY_JENKINS_USER)
+        self.jenkins_account_info.url = config_data.get_checked_value(account_dict, KEY_JENKINS_URL)
+        self.jenkins_account_info.user = config_data.get_checked_value(account_dict, KEY_JENKINS_USER)
         self.jenkins_account_info.password = account_dict[KEY_JENKINS_PASSWORD]
 
         if not self.jenkins_account_info.password:
@@ -65,14 +65,14 @@ class HookConfigData:
 
     def _read_hook_configs(self, config_dict):
         for job_hooks_config_dict in config_dict[KEY_CPF_BUILDJOBS ]:
-            job_name = config_data._get_checked_value(job_hooks_config_dict, KEY_JENKINSJOB_BASE_NAME)
+            job_name = config_data.get_checked_value(job_hooks_config_dict, cpf_job_config.KEY_JENKINSJOB_BASE_NAME)
             for hook_config_dict in job_hooks_config_dict[KEY_HOOKED_REPOSITORIES]:
                 
                 project_hook_config = CPFProjectHookConfig()
                 project_hook_config.jenkins_job_basename = job_name
-                project_hook_config.machine_id = config_data._get_checked_value(hook_config_dict, config_data.KEY_MACHINE_ID)
+                project_hook_config.machine_id = config_data.get_checked_value(hook_config_dict, config_data.KEY_MACHINE_ID)
 
-                hook_dir = config_data._get_checked_value(hook_config_dict, KEY_HOOK_DIRECTORY)
+                hook_dir = config_data.get_checked_value(hook_config_dict, KEY_HOOK_DIRECTORY)
                 host_info = self.get_host_info(project_hook_config.machine_id)
                 if host_info.is_windows_machine():
                     project_hook_config.hook_dir = PureWindowsPath(hook_dir)
@@ -142,7 +142,7 @@ def get_example_config_dict():
         ],
         KEY_CPF_BUILDJOBS : [
             {
-                KEY_JENKINSJOB_BASE_NAME : 'BuildMyCPFProject',
+                cpf_job_config.KEY_JENKINSJOB_BASE_NAME : 'BuildMyCPFProject',
                 KEY_HOOKED_REPOSITORIES : [
                     {
                         config_data.KEY_MACHINE_ID : 'MyMaster',

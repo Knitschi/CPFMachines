@@ -25,6 +25,8 @@ set( pythonFiles
     hook_config.py
     run_tests.py
     setup.py
+    cpf_job_config.py
+    cpf_job_config_tests.py
 )
 
 add_custom_target( 

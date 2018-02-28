@@ -1,0 +1,53 @@
+# This is a docker image for a container that runs the apache2 webserver 
+# to publish the doxygen generated documentation with server-side searching.
+# To implement server-side searching the web-server needs the doxysearch.cgi
+# from the doxygen application.
+
+# The container needs a serach database and the html content of the displayed page.
+# The information is provided by external sources over the shared mounted volume /var/www/html
+# Refer to the CMakeProjectFramework documentation on how to start the container.
+
+FROM debian:9.3
+
+# INSTALL PACKAGES
+RUN apt-get -y update && apt-get install -y \
+openssh-server \
+apache2 \
+supervisor \
+netcat \
+vim
+
+
+# --------------- Install Clang Tools --------------
+COPY installClangTools.sh installClangTools.sh
+RUN /bin/bash installClangTools.sh
+    
+# ------------------- GCC --------------------
+COPY installGcc.sh installGcc.sh
+RUN /bin/bash installGcc.sh
+        
+# -------------- COMPILE DOXYGEN --------------
+# We need doxygen to get the doxyserach.cgi binary which is neede to enable server side searchin in the doxygen documentation.
+# Sadly the packaged doxygen version 1.8.4 does not work with the serach db of the 1.8.13 version which is used to generate
+# the search database. To get version 1.8.13 we need to compile doxygen and the xapian dependency from source 
+COPY buildDoxygen.sh /usr/bin
+RUN /bin/bash /usr/bin/buildDoxygen.sh    
+
+
+# --------------- PREPARE SSH DEAMON ---------------     
+# prepare running sshd
+RUN sed -i 's|session required pam_loginuid.so|session optional pam_loginuid.so|g' /etc/pam.d/sshd &&\
+    mkdir -p /var/run/sshd &&\
+    mkdir /root/.ssh
+    
+COPY ssh_config /etc/ssh/sshd_config
+
+
+# -------------- CONFIGURE WEBSERVER --------------
+# Allow the webserver to execute cgi scripts
+COPY serve-cgi-bin.conf /etc/apache2/conf-available
+RUN a2enmod cgi
+
+# -------------- START WEBSERVER AND SSHDAEMON VIA SUPERVISOR --------------
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+CMD ["/usr/bin/supervisord"]
