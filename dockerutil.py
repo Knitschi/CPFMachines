@@ -4,6 +4,7 @@ Contains functions for basic remote container operations.
 
 import os
 import socket
+import pprint
 
 from .connections import ConnectionHolder
 from . import fileutil
@@ -48,8 +49,11 @@ def remove_container(connection, container):
 
 
 def docker_container_image_exists(connection, image_name):
-    images = connection.run_command('docker images')
-    return image_name in images
+    image_lines = connection.run_command('docker images')
+    for line in image_lines:
+        if image_name in line:
+            return True
+    return False
 
 
 def build_docker_image(connection, image_name, context_source_dir, docker_file, build_args, text_files, binary_files=[]):

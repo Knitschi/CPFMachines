@@ -102,8 +102,8 @@ def main(config_file):
     controller.build_jenkins_base()
     print("----- Build and start container {0} on host {1}".format(config.jenkins_master_host_config.container_conf.container_name, config.jenkins_master_host_config.machine_id))
     controller.build_and_start_jenkins_master()
-    print("----- Build and start the web-server container " + config.web_server_host_config.container_conf.container_name)
-    controller.build_and_start_web_server()
+    print("----- Build and start the web-server containers")
+    controller.build_and_start_web_servers()
     print("----- Build and start the docker SLAVE containers")
     controller.build_and_start_jenkins_linux_slaves()
 
@@ -138,9 +138,10 @@ class MachinesController:
         """
         self._remove_all_container()
         self._clear_directories()
-        # we do not clear the webshare directory to preserve the accumulated web content.
-        connection = self.connections.get_connection(self.config.web_server_host_config.machine_id)
-        fileutil.guarantee_directory_exists(connection.sftp_client, self.config.web_server_host_config.host_html_share_dir)
+        # we do not clear the webshare directories to preserve the accumulated web content.
+        for cpf_job_config in self.config.jenkins_config.cpf_job_configs:
+            connection = self.connections.get_connection(cpf_job_config.webserver_config.machine_id)
+            fileutil.guarantee_directory_exists(connection.sftp_client, cpf_job_config.webserver_config.host_html_share_dir)
 
 
     def build_jenkins_base(self):
@@ -199,7 +200,7 @@ class MachinesController:
         )
 
         resolved_hosts = self._get_slave_machine_host_names()
-        resolved_hosts.add(self._get_web_server_host_name())
+        resolved_hosts.update(self._get_web_server_host_names())
         resolved_hosts.add(self._get_repository_host_name())
         dockerutil.docker_run_detached(connection, container_config, resolved_hosts=resolved_hosts)
 
@@ -221,57 +222,66 @@ class MachinesController:
             host_names.append(connection.info.host_name)
         return set(host_names)
 
-    def _get_web_server_host_name(self):
-        return self.connections.get_connection(self.config.web_server_host_config.machine_id).info.host_name
+    def _get_web_server_host_names(self):
+        host_names = set()
+        for cpf_job_config in self.config.jenkins_config.cpf_job_configs:
+            connection = self.connections.get_connection(cpf_job_config.webserver_config.machine_id)
+            host_names.add(connection.info.host_name)
+        return host_names
 
     def _get_repository_host_name(self):
         return self.connections.get_connection(self.config.repository_host_config.machine_id).info.host_name
 
-    def build_and_start_web_server(self):
-        machine_id = self.config.web_server_host_config.machine_id
-        connection = self.connections.get_connection(machine_id)
-        container_config = self.config.web_server_host_config.container_conf
-        container_image = container_config.container_image_name
+    def build_and_start_web_servers(self):
         
-        # create build context
-        docker_file = 'DockerfileCPFWebServer'
-        files = [
-            docker_file,
-            'installClangTools.sh',
-            'installGcc.sh',
-            'buildDoxygen.sh',
-            'ssh_config',
-            'serve-cgi-bin.conf',
-            'supervisord.conf',
-        ]
+        for cpf_job_config in self.config.jenkins_config.cpf_job_configs:
 
-        # build container image
-        dockerutil.build_docker_image(
-            connection,
-            container_image,
-            _SCRIPT_DIR,
-            docker_file, 
-            [],
-            files
-            )
+            machine_id = cpf_job_config.webserver_config.machine_id
+            connection = self.connections.get_connection(machine_id)
+            container_config = cpf_job_config.webserver_config.container_conf
+            container_image = container_config.container_image_name
+                
+            print("----- Build and start the web-server container {0} on host {1}".format(container_config.container_name, machine_id))
 
-        # start container
-        dockerutil.docker_run_detached(connection, container_config)
+            # create build context
+            docker_file = 'DockerfileCPFWebServer'
+            files = [
+                docker_file,
+                'installClangTools.sh',
+                'installGcc.sh',
+                'buildDoxygen.sh',
+                'ssh_config',
+                'serve-cgi-bin.conf',
+                'supervisord.conf',
+            ]
 
-        # copy the doxyserach.cgi to the html share
-        html_share_container = next(iter(container_config.host_volumes.values()))
-        cgi_bin_dir = html_share_container.joinpath('cgi-bin')
-        commands = [
-            'rm -fr ' + str(cgi_bin_dir),
-            'mkdir ' + str(cgi_bin_dir),
-            'mkdir ' + str(cgi_bin_dir) + '/doxysearch.db',
-            'cp -r -f /usr/local/bin/doxysearch.cgi ' + str(cgi_bin_dir),
-        ]
-        dockerutil.run_commands_in_container(
-            connection,
-            self.config.web_server_host_config.container_conf,
-            commands
-            )
+            # build container image
+            dockerutil.build_docker_image(
+                connection,
+                container_image,
+                _SCRIPT_DIR,
+                docker_file, 
+                [],
+                files
+                )
+
+            # start container
+            dockerutil.docker_run_detached(connection, container_config)
+
+            # copy the doxyserach.cgi to the html share
+            html_share_container = next(iter(container_config.host_volumes.values()))
+            cgi_bin_dir = html_share_container.joinpath('cgi-bin')
+            commands = [
+                'rm -fr ' + str(cgi_bin_dir),
+                'mkdir ' + str(cgi_bin_dir),
+                'mkdir ' + str(cgi_bin_dir) + '/doxysearch.db',
+                'cp -r -f /usr/local/bin/doxysearch.cgi ' + str(cgi_bin_dir),
+            ]
+            dockerutil.run_commands_in_container(
+                connection,
+                container_config,
+                commands
+                )
 
 
     def build_and_start_jenkins_linux_slaves(self):
@@ -378,42 +388,39 @@ class MachinesController:
         connection = self.connections.get_connection(machine_id)
         container_image = container_conf.container_image_name
 
-        if not dockerutil.docker_container_image_exists(connection, container_image):
-            # create build context
-            docker_file = 'DockerfileJenkinsSlaveLinux'
-            text_files = [
-                docker_file,
-                'installClangTools.sh',
-                'installGcc.sh',
-                'buildQt.sh',
-                'buildGit.sh',
-                'buildCMake.sh',
-                'buildDoxygen.sh',
-                'installCTags.sh',
-                'installAbiComplianceChecker.sh',
-                'ssh_config',
-            ]
-            binary_files = [
-                'slave.jar',
-            ]
+        # create build context
+        docker_file = 'DockerfileJenkinsSlaveLinux'
+        text_files = [
+            docker_file,
+            'installClangTools.sh',
+            'installGcc.sh',
+            'buildQt.sh',
+            'buildGit.sh',
+            'buildCMake.sh',
+            'buildDoxygen.sh',
+            'installCTags.sh',
+            'installAbiComplianceChecker.sh',
+            'ssh_config',
+        ]
+        binary_files = [
+            'slave.jar',
+        ]
 
-            # Build the container.
-            dockerutil.build_docker_image(
-                connection,
-                container_image,
-                _SCRIPT_DIR,
-                docker_file,
-                [],
-                text_files,
-                binary_files
-                )
+        # Build the container.
+        dockerutil.build_docker_image(
+            connection,
+            container_image,
+            _SCRIPT_DIR,
+            docker_file,
+            [],
+            text_files,
+            binary_files
+            )
 
-            # Start the container.
-            resolved_hosts = [
-                self._get_repository_host_name(),
-                self._get_web_server_host_name(),   # slaves may need to copy files to the webserver
-            ]
-            dockerutil.docker_run_detached(connection, container_conf, resolved_hosts=resolved_hosts)
+        # Start the container.
+        resolved_hosts = set([self._get_repository_host_name()]) 
+        resolved_hosts.update(self._get_web_server_host_names()) # slaves may need to copy files from the webserver
+        dockerutil.docker_run_detached(connection, container_conf, resolved_hosts=resolved_hosts)
 
 
     def _create_rsa_key_file_pairs_on_slave_container(self):

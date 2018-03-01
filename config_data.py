@@ -128,6 +128,10 @@ class ConfigData:
         for slave_config in self.jenkins_slave_configs:
             if slave_config.container_conf:
                 id_dict[slave_config.container_conf.container_name] = slave_config.machine_id
+
+        for cpf_job_config in self.jenkins_config.cpf_job_configs:
+            id_dict[cpf_job_config.webserver_config.container_conf.container_name] = cpf_job_config.webserver_config.machine_id
+
         return id_dict
 
 
@@ -377,7 +381,7 @@ class ConfigData:
 
         # set mapped ports and names of web-server conatiner
         web_server_index = 0
-        mapped_web_port = 80
+        mapped_web_port = 81
         for job_config in self.jenkins_config.cpf_job_configs:
 
             while mapped_ssh_port in used_ports:
