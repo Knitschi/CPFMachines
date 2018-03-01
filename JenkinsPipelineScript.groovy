@@ -343,7 +343,7 @@ def addUpdateWebPageStage(repository, cpfConfigs, commitID)
                 // sh "ls -l \$PWD/${CHECKOUT_FOLDER}/Sources/cmake/Scripts"
                 sh "cmake -DSOURCE_DIR=\"${tempHtmlDir}\" -DTARGET_DIR=\"${serverHtmlDir}\" -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPFCMAKE_DIR}/Scripts/updateExistingWebPage.cmake\""
 
-                sh "ls -l \"${serverHtmlDir}\""
+                sh "ls -l \"${serverHtmlDir}/cgi-bin/doxysearch.db\""
 
                 // copy the merge result back to the server
                 sh "ssh -p ${port} ${web_host} \"mkdir -p ${projectHtmlDirOnWebserver}\""
