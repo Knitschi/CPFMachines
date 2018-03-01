@@ -304,7 +304,7 @@ class MachinesController:
 
         self._grant_jenkins_master_ssh_access_to_jenkins_linux_slaves()
         self._grant_jenkins_master_ssh_access_to_jenkins_windows_slaves()
-        self._grant_jenkins_master_ssh_access_to_web_server()
+        self._grant_jenkins_master_ssh_access_to_web_servers()
         
         # setup ssh accesses used by the jenkins slaves
         self._create_rsa_key_file_pairs_on_slave_container()
@@ -579,47 +579,49 @@ class MachinesController:
             raise err
 
 
-    def _grant_jenkins_master_ssh_access_to_web_server(self):
+    def _grant_jenkins_master_ssh_access_to_web_servers(self):
 
         master_container_config = self.config.jenkins_master_host_config.container_conf
         master_container = master_container_config.container_name
         master_public_key_file = config_data.JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath('.ssh/' + _get_public_key_filename(master_container))
         master_host_connection = self._get_jenkins_master_host_connection()
-        
         authorized_keys_file = PurePosixPath('/root/.ssh/authorized_keys')
-        webserver_host_connection = self.connections.get_connection(self.config.web_server_host_config.machine_id)
-        webserver_container_config = self.config.web_server_host_config.container_conf
-
-        # set the authorized keys file in the webserver container
-        dockerutil.container_to_container_copy(
-            master_host_connection, 
-            master_container_config, 
-            webserver_host_connection, 
-            webserver_container_config, 
-            master_public_key_file, 
-            authorized_keys_file
-        )
         
-        # we need to change the file owner from jenkins to root
-        commands = [
-            'chown root:root ' + str(authorized_keys_file),
-            'chmod 600 ' + str(authorized_keys_file),
-            'service ssh start',
-        ]
-        dockerutil.run_commands_in_container(
-            webserver_host_connection,
-            webserver_container_config,
-            commands
-        )
+        for cpf_job_config in self.config.jenkins_config.cpf_job_configs:
 
-        # Add doc-server as known host to prevent the authentication request on the first connect
-        _accept_remote_container_host_key(
-            master_host_connection, 
-            master_container_config, 
-            webserver_host_connection.info.host_name, 
-            self.config.web_server_host_config.container_ssh_port, 
-            webserver_container_config.container_user
-        )
+            webserver_host_connection = self.connections.get_connection(cpf_job_config.webserver_config.machine_id)
+            webserver_container_config = cpf_job_config.webserver_config.container_conf
+
+            # set the authorized keys file in the webserver container
+            dockerutil.container_to_container_copy(
+                master_host_connection, 
+                master_container_config, 
+                webserver_host_connection, 
+                webserver_container_config, 
+                master_public_key_file, 
+                authorized_keys_file
+            )
+            
+            # we need to change the file owner from jenkins to root
+            commands = [
+                'chown root:root ' + str(authorized_keys_file),
+                'chmod 600 ' + str(authorized_keys_file),
+                'service ssh start',
+            ]
+            dockerutil.run_commands_in_container(
+                webserver_host_connection,
+                webserver_container_config,
+                commands
+            )
+
+            # Add doc-server as known host to prevent the authentication request on the first connect
+            _accept_remote_container_host_key(
+                master_host_connection, 
+                master_container_config, 
+                webserver_host_connection.info.host_name, 
+                cpf_job_config.webserver_config.container_ssh_port, 
+                webserver_container_config.container_user
+            )
 
 
     def _grant_linux_slaves_access_to_repository(self):
