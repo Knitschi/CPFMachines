@@ -99,7 +99,7 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_config.approved_script_signatures[0] , '<script signature from my MyCustomJob jenkinsfile>')
 
         # CPF JOB 1
-        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].job_name, 'MyCPFProject1')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].base_job_name, 'MyCPFProject1')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].repository, 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject1.git')
 
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.machine_id, 'MyMaster')
@@ -115,7 +115,7 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.envvar_definitions, [])
 
         # CPF JOB 2
-        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].job_name, 'MyCPFProject2')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].base_job_name, 'MyCPFProject2')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].repository, 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject2.git')
 
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.machine_id, 'MyMaster')

@@ -496,7 +496,7 @@ class CPFJobConfig:
     Data class that holds the information from the KEY_CPF_JOBS key.
     """
     def __init__(self):
-        self.job_name = ''
+        self.base_job_name = ''
         self.repository = ''
         self.webserver_config = WebserverConfig()
 

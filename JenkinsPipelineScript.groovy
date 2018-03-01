@@ -45,6 +45,7 @@ cpfConfiguration: ${params.cpfConfiguration}
 target: ${params.target}
 cpfCIRepository: ${params.cpfCIRepository}
 webserverHost: ${params.webserverHost}
+webserverSSHPort: ${params.webserverSSHPort}
 ----------------------------------------------------
 ####################################################
 """)
