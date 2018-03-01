@@ -81,7 +81,7 @@ therefore must be given as ip addresses to allow the jenkins-master to reach the
 \warning All machines should be within a trusted network as machine to machine communication is currently vulnerable to man in the middle attacks due to
 ignoring ssh host key checking.
 
-\section CPFJenkinsjobHookSetupSection Automatic build-Job execution
+\section CPFMachinesHookSetupSection Automatic build-Job execution
 
 In day to day development it is practical when the build-job is run automatically whenever a developer
 pushes commits that should be integrated into a main branch of the project. To enable that CPFJenkinsjob
@@ -159,7 +159,7 @@ In this case the following parameters must be set:
 - <b>target:</b>            The target that is build.
   
 
-\section CPFJenkinsjobNotesSection Notes
+\section CPFMachinesNotesSection Notes
 
 - With the current implementation, parallel execution of the build-job is not possible.
 This is because the version of a commit must stay the same while the job is running, because
@@ -170,13 +170,13 @@ buildtimes. Another problem is that we do not get a build for each push, which m
 failed builds to a specific push/developer.
 
 
-\section CPFJenkinsjobTestsSection Tests
+\section CPFMachinesTestsSection Tests
 
 This is a list of non automated tests. This should only be a stopgap solution until
 they are automated.
 
 
-\subsection CPFJenkinsjobTestsVerioningSection Tests for versioning mechanics
+\subsection CPFMachinesTestsVerioningSection Tests for versioning mechanics
 - Running a successful build for an already pushed commit without a version tag should add an internl version tag to that commit.
 - Setting a release version tag should only work when the build is run on an internal version tag.
 - It should not be possible to create a release version tag that already exists.
