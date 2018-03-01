@@ -55,7 +55,7 @@ _JENKINS_HOME_JENKINS_SLAVE_CONTAINER =  PurePosixPath('/home/jenkins')
 # The address of the official CPFJenkinsjob repository.
 # Is it good enough to have this hardcoded here?
 _JENKINSJOB_REPOSITORY = 'ssh://admin@datenbunker/share/GitRepositories/CPFJenkinsjob.git'
-_TEMPLATE_FILE = _SCRIPT_DIR + '/config.xml.in'
+_CPF_JOB_TEMPLATE_FILE = _SCRIPT_DIR.joinpath('config.xml.in')
 
 
 
@@ -923,7 +923,7 @@ def configure_job_config_file(xml_file_path, job_name, build_repository_address,
     """
     # TODO this should be the version tag once automatic versioning for CPFJenkinsjob works.
     tag_or_branch = 'master'
-    setup.configure_file(_TEMPLATE_FILE, xml_file_path, {
+    setup.configure_file(_CPF_JOB_TEMPLATE_FILE, xml_file_path, {
         '$JOB_NAME' : job_name,
         '$JENKINSFILE_TAG_OR_BRANCH' : tag_or_branch,
         '$BUILD_REPOSITORY' : build_repository_address,

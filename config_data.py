@@ -78,8 +78,6 @@ class ConfigData:
 
         # internal
         self._config_file_dict = config_dict
-        self._next_free_ssh_port = None
-        self._used_ports = set()
 
         # fill data members and check validity
         self._import_config_data()
@@ -118,14 +116,6 @@ class ConfigData:
         Get the connection data for a certain host machine.
         """
         return next((x for x in self.host_machine_infos if x.machine_id == machine_id), None)
-
-
-    def get_next_free_ssh_port(self):
-        return self._next_free_ssh_port
-
-
-    def get_used_ports(self):
-        return self._used_ports
 
 
     def _get_container_machine_dictionary(self):
@@ -215,8 +205,29 @@ class ConfigData:
         for key, value in job_config_dict.items():
             self.jenkins_config.job_config_files.append(ConfigItem(key, value))
 
+        # cpf jobs
+        self._read_cpf_job_configs(config_dict)
+
+        # approved scripts
         self.jenkins_config.approved_system_commands = config_dict[KEY_JENKINS_APPROVED_SYSTEM_COMMANDS]
         self.jenkins_config.approved_script_signatures = config_dict[KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES]
+
+
+    def _read_cpf_job_configs(self, jenkins_config_dict):
+        """
+        Reads a list of cpf jenkins job configurations from the config file dictionary. 
+        """
+        job_config_dict_list = get_checked_value(jenkins_config_dict, KEY_CPF_JOBS)
+        for job_config_dict in job_config_dict_list:
+            config = CPFJobConfig()
+            config.job_name = get_checked_value(job_config_dict, KEY_JENKINSJOB_BASE_NAME)
+            config.repository = get_checked_value(job_config_dict, KEY_REPOSITORY)
+
+            webserver_config_dict = get_checked_value(job_config_dict, KEY_WEBSERVER_CONFIG)
+            config.webserver_config.machine_id = get_checked_value(webserver_config_dict, KEY_MACHINE_ID)
+            config.webserver_config.host_html_share_dir = PurePosixPath(get_checked_value(webserver_config_dict, KEY_HOST_HTML_SHARE))
+
+            self.jenkins_config.cpf_job_configs.append(config)
 
 
     def _check_data_validity(self):
@@ -256,12 +267,14 @@ class ConfigData:
         """
         Check that all container hosts are linux machines.
         """
+        # jenkins master
         if not self.is_linux_machine(self.jenkins_master_host_config.machine_id):
             raise Exception("Config file Error! The host for the jenkins master must be a Linux machine.")
 
-        for job_config in self.job_configs:
+        # web server hosts
+        for job_config in self.jenkins_config.cpf_job_configs:
             machine_id = job_config.webserver_config.machine_id
-            if not self.base_config.is_linux_machine(machine_id):
+            if not self.is_linux_machine(machine_id):
                 raise Exception("Config file Error! The webserver container host with {0} \"{1}\" is not a Linux machine.".format(KEY_MACHINE_ID, machine_id))
 
 
@@ -271,16 +284,16 @@ class ConfigData:
         """
         # get all machines that are in use
         used_machines = []
-        used_machines.append(self.base_config.jenkins_master_host_config.machine_id)
-        used_machines.append(self.base_config.repository_host_config.machine_id)
-        for slave_config in self.base_config.jenkins_slave_configs:
+        used_machines.append(self.jenkins_master_host_config.machine_id)
+        used_machines.append(self.repository_host_config.machine_id)
+        for slave_config in self.jenkins_slave_configs:
             used_machines.append(slave_config.machine_id)
 
-        for job_config in self.job_configs:
+        for job_config in self.jenkins_config.cpf_job_configs:
             used_machines.append(job_config.webserver_config.machine_id)
 
         # now check if all defined hosts are within the used machines list
-        for host_config in self.base_config.host_machine_infos:
+        for host_config in self.host_machine_infos:
             found = next((x for x in used_machines if x == host_config.machine_id ), None)
             if found is None:
                 raise Exception("Config file Error! The host machine with id {0} is not used.".format(host_config.machine_id))
@@ -323,7 +336,7 @@ class ConfigData:
         self.jenkins_master_host_config.container_conf.container_user = 'jenkins'
         self.jenkins_master_host_config.container_conf.container_image_name = 'jenkins-master-image'
         self.jenkins_master_host_config.container_conf.published_ports = {8080:8080}
-        self._used_ports = set([8080])
+        used_ports = set([8080])
         self.jenkins_master_host_config.container_conf.host_volumes = { self.jenkins_master_host_config.jenkins_home_share : JENKINS_HOME_JENKINS_MASTER_CONTAINER}
         if not self.jenkins_config.use_unconfigured_jenkins: # Switch off the jenkins configuration wizard at startup when jenkins is configured by the script.
             self.jenkins_master_host_config.container_conf.envvar_definitions = ['JAVA_OPTS="-Djenkins.install.runSetupWizard=false"']
@@ -355,35 +368,34 @@ class ConfigData:
         for slave_config in self.jenkins_slave_configs:
             if self.is_linux_machine(slave_config.machine_id):
                 # do not use ports that are used othervise
-                while mapped_ssh_port in self._used_ports:
+                while mapped_ssh_port in used_ports:
                     mapped_ssh_port += 1
+                used_ports.add( mapped_ssh_port)
+
                 slave_config.container_conf.published_ports = {mapped_ssh_port:22}
-                self._used_ports.add(mapped_ssh_port)
-                mapped_ssh_port += 1
 
-        
-        ssh_port = self.base_config.get_next_free_ssh_port()
-        used_ports = self.base_config.get_used_ports()
-        web_port = 80
+
+        # set mapped ports and names of web-server conatiner
         web_server_index = 0
+        mapped_web_port = 80
+        for job_config in self.jenkins_config.cpf_job_configs:
 
-        for job_config in self.job_configs:
-            while web_port in used_ports:
-                web_port += 1
-            used_ports.add(web_port)
-
-            while ssh_port in used_ports:
-                ssh_port += 1
-            used_ports.add(ssh_port)
+            while mapped_ssh_port in used_ports:
+                mapped_ssh_port += 1
+            used_ports.add( mapped_ssh_port)
             
-            job_config.webserver_config.container_ssh_port = ssh_port
-            job_config.webserver_config.container_web_port = web_port
+            while mapped_web_port in used_ports:
+                mapped_web_port += 1
+            used_ports.add(mapped_web_port)
+
+            job_config.webserver_config.container_ssh_port = mapped_ssh_port
+            job_config.webserver_config.container_web_port = mapped_web_port
             
             job_config.webserver_config.container_conf.container_name = 'cpf-web-server-{0}'.format(web_server_index)
             web_server_index += 1
             job_config.webserver_config.container_conf.container_user = 'root'
             job_config.webserver_config.container_conf.container_image_name = 'cpf-web-server-image'
-            job_config.webserver_config.container_conf.published_ports = {web_port:80, ssh_port:22}
+            job_config.webserver_config.container_conf.published_ports = {mapped_web_port:80, mapped_ssh_port:22}
             job_config.webserver_config.container_conf.host_volumes = {job_config.webserver_config.host_html_share_dir : _HTML_SHARE_WEB_SERVER_CONTAINER}
 
 
@@ -477,30 +489,6 @@ class JenkinsConfig:
         self.job_config_files = []
         self.approved_system_commands = []
         self.approved_script_signatures = []
-
-
-    def _get_cpf_job_configs(self, config_dict):
-        """
-        Reads a list of cpf jenkins job configurations from the config file dictionary. 
-        """
-        jenkins_config_dict = get_checked_value(config_dict, KEY_JENKINS_CONFIG)
-        job_config_dict_list = get_checked_value(jenkins_config_dict, KEY_CPF_JOBS)
-        for job_config_dict in job_config_dict_list:
-            config = CPFJobConfig()
-            config.job_name = get_checked_value(job_config_dict, KEY_JENKINSJOB_BASE_NAME)
-            config.repository = get_checked_value(job_config_dict, KEY_REPOSITORY)
-
-            webserver_config_dict = get_checked_value(job_config_dict, KEY_WEBSERVER_CONFIG)
-            config.webserver_config.machine_id = get_checked_value(webserver_config_dict, KEY_MACHINE_ID)
-            config.webserver_config.host_html_share_dir = PurePosixPath(get_checked_value(webserver_config_dict, KEY_HOST_HTML_SHARE))
-
-            self.job_configs.append(config)
-
-
-    def _set_container_config(self):
-        """
-        Fills in values for the web-server container configuration.
-        """
 
 
 class CPFJobConfig:

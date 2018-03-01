@@ -7,8 +7,6 @@ from pathlib import PurePosixPath, PureWindowsPath
 from ..CPFMachines import config_data
 from ..CPFMachines.setup import dev_message 
 
-from . import cpf_job_config
-
 KEY_JENKINS_ACCOUNT = 'JenkinsAccount'
 KEY_JENKINS_URL = 'JenkinsUrl'
 KEY_JENKINS_USER = 'JenkinsUser'
@@ -65,7 +63,7 @@ class HookConfigData:
 
     def _read_hook_configs(self, config_dict):
         for job_hooks_config_dict in config_dict[KEY_CPF_BUILDJOBS ]:
-            job_name = config_data.get_checked_value(job_hooks_config_dict, cpf_job_config.KEY_JENKINSJOB_BASE_NAME)
+            job_name = config_data.get_checked_value(job_hooks_config_dict, config_data.KEY_JENKINSJOB_BASE_NAME)
             for hook_config_dict in job_hooks_config_dict[KEY_HOOKED_REPOSITORIES]:
                 
                 project_hook_config = CPFProjectHookConfig()
@@ -142,7 +140,7 @@ def get_example_config_dict():
         ],
         KEY_CPF_BUILDJOBS : [
             {
-                cpf_job_config.KEY_JENKINSJOB_BASE_NAME : 'BuildMyCPFProject',
+                config_data.KEY_JENKINSJOB_BASE_NAME : 'BuildMyCPFProject',
                 KEY_HOOKED_REPOSITORIES : [
                     {
                         config_data.KEY_MACHINE_ID : 'MyMaster',

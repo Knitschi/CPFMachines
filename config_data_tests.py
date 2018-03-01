@@ -187,12 +187,11 @@ class TestConfigData(unittest.TestCase):
         self.assertRaises(Exception, ConfigData, config_dict)
 
         # setup
-        self.assertTrue(False) # check that changing the machine of a webserver to windows will also throw exception
-        #config_dict = get_example_config_dict()
-        #config_dict[config_data.KEY_JENKINS_CONFIG][KEY_CPF_JOBS][0][KEY_WEBSERVER_CONFIG][config_data.KEY_MACHINE_ID] = 'MyWindowsSlave'
+        config_dict = get_example_config_dict()
+        config_dict[KEY_JENKINS_CONFIG][KEY_CPF_JOBS][0][KEY_WEBSERVER_CONFIG][KEY_MACHINE_ID] = 'MyWindowsSlave'
 
         # execute
-        #self.assertRaises(Exception, CPFJobConfigs, config_dict)
+        self.assertRaises(Exception, ConfigData, config_dict)
 
 
 
@@ -252,12 +251,3 @@ class TestConfigData(unittest.TestCase):
         # execute
         self.assertRaises(Exception, ConfigData, config_dict)
 
-
-    def test_get_next_free_ssh_port(self):
-        sut = ConfigData(get_example_config_dict())
-        self.assertEqual( sut.get_next_free_ssh_port(), 25)
-
-
-    def test_get_used_ports(self):
-        sut = ConfigData(get_example_config_dict())
-        self.assertEqual( sut.get_used_ports(), set([23, 24, 8080]))
