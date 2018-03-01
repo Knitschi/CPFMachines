@@ -57,17 +57,6 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_master_host_config.container_conf.host_volumes, { PurePosixPath('/home/fritz/jenkins_home') : PurePosixPath('/var/jenkins_home')})
         self.assertEqual( sut.jenkins_master_host_config.container_conf.envvar_definitions, ['JAVA_OPTS="-Djenkins.install.runSetupWizard=false"']) 
         
-        # web server host data
-        self.assertEqual( sut.web_server_host_config.machine_id, 'MyMaster')
-        self.assertEqual( sut.web_server_host_config.host_html_share_dir, PurePosixPath('/home/fritz/cpf_html_share'))
-        self.assertEqual( sut.web_server_host_config.container_ssh_port, 23)
-        self.assertEqual( sut.web_server_host_config.container_conf.container_name, 'cpf-web-server')
-        self.assertEqual( sut.web_server_host_config.container_conf.container_user, 'root')
-        self.assertEqual( sut.web_server_host_config.container_conf.container_image_name, 'cpf-web-server-image')
-        self.assertEqual( sut.web_server_host_config.container_conf.published_ports, {80:80, 23:22})
-        self.assertEqual( sut.web_server_host_config.container_conf.host_volumes, {PurePosixPath('/home/fritz/cpf_html_share') : PurePosixPath('/var/www/html')})
-        self.assertEqual( sut.web_server_host_config.container_conf.envvar_definitions, [])
-
         # repository host data
         self.assertEqual( sut.repository_host_config.machine_id , 'MyMaster')
         self.assertEqual( sut.repository_host_config.ssh_dir , PurePosixPath('/home/fritz/.ssh'))
@@ -79,7 +68,7 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_slave_configs[0].container_conf.container_name , 'jenkins-slave-linux-0')
         self.assertEqual( sut.jenkins_slave_configs[0].container_conf.container_user , 'jenkins')
         self.assertEqual( sut.jenkins_slave_configs[0].container_conf.container_image_name , 'jenkins-slave-linux-image')
-        self.assertEqual( sut.jenkins_slave_configs[0].container_conf.published_ports , {24:22})
+        self.assertEqual( sut.jenkins_slave_configs[0].container_conf.published_ports , {23:22})
         self.assertEqual( sut.jenkins_slave_configs[0].container_conf.host_volumes , {})
         self.assertEqual( sut.jenkins_slave_configs[0].container_conf.envvar_definitions , [])
 
@@ -89,7 +78,7 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_slave_configs[1].container_conf.container_name , 'jenkins-slave-linux-1')
         self.assertEqual( sut.jenkins_slave_configs[1].container_conf.container_user , 'jenkins')
         self.assertEqual( sut.jenkins_slave_configs[1].container_conf.container_image_name , 'jenkins-slave-linux-image')
-        self.assertEqual( sut.jenkins_slave_configs[1].container_conf.published_ports , {25:22})
+        self.assertEqual( sut.jenkins_slave_configs[1].container_conf.published_ports , {24:22})
         self.assertEqual( sut.jenkins_slave_configs[1].container_conf.host_volumes , {})
         self.assertEqual( sut.jenkins_slave_configs[1].container_conf.envvar_definitions , [])
 
@@ -106,9 +95,7 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( str(sut.jenkins_config.account_config_files[0].xml_file) , 'UserHans.xml')
         self.assertEqual( sut.jenkins_config.job_config_files[0].name , 'MyCustomJob')
         self.assertEqual( str(sut.jenkins_config.job_config_files[0].xml_file) , 'MyCustomJob.xml')
-        self.assertEqual( sut.jenkins_config.cpf_jobs[0].job_name , 'BuildMyCPFProject')
-        self.assertEqual( sut.jenkins_config.cpf_jobs[0].repository , 'ssh://fritz@mastermachine:/home/fritz/repositories/BuildMyCPFProject.git')
-        self.assertFalse( sut.jenkins_config.approved_system_commands )
+        self.assertEqual( sut.jenkins_config.approved_system_commands[0], 'ssh bla blub' )
         self.assertEqual( sut.jenkins_config.approved_script_signatures[0] , '<script signature from my MyCustomJob jenkinsfile>')
 
 
@@ -143,33 +130,6 @@ class TestConfigData(unittest.TestCase):
         # setup
         config_dict = get_example_config_dict()
         config_dict[KEY_JENKINS_MASTER_HOST][KEY_MACHINE_ID] = 'MyWindowsSlave'
-
-        # execute
-        self.assertRaises(Exception, ConfigData, config_dict)
-
-        # setup
-        config_dict = get_example_config_dict()
-        config_dict[KEY_WEB_SERVER_HOST][KEY_MACHINE_ID] = 'MyWindowsSlave'
-
-        # execute
-        self.assertRaises(Exception, ConfigData, config_dict)
-
-
-    def test_validation_checks_that_all_hosts_are_in_use(self):
-        """
-        If a host is not referenced, it is probably an error in the config file.
-        """
-        # setup
-        config_dict = get_example_config_dict()
-        # add a host that is not used
-        not_used_host_dict = {
-                KEY_MACHINE_ID : 'MyMaster2',
-                KEY_MACHINE_NAME : 'lhost4',
-                KEY_USER : 'fritz',
-                KEY_PASSWORD : '1234password',
-                KEY_OSTYPE : 'Linux'
-            }
-        config_dict[KEY_LOGIN_DATA].append(not_used_host_dict)
 
         # execute
         self.assertRaises(Exception, ConfigData, config_dict)
@@ -230,3 +190,13 @@ class TestConfigData(unittest.TestCase):
 
         # execute
         self.assertRaises(Exception, ConfigData, config_dict)
+
+
+    def test_get_next_free_ssh_port(self):
+        sut = ConfigData(get_example_config_dict())
+        self.assertEqual( sut.get_next_free_ssh_port(), 25)
+
+
+    def test_get_used_ports(self):
+        sut = ConfigData(get_example_config_dict())
+        self.assertEqual( sut.get_used_ports(), set([23, 24, 8080]))

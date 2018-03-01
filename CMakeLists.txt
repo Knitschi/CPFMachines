@@ -17,7 +17,6 @@ set( otherFiles
     BuildHostLinux/shutdownVms.service
     buildQt.sh
     createSSHKeyFilePair.sh
-    DockerfileCPFWebServer
     DockerfileJenkinsMaster
     DockerfileJenkinsSlaveLinux
     documentation/CPFMachines.dox

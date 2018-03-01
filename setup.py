@@ -454,7 +454,7 @@ class MachinesController:
             public_key_file)
         repository_connection.run_command(command)
 
-        # Add the repository machine as known host to prevent the authentication request on the first
+        # Add the repository machine as known host to prevent the authentication request on the first run
         _accept_remote_container_host_key(
             container_host_connection, 
             container_conf, 

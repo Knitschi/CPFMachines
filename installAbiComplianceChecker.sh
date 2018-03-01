@@ -11,6 +11,7 @@ VERSION=1.1
 # Install dependencies by installing an old version
 apt-get update && apt-get install -y \
 elfutils \
+vtable-dumper \
 abi-compliance-checker
 
 
@@ -29,7 +30,6 @@ make install prefix=/usr
 cd ..
 rm -rf $BUILD_DIR
 rm $PACKAGE_NAME
-
 
 echo -------------- Install abi-compliance-checker  ---------------
 
