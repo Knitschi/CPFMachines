@@ -671,9 +671,9 @@ class MachinesController:
         abs_temp_dir = _SCRIPT_DIR.joinpath(temp_dir)
         
         # clean up the temporary files
-        if not os.path.exists(abs_temp_dir):
+        if not os.path.isdir(abs_temp_dir):
             shutil.rmtree(abs_temp_dir)
-            os.makedirs(abs_temp_dir)
+        os.makedirs(abs_temp_dir)
 
         job_dict = {}
         for cpf_job_config in self.config.jenkins_config.cpf_job_configs:
