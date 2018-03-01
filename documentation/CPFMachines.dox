@@ -81,4 +81,109 @@ therefore must be given as ip addresses to allow the jenkins-master to reach the
 \warning All machines should be within a trusted network as machine to machine communication is currently vulnerable to man in the middle attacks due to
 ignoring ssh host key checking.
 
+\section CPFJenkinsjobHookSetupSection Automatic build-Job execution
+
+In day to day development it is practical when the build-job is run automatically whenever a developer
+pushes commits that should be integrated into a main branch of the project. To enable that CPFJenkinsjob
+provides a python module that adds hook scripts to the repositories of your CPF-projects.
+
+\todo Add documentation for hook config and how to run it.
+
+
+\section JobParameterSection Running the CPF Jenkins job
+
+The jenkins job that is created by this package is a parameterized job. The parameters can be used to
+execute multiple tasks on a CPF CI-project when the job is started via the Jenkins web-interface.
+
+
+\subsection JobSubsection1 1. Integrating new commits
+
+In this mode, the job verifies the commits made to an integration branch by building the pipeline in all
+configurations, merge the commits to a main branch and add a new internal-version tag to mark
+the commit as a successful build. The project web-page will be updated with the latest version of the 
+generated documentation. This mode is the most common use case, which should be triggered automatically 
+when pushing commits to an integration branch of the build repository or one of the package repositories.
+
+To do an integration job following parameters must be set:
+
+- <b>branchOrTag:</b> origin/\<name\>-int-\<MainBranch\>
+- <b>task:</b> integration
+- <b>package:</b>   If a package was changed, this must be set to the package name.
+                    Note that this must be a package that has its versioning handled by
+                    this build project.
+
+
+all other can be left at their defaults.
+
+
+\subsection JobSubsection2 2. Tagging a commit with a release version
+
+In this mode the job will overwrite an existing internal version tag with a release version and rebuild
+the tagged commit to create build artifacts with the new version. In this case you need to specify which 
+part/digit of the version number should be incremented. The less significant digits are reset to zero. 
+This will also update the projects web-page.
+
+To create a release tag, the following parameters must be set:
+
+- <b>branchOrTag:</b>  existing internal version-tag
+- <b>task:</b>         one of incrementMajor, incrementMinor, incrementPatch
+
+all other can be left at their defaults.
+
+
+\subsection JobSubsection3 3. Rebuild an existing commit
+
+Sometimes it is necessary to rebuild an already integrated commit in order to recreate build artifacts.
+In this mode, the job will not touch the version tags are changed. This will also update the projects web-page.
+When none of the jobs default parameters are changed, it executes this task for the master branch.
+
+To rebuild an existing commit the following parameters must be set:
+
+- <b>branchOrTag:</b>  \<version-tag\>
+
+all other can be left at their defaults.
+
+
+\subsection JobSubsection4 4. Testing or debugging the job itself
+
+When working on the CMakeProjectFramework itself, it is sometimes useful to speed up the build-job by running it
+with a reduced workload and without modifying the repository. Reducing the workload can be achieved by limiting
+the build to a special configuration and/or a special target.
+
+In this case the following parameters must be set:
+
+- <b>branchOrTag:</b>       origin/\<someBranch\>  (this should be the branch you work on)
+- <b>task:</b>              rebuild
+- <b>package:</b>           The package you work on.
+- <b>cpfConfiguration:</b>  The configuration you are interested in.
+- <b>target:</b>            The target that is build.
+  
+
+\section CPFJenkinsjobNotesSection Notes
+
+- With the current implementation, parallel execution of the build-job is not possible.
+This is because the version of a commit must stay the same while the job is running, because
+the current version number is retrieved multiple times from the repository while the job is running.
+Chaning the number in the meantime would lead to inconsistencies. In the longer run it would be
+good to remove this limitation, which could be a showstopper for highly frequented projects with long
+buildtimes. Another problem is that we do not get a build for each push, which makes it harder to pinpoint
+failed builds to a specific push/developer.
+
+
+\section CPFJenkinsjobTestsSection Tests
+
+This is a list of non automated tests. This should only be a stopgap solution until
+they are automated.
+
+
+\subsection CPFJenkinsjobTestsVerioningSection Tests for versioning mechanics
+- Running a successful build for an already pushed commit without a version tag should add an internl version tag to that commit.
+- Setting a release version tag should only work when the build is run on an internal version tag.
+- It should not be possible to create a release version tag that already exists.
+- When createin a release version, the old internal version tag should be deleted.
+- Owned packages should be updated during the job run if new commits are available.
+- The job should fail when release tagging a non owned package
+
+
+
 */
