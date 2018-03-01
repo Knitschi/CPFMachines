@@ -49,8 +49,6 @@ set( pythonFiles
     config_data_tests.py
     config_data.py
     connections.py
-    cpf_job_config_tests.py
-    cpf_job_config.py
     cpfjenkinsjob_version.py
     cpfmachines_version.py
     deploy_githooks.py
