@@ -74,7 +74,7 @@ This parameter is an implementation detail and is not supposed to be changed by 
           <defaultValue>@WEBSERVER_HOST@</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
-          <name>webserverHost</name>
+          <name>webserverSSHPort</name>
           <description>The ssh port over which jenkins can access the cfp-web-server container.
 This parameter is an implementation detail and is not supposed to be changed by the user.
 </description>

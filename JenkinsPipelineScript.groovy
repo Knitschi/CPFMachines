@@ -332,8 +332,8 @@ def addUpdateWebPageStage(repository, cpfConfigs, commitID)
                 }
                 // sh "ls -l \"${tempHtmlDir}\""
 
-                web_host = "root@${params.webserverHost}"
-                port = params.webserverSSHPort
+                def web_host = "root@${params.webserverHost}"
+                def port = params.webserverSSHPort
                 def projectHtmlDirOnWebserver = "/var/www/html"
 
                 // get the current html content from the web-server

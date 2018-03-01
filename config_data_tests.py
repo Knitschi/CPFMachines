@@ -105,12 +105,12 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.machine_id, 'MyMaster')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.host_html_share_dir, PurePosixPath('/home/fritz/mycpfproject1_html_share'))
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_ssh_port, 25)
-        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_web_port, 80)
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_web_port, 8081)
 
-        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.container_name, 'cpf-web-server-0')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.container_name, 'MyCPFProject1-web-server')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.container_user, 'root')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.container_image_name, 'cpf-web-server-image')
-        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.published_ports, {80:80, 25:22})
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.published_ports, {8081:80, 25:22})
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.host_volumes, {PurePosixPath('/home/fritz/mycpfproject1_html_share') : PurePosixPath('/var/www/html')})
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.envvar_definitions, [])
 
@@ -121,12 +121,12 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.machine_id, 'MyMaster')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.host_html_share_dir, PurePosixPath('/home/fritz/mycpfproject2_html_share'))
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_ssh_port, 26)
-        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_web_port, 81)
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_web_port, 8082)
 
-        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.container_name, 'cpf-web-server-1')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.container_name, 'MyCPFProject2-web-server')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.container_user, 'root')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.container_image_name, 'cpf-web-server-image')
-        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.published_ports, {81:80, 26:22})
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.published_ports, {8082:80, 26:22})
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.host_volumes, {PurePosixPath('/home/fritz/mycpfproject2_html_share') : PurePosixPath('/var/www/html')})
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.envvar_definitions, [])
 

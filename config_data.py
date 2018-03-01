@@ -380,8 +380,7 @@ class ConfigData:
 
 
         # set mapped ports and names of web-server conatiner
-        web_server_index = 0
-        mapped_web_port = 80
+        mapped_web_port = 8081
         for job_config in self.jenkins_config.cpf_job_configs:
 
             while mapped_ssh_port in used_ports:
@@ -395,8 +394,7 @@ class ConfigData:
             job_config.webserver_config.container_ssh_port = mapped_ssh_port
             job_config.webserver_config.container_web_port = mapped_web_port
             
-            job_config.webserver_config.container_conf.container_name = 'cpf-web-server-{0}'.format(web_server_index)
-            web_server_index += 1
+            job_config.webserver_config.container_conf.container_name = '{0}-web-server'.format(job_config.base_job_name)
             job_config.webserver_config.container_conf.container_user = 'root'
             job_config.webserver_config.container_conf.container_image_name = 'cpf-web-server-image'
             job_config.webserver_config.container_conf.published_ports = {mapped_web_port:80, mapped_ssh_port:22}
