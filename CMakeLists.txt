@@ -21,7 +21,6 @@ set( otherFiles
     DockerfileCPFWebServer
     DockerfileJenkinsMaster
     DockerfileJenkinsSlaveLinux
-    documentation/CPFJenkinsjob.dox
     documentation/CPFMachines.dox
     installAbiComplianceChecker.sh
     installClangTools.sh
