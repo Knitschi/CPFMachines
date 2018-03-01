@@ -15,6 +15,7 @@ set( otherFiles
     JenkinsPipelineScript.groovy
     post-receive.in
     README.md
+    DockerfileCPFWebServer
 )
 
 set( pythonFiles
