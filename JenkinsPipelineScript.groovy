@@ -333,19 +333,20 @@ def addUpdateWebPageStage(repository, cpfConfigs, commitID)
                 // sh "ls -l \"${tempHtmlDir}\""
 
                 web_host = "root@${params.webserverHost}"
+                port = params.webserverSSHPort
                 def projectHtmlDirOnWebserver = "/var/www/html"
 
                 // get the current html content from the web-server
-                sh "scp -P 23 -r ${web_host}:${projectHtmlDirOnWebserver}/* \"${serverHtmlDir}\" || :" // || : suppresses the error message if the server html contains no files
+                sh "scp -P ${port} -r ${web_host}:${projectHtmlDirOnWebserver}/* \"${serverHtmlDir}\" || :" // || : suppresses the error message if the server html contains no files
 
                 // merge the new html content into the old html content
                 // sh "ls -l \$PWD/${CHECKOUT_FOLDER}/Sources/cmake/Scripts"
                 sh "cmake -DSOURCE_DIR=\"${tempHtmlDir}\" -DTARGET_DIR=\"${serverHtmlDir}\" -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPFCMAKE_DIR}/Scripts/updateExistingWebPage.cmake\""
 
                 // copy the merge result back to the server
-                sh "ssh -p 23 ${web_host} \"mkdir -p ${projectHtmlDirOnWebserver}\""
-                sh "ssh -p 23 ${web_host} \"rm -rf ${projectHtmlDirOnWebserver}/*\""
-                sh "scp -P 23 -r \"${serverHtmlDir}\"/* ${web_host}:${projectHtmlDirOnWebserver} || :"
+                sh "ssh -p ${port} ${web_host} \"mkdir -p ${projectHtmlDirOnWebserver}\""
+                sh "ssh -p ${port} ${web_host} \"rm -rf ${projectHtmlDirOnWebserver}/*\""
+                sh "scp -P ${port} -r \"${serverHtmlDir}\"/* ${web_host}:${projectHtmlDirOnWebserver} || :"
                 
                 echo '----- The project web-page was updated successfully. -----'
             }

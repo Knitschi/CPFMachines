@@ -224,7 +224,7 @@ class ConfigData:
         job_config_dict_list = get_checked_value(jenkins_config_dict, KEY_CPF_JOBS)
         for job_config_dict in job_config_dict_list:
             config = CPFJobConfig()
-            config.job_name = get_checked_value(job_config_dict, KEY_JENKINSJOB_BASE_NAME)
+            config.base_job_name = get_checked_value(job_config_dict, KEY_JENKINSJOB_BASE_NAME)
             config.repository = get_checked_value(job_config_dict, KEY_REPOSITORY)
 
             webserver_config_dict = get_checked_value(job_config_dict, KEY_WEBSERVER_CONFIG)
@@ -381,7 +381,7 @@ class ConfigData:
 
         # set mapped ports and names of web-server conatiner
         web_server_index = 0
-        mapped_web_port = 81
+        mapped_web_port = 80
         for job_config in self.jenkins_config.cpf_job_configs:
 
             while mapped_ssh_port in used_ports:

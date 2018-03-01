@@ -54,7 +54,7 @@ _JENKINS_HOME_JENKINS_SLAVE_CONTAINER =  PurePosixPath('/home/jenkins')
 
 # The address of the official CPFJenkinsjob repository.
 # Is it good enough to have this hardcoded here?
-_JENKINSJOB_REPOSITORY = 'ssh://admin@datenbunker/share/GitRepositories/CPFJenkinsjob.git'
+_JENKINSJOB_REPOSITORY = 'ssh://admin@datenbunker/share/GitRepositories/CPFMachines.git'
 _CPF_JOB_TEMPLATE_FILE = _SCRIPT_DIR.joinpath('config.xml.in')
 
 
@@ -658,8 +658,9 @@ class MachinesController:
         """
         copy job config xml files to jobs/<jobname>/config.xml
         """
-        self._configure_cpf_job_files(config_file)
+        temp_dir = self._configure_cpf_job_files(config_file)
         self._copy_jenkins_config_files(config_file, 'jobs', self.config.jenkins_config.job_config_files)
+        shutil.rmtree(temp_dir)
 
 
     def _configure_cpf_job_files(self, config_file):
@@ -668,10 +669,10 @@ class MachinesController:
         """
         # create the job .xml files that are used by jenkins.
         temp_dir = PurePath('temp')
-        abs_temp_dir = _SCRIPT_DIR.joinpath(temp_dir)
+        abs_temp_dir = _SCRIPT_DIR.joinpath(PurePath('../..').joinpath(temp_dir))
         
         # clean up the temporary files
-        if not os.path.isdir(abs_temp_dir):
+        if os.path.isdir(abs_temp_dir):
             shutil.rmtree(abs_temp_dir)
         os.makedirs(abs_temp_dir)
 
@@ -679,8 +680,9 @@ class MachinesController:
         for cpf_job_config in self.config.jenkins_config.cpf_job_configs:
             job_name = get_job_name(cpf_job_config.base_job_name)
             xml_file = job_name + '.xml'
-            xml_file_path = temp_dir + '/' + xml_file
-            abs_xml_file_path = abs_temp_dir + '/' + xml_file
+            # The config requires a path relative to the config file.
+            xml_file_path = temp_dir.joinpath(xml_file)
+            abs_xml_file_path = abs_temp_dir.joinpath(xml_file)
             # create the job config file
             self._configure_job_config_file(cpf_job_config, abs_xml_file_path)
 
@@ -697,6 +699,8 @@ class MachinesController:
             'method java.lang.String join java.lang.CharSequence java.lang.CharSequence[]'
         ]
         self.config.jenkins_config.approved_script_signatures.extend(approved_script_signatures)
+
+        return abs_temp_dir
         
 
     def _configure_job_config_file(self, cpf_job_config, created_config_file):
@@ -714,7 +718,7 @@ class MachinesController:
             '@BUILD_REPOSITORY@' : cpf_job_config.repository,
             '@JENKINSJOB_REPOSITORY@' : _JENKINSJOB_REPOSITORY,
             '@WEBSERVER_HOST@' : webserver_container_host,
-            '@WEBSERVER_SSH_PORT@' : cpf_job_config.webserver_config.container_ssh_port,
+            '@WEBSERVER_SSH_PORT@' : str(cpf_job_config.webserver_config.container_ssh_port),
         })
 
 
