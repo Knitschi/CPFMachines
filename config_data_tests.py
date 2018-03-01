@@ -98,37 +98,37 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_config.approved_system_commands[0], 'ssh bla blub' )
         self.assertEqual( sut.jenkins_config.approved_script_signatures[0] , '<script signature from my MyCustomJob jenkinsfile>')
 
-        # JOB 1
-        self.assertEqual( sut.job_configs[0].job_name, 'MyCPFProject1')
-        self.assertEqual( sut.job_configs[0].repository, 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject1.git')
+        # CPF JOB 1
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].job_name, 'MyCPFProject1')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].repository, 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject1.git')
 
-        self.assertEqual( sut.job_configs[0].webserver_config.machine_id, 'MyMaster')
-        self.assertEqual( sut.job_configs[0].webserver_config.host_html_share_dir, PurePosixPath('/home/fritz/mycpfproject1_html_share'))
-        self.assertEqual( sut.job_configs[0].webserver_config.container_ssh_port, 25)
-        self.assertEqual( sut.job_configs[0].webserver_config.container_web_port, 80)
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.machine_id, 'MyMaster')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.host_html_share_dir, PurePosixPath('/home/fritz/mycpfproject1_html_share'))
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_ssh_port, 25)
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_web_port, 80)
 
-        self.assertEqual( sut.job_configs[0].webserver_config.container_conf.container_name, 'cpf-web-server-0')
-        self.assertEqual( sut.job_configs[0].webserver_config.container_conf.container_user, 'root')
-        self.assertEqual( sut.job_configs[0].webserver_config.container_conf.container_image_name, 'cpf-web-server-image')
-        self.assertEqual( sut.job_configs[0].webserver_config.container_conf.published_ports, {80:80, 25:22})
-        self.assertEqual( sut.job_configs[0].webserver_config.container_conf.host_volumes, {PurePosixPath('/home/fritz/mycpfproject1_html_share') : PurePosixPath('/var/www/html')})
-        self.assertEqual( sut.job_configs[0].webserver_config.container_conf.envvar_definitions, [])
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.container_name, 'cpf-web-server-0')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.container_user, 'root')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.container_image_name, 'cpf-web-server-image')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.published_ports, {80:80, 25:22})
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.host_volumes, {PurePosixPath('/home/fritz/mycpfproject1_html_share') : PurePosixPath('/var/www/html')})
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.envvar_definitions, [])
 
-        # JOB 2
-        self.assertEqual( sut.job_configs[1].job_name, 'MyCPFProject2')
-        self.assertEqual( sut.job_configs[1].repository, 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject2.git')
+        # CPF JOB 2
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].job_name, 'MyCPFProject2')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].repository, 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject2.git')
 
-        self.assertEqual( sut.job_configs[1].webserver_config.machine_id, 'MyMaster')
-        self.assertEqual( sut.job_configs[1].webserver_config.host_html_share_dir, PurePosixPath('/home/fritz/mycpfproject2_html_share'))
-        self.assertEqual( sut.job_configs[1].webserver_config.container_ssh_port, 26)
-        self.assertEqual( sut.job_configs[1].webserver_config.container_web_port, 81)
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.machine_id, 'MyMaster')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.host_html_share_dir, PurePosixPath('/home/fritz/mycpfproject2_html_share'))
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_ssh_port, 26)
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_web_port, 81)
 
-        self.assertEqual( sut.job_configs[1].webserver_config.container_conf.container_name, 'cpf-web-server-1')
-        self.assertEqual( sut.job_configs[1].webserver_config.container_conf.container_user, 'root')
-        self.assertEqual( sut.job_configs[1].webserver_config.container_conf.container_image_name, 'cpf-web-server-image')
-        self.assertEqual( sut.job_configs[1].webserver_config.container_conf.published_ports, {81:80, 26:22})
-        self.assertEqual( sut.job_configs[1].webserver_config.container_conf.host_volumes, {PurePosixPath('/home/fritz/mycpfproject2_html_share') : PurePosixPath('/var/www/html')})
-        self.assertEqual( sut.job_configs[1].webserver_config.container_conf.envvar_definitions, [])
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.container_name, 'cpf-web-server-1')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.container_user, 'root')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.container_image_name, 'cpf-web-server-image')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.published_ports, {81:80, 26:22})
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.host_volumes, {PurePosixPath('/home/fritz/mycpfproject2_html_share') : PurePosixPath('/var/www/html')})
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.envvar_definitions, [])
 
 
     def test_validation_checks_that_all_hosts_are_in_use(self):

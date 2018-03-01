@@ -47,10 +47,18 @@ KEY_JENKINS_JOB_CONFIG_FILES = 'JenkinsJobConfigFiles'
 KEY_JENKINS_APPROVED_SYSTEM_COMMANDS = 'JenkinsApprovedSystemCommands'
 KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES = 'JenkinsApprovedScriptSignatures'
 
+KEY_CPF_JOBS = 'CPFJobs'
+KEY_JENKINSJOB_BASE_NAME = 'JenkinsJobBasename'
+KEY_REPOSITORY = 'Repository'
+
+KEY_WEBSERVER_CONFIG = 'WebServerConfig'
+KEY_HOST_HTML_SHARE = 'HostHTMLShare'
 
 # directories on jenkins-master
 # This is the location of the jenkins configuration files on the jenkins-master.
 JENKINS_HOME_JENKINS_MASTER_CONTAINER = PurePosixPath('/var/jenkins_home')
+
+_HTML_SHARE_WEB_SERVER_CONTAINER = PurePosixPath('/var/www/html')
 
 
 class ConfigData:
@@ -217,7 +225,8 @@ class ConfigData:
         """
         self._check_file_version()
         self._check_one_linux_machine_available()
-        self._check_master_uses_linux_machine()
+        self._check_container_use_linux_hosts()
+        self._check_all_hosts_are_in_use()
         self._check_host_ids_are_unique()
         self._check_accounts_are_unique()
         self._check_jenkins_slave_executor_number()
@@ -241,15 +250,40 @@ class ConfigData:
             if data.os_type == "Linux":
                 return
         raise Exception("Config file Error! The CPFMachines configuration must at least contain one Linux host machine.")
-        
 
-    def _check_master_uses_linux_machine(self):
+
+    def _check_container_use_linux_hosts(self):
         """
-        These to machines are currently implemented as docker containers and therefor need a linux host.
+        Check that all container hosts are linux machines.
         """
         if not self.is_linux_machine(self.jenkins_master_host_config.machine_id):
             raise Exception("Config file Error! The host for the jenkins master must be a Linux machine.")
 
+        for job_config in self.job_configs:
+            machine_id = job_config.webserver_config.machine_id
+            if not self.base_config.is_linux_machine(machine_id):
+                raise Exception("Config file Error! The webserver container host with {0} \"{1}\" is not a Linux machine.".format(KEY_MACHINE_ID, machine_id))
+
+
+    def _check_all_hosts_are_in_use(self):
+        """
+        Make sure no unused hosts are in the file which is probably an error.
+        """
+        # get all machines that are in use
+        used_machines = []
+        used_machines.append(self.base_config.jenkins_master_host_config.machine_id)
+        used_machines.append(self.base_config.repository_host_config.machine_id)
+        for slave_config in self.base_config.jenkins_slave_configs:
+            used_machines.append(slave_config.machine_id)
+
+        for job_config in self.job_configs:
+            used_machines.append(job_config.webserver_config.machine_id)
+
+        # now check if all defined hosts are within the used machines list
+        for host_config in self.base_config.host_machine_infos:
+            found = next((x for x in used_machines if x == host_config.machine_id ), None)
+            if found is None:
+                raise Exception("Config file Error! The host machine with id {0} is not used.".format(host_config.machine_id))
 
 
     def _check_host_ids_are_unique(self):
@@ -316,7 +350,7 @@ class ConfigData:
             else:
                 raise Exception('Function needs to be extended to handle os type of machine ' + slave_config.machine_id )
 
-        # set the mapped ssh ports
+        # set the mapped ports for slave and web container
         mapped_ssh_port = 23
         for slave_config in self.jenkins_slave_configs:
             if self.is_linux_machine(slave_config.machine_id):
@@ -326,6 +360,32 @@ class ConfigData:
                 slave_config.container_conf.published_ports = {mapped_ssh_port:22}
                 self._used_ports.add(mapped_ssh_port)
                 mapped_ssh_port += 1
+
+        
+        ssh_port = self.base_config.get_next_free_ssh_port()
+        used_ports = self.base_config.get_used_ports()
+        web_port = 80
+        web_server_index = 0
+
+        for job_config in self.job_configs:
+            while web_port in used_ports:
+                web_port += 1
+            used_ports.add(web_port)
+
+            while ssh_port in used_ports:
+                ssh_port += 1
+            used_ports.add(ssh_port)
+            
+            job_config.webserver_config.container_ssh_port = ssh_port
+            job_config.webserver_config.container_web_port = web_port
+            
+            job_config.webserver_config.container_conf.container_name = 'cpf-web-server-{0}'.format(web_server_index)
+            web_server_index += 1
+            job_config.webserver_config.container_conf.container_user = 'root'
+            job_config.webserver_config.container_conf.container_image_name = 'cpf-web-server-image'
+            job_config.webserver_config.container_conf.published_ports = {web_port:80, ssh_port:22}
+            job_config.webserver_config.container_conf.host_volumes = {job_config.webserver_config.host_html_share_dir : _HTML_SHARE_WEB_SERVER_CONTAINER}
+
 
         self._next_free_ssh_port = mapped_ssh_port
 
@@ -412,10 +472,57 @@ class JenkinsConfig:
         self.use_unconfigured_jenkins = False   # Setting this option will prevent the pre-configuation of jenkins. Needed for createing a first account xml file?
         self.admin_user = ''
         self.admin_user_password = ''
+        self.cpf_job_configs = []
         self.account_config_files = []
         self.job_config_files = []
         self.approved_system_commands = []
         self.approved_script_signatures = []
+
+
+    def _get_cpf_job_configs(self, config_dict):
+        """
+        Reads a list of cpf jenkins job configurations from the config file dictionary. 
+        """
+        jenkins_config_dict = get_checked_value(config_dict, KEY_JENKINS_CONFIG)
+        job_config_dict_list = get_checked_value(jenkins_config_dict, KEY_CPF_JOBS)
+        for job_config_dict in job_config_dict_list:
+            config = CPFJobConfig()
+            config.job_name = get_checked_value(job_config_dict, KEY_JENKINSJOB_BASE_NAME)
+            config.repository = get_checked_value(job_config_dict, KEY_REPOSITORY)
+
+            webserver_config_dict = get_checked_value(job_config_dict, KEY_WEBSERVER_CONFIG)
+            config.webserver_config.machine_id = get_checked_value(webserver_config_dict, KEY_MACHINE_ID)
+            config.webserver_config.host_html_share_dir = PurePosixPath(get_checked_value(webserver_config_dict, KEY_HOST_HTML_SHARE))
+
+            self.job_configs.append(config)
+
+
+    def _set_container_config(self):
+        """
+        Fills in values for the web-server container configuration.
+        """
+
+
+class CPFJobConfig:
+    """
+    Data class that holds the information from the KEY_CPF_JOBS key.
+    """
+    def __init__(self):
+        self.job_name = ''
+        self.repository = ''
+        self.webserver_config = WebserverConfig()
+
+
+class WebserverConfig:
+    """
+    Data class that holds the configuration of the web-server host machine.
+    """
+    def __init__(self):
+        self.machine_id = ''                                # The id of the host machine of the webserver container.
+        self.host_html_share_dir = PurePosixPath()          # A directory on the host machine that is shared with the containers html directory. This can be used to look at the page content.
+        self.container_ssh_port = None                      # The port on the host that is mapped to the containers ssh port.
+        self.container_web_port = None                      # The port on the host that is mapped to the containers port 80 under which the webpage can be reached.
+        self.container_conf = ContainerConfig() # More information about the container that runs the web-server.
 
 
 class ConfigItem:
@@ -503,6 +610,24 @@ def get_example_config_dict():
             KEY_USE_UNCONFIGURED_JENKINS : False,
             KEY_JENKINS_ADMIN_USER : 'fritz',
             KEY_JENKINS_ADMIN_USER_PASSWORD : '1234password',
+            KEY_CPF_JOBS : [
+                {
+                    KEY_JENKINSJOB_BASE_NAME : 'MyCPFProject1',
+                    KEY_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject1.git',
+                    KEY_WEBSERVER_CONFIG : {
+                        KEY_MACHINE_ID : "MyMaster",
+                        KEY_HOST_HTML_SHARE : "/home/fritz/mycpfproject1_html_share",
+                    }
+                },
+                {
+                    KEY_JENKINSJOB_BASE_NAME : 'MyCPFProject2',
+                    KEY_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject2.git',
+                    KEY_WEBSERVER_CONFIG : {
+                        KEY_MACHINE_ID : "MyMaster",
+                        KEY_HOST_HTML_SHARE : "/home/fritz/mycpfproject2_html_share",
+                    }
+                },
+            ],
             KEY_JENKINS_ACCOUNT_CONFIG_FILES : {
                 'hans' : 'UserHans.xml'
             },
@@ -517,6 +642,7 @@ def get_example_config_dict():
             ]
         }
     }
+
     return config_dict
 
 
@@ -546,164 +672,3 @@ def get_checked_value(dictionary, key):
     raise Exception("The config file is missing an entry with key {0}".format(key))
 
 
-KEY_CPF_JOBS = 'CPFJobs'
-KEY_JENKINSJOB_BASE_NAME = 'JenkinsJobBasename'
-KEY_REPOSITORY = 'Repository'
-
-KEY_WEBSERVER_CONFIG = 'WebServerConfig'
-KEY_HOST_HTML_SHARE = 'HostHTMLShare'
-
-
-_HTML_SHARE_WEB_SERVER_CONTAINER = PurePosixPath('/var/www/html')
-
-
-class CPFJobConfigs:
-    """
-    A class that contains the configuration of the CPF jenkins jobs.
-    """
-    def __init__(self, config_dict):
-        self.job_configs = []
-        self.base_config = config_data.ConfigData(config_dict)
-
-        self._get_cpf_job_configs(config_dict)
-        self._validate_values()
-        self._set_container_config()
-
-
-    def _get_cpf_job_configs(self, config_dict):
-        """
-        Reads a list of cpf jenkins job configurations from the config file dictionary. 
-        """
-        jenkins_config_dict = config_data.get_checked_value(config_dict, config_data.KEY_JENKINS_CONFIG)
-        job_config_dict_list = config_data.get_checked_value(jenkins_config_dict, KEY_CPF_JOBS)
-        for job_config_dict in job_config_dict_list:
-            config = CPFJobConfig()
-            config.job_name = config_data.get_checked_value(job_config_dict, KEY_JENKINSJOB_BASE_NAME)
-            config.repository = config_data.get_checked_value(job_config_dict, KEY_REPOSITORY)
-
-            webserver_config_dict = config_data.get_checked_value(job_config_dict, KEY_WEBSERVER_CONFIG)
-            config.webserver_config.machine_id = config_data.get_checked_value(webserver_config_dict, config_data.KEY_MACHINE_ID)
-            config.webserver_config.host_html_share_dir = PurePosixPath(config_data.get_checked_value(webserver_config_dict, KEY_HOST_HTML_SHARE))
-
-            self.job_configs.append(config)
-
-
-    def _validate_values(self):
-        """
-        Checks if the config values make sense.
-        """
-        self._check_container_use_linux_hosts()
-        self._check_all_hosts_are_in_use()
-
-
-    def _check_container_use_linux_hosts(self):
-        """
-        Check that all webserver hosts are linux machines.
-        """
-        for job_config in self.job_configs:
-            machine_id = job_config.webserver_config.machine_id
-            if not self.base_config.is_linux_machine(machine_id):
-                raise Exception("Config file Error! The webserver container host with {0} \"{1}\" is not a Linux machine.".format(config_data.KEY_MACHINE_ID, machine_id))
-
-
-    def _check_all_hosts_are_in_use(self):
-        """
-        Make sure no unused hosts are in the file which is probably an error.
-        """
-        # get all machines that are in use
-        used_machines = []
-        used_machines.append(self.base_config.jenkins_master_host_config.machine_id)
-        used_machines.append(self.base_config.repository_host_config.machine_id)
-        for slave_config in self.base_config.jenkins_slave_configs:
-            used_machines.append(slave_config.machine_id)
-
-        for job_config in self.job_configs:
-            used_machines.append(job_config.webserver_config.machine_id)
-
-        # now check if all defined hosts are within the used machines list
-        for host_config in self.base_config.host_machine_infos:
-            found = next((x for x in used_machines if x == host_config.machine_id ), None)
-            if found is None:
-                raise Exception("Config file Error! The host machine with id {0} is not used.".format(host_config.machine_id))
-
-
-    def _set_container_config(self):
-        """
-        Fills in values for the web-server container configuration.
-        """
-        ssh_port = self.base_config.get_next_free_ssh_port()
-        used_ports = self.base_config.get_used_ports()
-        web_port = 80
-        web_server_index = 0
-
-        for job_config in self.job_configs:
-            while web_port in used_ports:
-                web_port += 1
-            used_ports.add(web_port)
-
-            while ssh_port in used_ports:
-                ssh_port += 1
-            used_ports.add(ssh_port)
-            
-            job_config.webserver_config.container_ssh_port = ssh_port
-            job_config.webserver_config.container_web_port = web_port
-            
-            job_config.webserver_config.container_conf.container_name = 'cpf-web-server-{0}'.format(web_server_index)
-            web_server_index += 1
-            job_config.webserver_config.container_conf.container_user = 'root'
-            job_config.webserver_config.container_conf.container_image_name = 'cpf-web-server-image'
-            job_config.webserver_config.container_conf.published_ports = {web_port:80, ssh_port:22}
-            job_config.webserver_config.container_conf.host_volumes = {job_config.webserver_config.host_html_share_dir : _HTML_SHARE_WEB_SERVER_CONTAINER}
-
-
-class CPFJobConfig:
-    """
-    Data class that holds the information from the KEY_CPF_JOBS key.
-    """
-    def __init__(self):
-        self.job_name = ''
-        self.repository = ''
-        self.webserver_config = WebserverConfig()
-
-
-class WebserverConfig:
-    """
-    Data class that holds the configuration of the web-server host machine.
-    """
-    def __init__(self):
-        self.machine_id = ''                                # The id of the host machine of the webserver container.
-        self.host_html_share_dir = PurePosixPath()          # A directory on the host machine that is shared with the containers html directory. This can be used to look at the page content.
-        self.container_ssh_port = None                      # The port on the host that is mapped to the containers ssh port.
-        self.container_web_port = None                      # The port on the host that is mapped to the containers port 80 under which the webpage can be reached.
-        self.container_conf = config_data.ContainerConfig() # More information about the container that runs the web-server.
-
-
-
-def get_example_config_dict():
-    """
-    Returns a dictionary as it would come from a valid configuration file.
-    """
-    base_dict = config_data.get_example_config_dict()
-
-    cpf_jobs_list = [
-        {
-            KEY_JENKINSJOB_BASE_NAME : 'MyCPFProject1',
-            KEY_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject1.git',
-            KEY_WEBSERVER_CONFIG : {
-                config_data.KEY_MACHINE_ID : "MyMaster",
-                KEY_HOST_HTML_SHARE : "/home/fritz/mycpfproject1_html_share",
-            }
-        },
-        {
-            KEY_JENKINSJOB_BASE_NAME : 'MyCPFProject2',
-            KEY_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject2.git',
-            KEY_WEBSERVER_CONFIG : {
-                config_data.KEY_MACHINE_ID : "MyMaster",
-                KEY_HOST_HTML_SHARE : "/home/fritz/mycpfproject2_html_share",
-            }
-        },
-    ]
-
-    base_dict[config_data.KEY_JENKINS_CONFIG][KEY_CPF_JOBS] = cpf_jobs_list
-
-    return base_dict
