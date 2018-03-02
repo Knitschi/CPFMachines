@@ -169,6 +169,10 @@ good to remove this limitation, which could be a showstopper for highly frequent
 buildtimes. Another problem is that we do not get a build for each push, which makes it harder to pinpoint
 failed builds to a specific push/developer.
 
+- When using the CPF on Windows, one may be hitting the 260 character limit for filenames. On Windows 10, this
+limit can be switched off. When building on older windows versions, the user can try to reduce the length of his
+configuration names, package names or ci-project name. 
+
 
 \section CPFMachinesTestsSection Tests
 
