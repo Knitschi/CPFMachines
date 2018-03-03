@@ -116,6 +116,9 @@ def main(config_file):
         print("----- Configure the jenkins master server.")
         controller.configure_jenkins_master(config_file)
 
+    _print_access_summary(config)
+
+    print()
     print('Successfully startet jenkins master, build slaves and the documentation server.')
 
 
@@ -927,6 +930,18 @@ def get_job_name(job_base_name):
     Add the version to the base name.
     """
     return job_base_name + '-' + cpfmachines_version.CPFMACHINES_VERSION
+
+
+def _print_access_summary(config):
+    """
+    Prints information under which hostnames and ports ssh-server
+    and webpages can be accessed.
+    """
+    print("\
+    ##### Summary of access information #####\
+    Bla\
+    ")
+
 
 
 if __name__ == '__main__':
