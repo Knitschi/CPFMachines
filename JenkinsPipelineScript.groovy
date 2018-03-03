@@ -102,7 +102,7 @@ This job is run for commit: ${commitID}
 
 addPipelineStage(configurations, repository, commitID, params.target)
 // Only tag commits that have been built with the full pipline and all configurations.
-if(params.target == 'pipeline' && params.cpfConfiguration = '' )
+if(params.target == 'pipeline' && params.cpfConfiguration == '' )
 {
     addTaggingStage(repository, commitID)
 }
