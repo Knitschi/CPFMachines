@@ -116,10 +116,10 @@ def main(config_file):
         print("----- Configure the jenkins master server.")
         controller.configure_jenkins_master(config_file)
 
-    _print_access_summary(config)
-
     print()
-    print('Successfully startet jenkins master, build slaves and the documentation server.')
+    print('----- Successfully startet jenkins master, build slaves and the documentation server.')
+
+    _print_access_summary(config)
 
 
 ###############################################################################################################
@@ -937,10 +937,56 @@ def _print_access_summary(config):
     Prints information under which hostnames and ports ssh-server
     and webpages can be accessed.
     """
-    print("\
-    ##### Summary of access information #####\
-    Bla\
-    ")
+    
+    jenkins_mater_host_info = config.get_host_info(config.jenkins_master_host_config.machine_id)
+    
+    print()
+    print('##### Summary of web-pages and ssh accesses #####')
+    print()
+    print('Jenkins web-interface:')
+    print('http://{0}:8080'.format(jenkins_mater_host_info.host_name))
+    print()
+    print('Project web-pages:')
+    for cpf_job_config in config.jenkins_config.cpf_job_configs:
+        host_info = config.get_host_info(cpf_job_config.webserver_config.machine_id)
+        mapped_port = cpf_job_config.webserver_config.container_web_port
+        print('{0} -> http://{1}:{2}/doxygen'.format(cpf_job_config.base_job_name, host_info.host_name, mapped_port))
+    print()
+    print('SSH accesses build-slaves:')
+    for slave_config in config.jenkins_slave_configs:
+        machine_id = slave_config.machine_id
+        host_info = config.get_host_info(machine_id)
+        if config.is_linux_machine(machine_id):
+            ssh_port = next(iter(slave_config.container_conf.published_ports.keys()))
+            print('{0} -> \"ssh -p{1} {2}@{3}\"'.format(
+                slave_config.container_conf.container_name,
+                ssh_port,
+                slave_config.container_conf.container_user,
+                host_info.host_name
+            ))
+        elif config.is_windows_machine(machine_id):
+            print('{0} -> \"ssh {1}@{2}\"'.format(
+                machine_id,
+                host_info.user_name,
+                host_info.host_name
+            ))
+        else:
+            raise Exception("Function needs to be extended for new os type")
+    print()
+    print('SSH accesses web-server:')
+    for cpf_job_config in config.jenkins_config.cpf_job_configs:
+            container_conf = cpf_job_config.webserver_config.container_conf
+            host_info = config.get_host_info(cpf_job_config.webserver_config.machine_id)
+            print('{0} -> \"ssh -p{1} {2}@{3}\"'.format(
+                container_conf.container_name,
+                cpf_job_config.webserver_config.container_ssh_port,
+                container_conf.container_user,
+                host_info.host_name
+            ))
+
+
+
+
 
 
 
