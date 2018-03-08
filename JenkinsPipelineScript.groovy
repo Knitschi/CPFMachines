@@ -258,7 +258,7 @@ def createBuildNode( nodeLabel, cpfConfig, repository, commitId, target, compile
                 dir(CHECKOUT_FOLDER)
                 {
                     // Make the python scripts available in the root directory
-                    runPythonCommand("Sources/CPFBuildscripts/0_CopyScripts.py")
+                    // runPythonCommand("Sources/CPFBuildscripts/0_CopyScripts.py")
 
                     // Setup build configurations
                     // We do not use the ninja build-system for msvc because ninja in combination with mscv can randomly fail with an error thet says that a .pdb file could not be opened.
