@@ -24,7 +24,7 @@ class Constants {
     static final CPF_JENKINSJOB_VERSION = '0.0.0' // how can we get this from a generated file?
     
     // locations
-    static final CHECKOUT_FOLDER = 'C O' // this needs a space to test if spaced directories work. It also must be short because of path limits on windows
+    static final CHECKOUT_FOLDER = 'CO' // this needs a space to test if spaced directories work. It also must be short because of path limits on windows
     static final CPFCMAKE_DIR = 'CPFCMake'
 
     // stash names
