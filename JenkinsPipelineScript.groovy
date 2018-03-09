@@ -348,7 +348,7 @@ def addUpdateWebPageStage(repository, cpfConfigs, commitID)
                 sh "cmake -DSOURCE_DIR=\"${tempHtmlDir}\" -DTARGET_DIR=\"${serverHtmlDir}\" -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPFCMAKE_DIR}/Scripts/updateExistingWebPage.cmake\""
 
                 // copy the merge result back to the server
-                sh "ssh -p ${port} ${web_host} \"mkdir -p ${projectHtmlDirOnWebserver}\""
+                //sh "ssh -p ${port} ${web_host} \"mkdir -p ${projectHtmlDirOnWebserver}\""
                 sh "ssh -p ${port} ${web_host} \"rm -rf ${projectHtmlDirOnWebserver}/*\""
                 
                 sh "ls -l html-on-server"
@@ -356,7 +356,7 @@ def addUpdateWebPageStage(repository, cpfConfigs, commitID)
 
                 //sh "scp -P ${port} -r \"${serverHtmlDir}/*\" ${web_host}:${projectHtmlDirOnWebserver} || :" // we ignore errors here to prevent a fail when the job does not build the documentation
                 //sh "scp -P ${port} -r \"./html-on-server/*\" ${web_host}:${projectHtmlDirOnWebserver}"
-                sh 'scp -P 27 -r html-on-server/* root@BuildMasterDebian9:/var/www/html'
+                sh 'scp -P 27 -r html-on-server root@BuildMasterDebian9:/var/www/html'
 
                 echo '----- The project web-page was updated successfully. -----'
             }
