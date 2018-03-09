@@ -345,10 +345,13 @@ def addUpdateWebPageStage(repository, cpfConfigs, commitID)
                 // merge the new html content into the old html content
                 // sh "ls -l \$PWD/${CHECKOUT_FOLDER}/Sources/cmake/Scripts"
                 sh "cmake -DFRESH_HTML_DIR=\"${newHtmlContentDir}\" -DEXISTING_HTML_DIR=\"${oldHtmlContentDir}\" -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPFCMAKE_DIR}/Scripts/updateExistingWebPage.cmake\""
+                // rename the accumulated content to html so we can copy the complete directory
+                sh "cmake -E remove_directory \"${newHtmlContentDir}\""
+                sh "mv ${oldHtmlContentDir} ${newHtmlContentDir}"
 
                 // copy the merge result back to the server
                 sh "ssh -p ${port} ${web_host} \"rm -rf ${projectHtmlDirOnWebserver}\""
-                sh "scp -P ${port} -r html  ${web_host}:/var/www || :" // we ignore errors here to prevent a fail when the job does not build the documentation
+                sh "scp -P ${port} -r ${newHtmlContentDir} ${web_host}:/var/www || :" // we ignore errors here to prevent a fail when the job does not build the documentation
 
                 echo '----- The project web-page was updated successfully. -----'
             }
