@@ -329,6 +329,7 @@ def addUpdateWebPageStage(repository, cpfConfigs, commitID)
             
                 def web_host = "root@${params.webserverHost}"
                 def port = params.webserverSSHPort
+                def projectHtmlDirOnWebserver = '/var/www/html'
 
                 // get the current html content from the web-server
                 sh "scp -P ${port} -r ${web_host}:${projectHtmlDirOnWebserver} . || :" // || : suppresses the error message if the server html contains no files
@@ -347,7 +348,7 @@ def addUpdateWebPageStage(repository, cpfConfigs, commitID)
                 sh "tree html"
 
                 // copy the merge result back to the server
-                sh "ssh -p ${port} ${web_host} \"rm -rf /var/www/html\""
+                sh "ssh -p ${port} ${web_host} \"rm -rf ${projectHtmlDirOnWebserver}\""
                 sh "scp -P ${port} -r html  ${web_host}:/var/www || :" // we ignore errors here to prevent a fail when the job does not build the documentation
 
                 echo '----- The project web-page was updated successfully. -----'
