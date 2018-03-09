@@ -320,8 +320,8 @@ def addUpdateWebPageStage(repository, cpfConfigs, commitID)
             {
                 checkoutBranch(repository, commitID) // get the scripts
 
-                def serverHtmlDir = '$PWD/html-on-server'
-                def tempHtmlDir = '$PWD/html'
+                def serverHtmlDir = '$PWD/html'
+                def tempHtmlDir = '$PWD/temphtml'
                 
                 // make sure previous content of the html directory is removed.
                 sh "cmake -E remove_directory \"${serverHtmlDir}\""
@@ -341,7 +341,7 @@ def addUpdateWebPageStage(repository, cpfConfigs, commitID)
                 def projectHtmlDirOnWebserver = "/var/www/html"
 
                 // get the current html content from the web-server
-                sh "scp -P ${port} -r ${web_host}:${projectHtmlDirOnWebserver}/* \"${serverHtmlDir}\" || :" // || : suppresses the error message if the server html contains no files
+                sh "scp -P ${port} -r ${web_host}:${projectHtmlDirOnWebserver} . || :" // || : suppresses the error message if the server html contains no files
 
                 // merge the new html content into the old html content
                 // sh "ls -l \$PWD/${CHECKOUT_FOLDER}/Sources/cmake/Scripts"
@@ -351,12 +351,11 @@ def addUpdateWebPageStage(repository, cpfConfigs, commitID)
                 //sh "ssh -p ${port} ${web_host} \"mkdir -p ${projectHtmlDirOnWebserver}\""
                 sh "ssh -p ${port} ${web_host} \"rm -rf ${projectHtmlDirOnWebserver}/*\""
                 
-                sh "ls -l html-on-server"
-                sh 'whoami'
+                sh "ls -l html"
 
                 //sh "scp -P ${port} -r \"${serverHtmlDir}/*\" ${web_host}:${projectHtmlDirOnWebserver} || :" // we ignore errors here to prevent a fail when the job does not build the documentation
                 //sh "scp -P ${port} -r \"./html-on-server/*\" ${web_host}:${projectHtmlDirOnWebserver}"
-                sh 'scp -P 27 -r html-on-server root@BuildMasterDebian9:/var/www/html'
+                sh 'scp -P 27 -r html root@BuildMasterDebian9:/var/www'
 
                 echo '----- The project web-page was updated successfully. -----'
             }
