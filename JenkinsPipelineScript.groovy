@@ -350,10 +350,13 @@ def addUpdateWebPageStage(repository, cpfConfigs, commitID)
                 // copy the merge result back to the server
                 sh "ssh -p ${port} ${web_host} \"mkdir -p ${projectHtmlDirOnWebserver}\""
                 sh "ssh -p ${port} ${web_host} \"rm -rf ${projectHtmlDirOnWebserver}/*\""
-                echo '$PWD'
-                showTree()
-                sh "scp -P ${port} -r \"${serverHtmlDir}\"/* ${web_host}:${projectHtmlDirOnWebserver} || :"
                 
+                sh 'echo $PWD'
+                sh 'tree ${serverHtmlDir}'
+
+                //sh "scp -P ${port} -r \"${serverHtmlDir}/*\" ${web_host}:${projectHtmlDirOnWebserver} || :" // we ignore errors here to prevent a fail when the job does not build the documentation
+                sh "scp -P ${port} -r '${serverHtmlDir}/*' ${web_host}:${projectHtmlDirOnWebserver}"
+
                 echo '----- The project web-page was updated successfully. -----'
             }
         }
@@ -436,7 +439,7 @@ def showTree()
     {
         sh 'tree'
     }
-    else if(os == 'linux')
+    else()
     {
         bat 'tree /F /A'
     }
