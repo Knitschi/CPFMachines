@@ -352,9 +352,11 @@ def addUpdateWebPageStage(repository, cpfConfigs, commitID)
                 sh "ssh -p ${port} ${web_host} \"rm -rf ${projectHtmlDirOnWebserver}/*\""
                 
                 sh "ls -l \"${serverHtmlDir}\""
+                sh "echo $USER"
 
                 //sh "scp -P ${port} -r \"${serverHtmlDir}/*\" ${web_host}:${projectHtmlDirOnWebserver} || :" // we ignore errors here to prevent a fail when the job does not build the documentation
-                sh "scp -P ${port} -r \\\"html-on-server/*\\\" ${web_host}:${projectHtmlDirOnWebserver}"
+                sh "scp -P ${port} -r \"./html-on-server/*\" ${web_host}:${projectHtmlDirOnWebserver}"
+                sh 'scp -P 27 -r ./html-on-server/* root@BuildMasterDebian9:/var/www/html'
 
                 echo '----- The project web-page was updated successfully. -----'
             }
