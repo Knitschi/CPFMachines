@@ -350,8 +350,9 @@ def addUpdateWebPageStage(repository, cpfConfigs, commitID)
                 // copy the merge result back to the server
                 sh "ssh -p ${port} ${web_host} \"mkdir -p ${projectHtmlDirOnWebserver}\""
                 sh "ssh -p ${port} ${web_host} \"rm -rf ${projectHtmlDirOnWebserver}/*\""
+                echo '$PWD'
                 showTree()
-                sh "scp -P ${port} -r \"${serverHtmlDir}/*\" ${web_host}:${projectHtmlDirOnWebserver} || :"
+                sh "scp -P ${port} -r \"${serverHtmlDir}\"/* ${web_host}:${projectHtmlDirOnWebserver} || :"
                 
                 echo '----- The project web-page was updated successfully. -----'
             }
