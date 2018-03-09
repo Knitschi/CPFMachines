@@ -349,6 +349,8 @@ def addUpdateWebPageStage(repository, cpfConfigs, commitID)
                 sh "cmake -E remove_directory \"${newHtmlContentDir}\""
                 sh "mv ${oldHtmlContentDir} ${newHtmlContentDir}"
 
+                sh 'tree html'
+
                 // copy the merge result back to the server
                 sh "ssh -p ${port} ${web_host} \"rm -rf ${projectHtmlDirOnWebserver}\""
                 sh "scp -P ${port} -r ${newHtmlContentDir} ${web_host}:/var/www || :" // we ignore errors here to prevent a fail when the job does not build the documentation
