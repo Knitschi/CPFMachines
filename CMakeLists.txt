@@ -37,7 +37,7 @@ set( otherFiles
     post-receive.in
     README.md
     serve-cgi-bin.conf
-    slave.jar
+    agent.jar
     ssh_config
     supervisord.conf
     updateAuthorizedKeysBitvise.bat.in

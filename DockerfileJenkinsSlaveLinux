@@ -104,7 +104,7 @@ mkdir -p /home/jenkins/.ssh &&\
 chown -R jenkins:jenkins /home/jenkins/.ssh
 
  # This file is run by the jenkins-master to start the slave
-COPY slave.jar /home/jenkins/bin/slave.jar         
+COPY agent.jar /home/jenkins/bin/agent.jar         
 RUN chown -R jenkins:jenkins /home/jenkins/bin
  
   
