@@ -439,7 +439,7 @@ def showTree()
     {
         sh 'tree'
     }
-    else()
+    else
     {
         bat 'tree /F /A'
     }
