@@ -349,13 +349,15 @@ def addUpdateWebPageStage(repository, cpfConfigs, commitID)
 
                 // copy the merge result back to the server
                 //sh "ssh -p ${port} ${web_host} \"mkdir -p ${projectHtmlDirOnWebserver}\""
-                sh "ssh -p ${port} ${web_host} \"rm -rf ${projectHtmlDirOnWebserver}/*\""
+                sh "ssh -p ${port} ${web_host} \"rm -rf ${projectHtmlDirOnWebserver}\""
                 
                 sh "tree html"
 
                 //sh "scp -P ${port} -r \"${serverHtmlDir}/*\" ${web_host}:${projectHtmlDirOnWebserver} || :" // we ignore errors here to prevent a fail when the job does not build the documentation
                 //sh "scp -P ${port} -r \"./html-on-server/*\" ${web_host}:${projectHtmlDirOnWebserver}"
                 sh 'scp -P 27 -r html root@BuildMasterDebian9:/var/www'
+
+                sh "ssh -p ${port} ${web_host} \"tree ${projectHtmlDirOnWebserver}\""
 
                 echo '----- The project web-page was updated successfully. -----'
             }
