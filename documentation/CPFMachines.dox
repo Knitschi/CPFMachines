@@ -196,11 +196,10 @@ they are automated.
 
 //##########################################################################################
 /**
-\page Infrastructure Project Organization And Build Infrastructure
 
-# Infrastructure #
+\section Rework Machines docs
 
-This section ccbContains information about the machines that are used to automatically build the pipeline
+This section contains information about the machines that are used to automatically build the pipeline
 and provide the projects html pages.
 
 
