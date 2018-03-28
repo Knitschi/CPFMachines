@@ -531,7 +531,7 @@ def write_example_config_file(file_path):
     """
     # create an empty dictionary with all possible config values.
     config_dict = get_example_config_dict()
-    _write_json_file(config_dict, file_path)
+    write_json_file(config_dict, file_path)
 
 
 def read_json_file(config_file):
@@ -636,7 +636,7 @@ def get_example_config_dict():
     return config_dict
 
 
-def _write_json_file(config_dict, file_path):
+def write_json_file(config_dict, file_path):
     """
     Writes a dictionary to .json file.
     """

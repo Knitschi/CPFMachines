@@ -116,7 +116,7 @@ def write_example_config_file(file_path):
     """
     # create an empty dictionary with all possible config values.
     config_dict = get_example_config_dict()
-    config_data._write_json_file(config_dict, file_path)
+    config_data.write_json_file(config_dict, file_path)
 
 def get_example_config_dict():
     """
