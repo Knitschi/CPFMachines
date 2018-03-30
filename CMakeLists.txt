@@ -66,4 +66,5 @@ add_custom_target(
     ${PACKAGE_NAME}
     SOURCES ${otherFiles} ${pythonFiles}
 )
+
 set_property( TARGET ${PACKAGE_NAME} PROPERTY FOLDER ${PACKAGE_NAME} )
