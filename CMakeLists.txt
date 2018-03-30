@@ -68,5 +68,3 @@ add_custom_target(
 )
 
 set_property( TARGET ${PACKAGE_NAME} PROPERTY FOLDER ${PACKAGE_NAME} )
-
-
