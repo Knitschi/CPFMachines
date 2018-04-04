@@ -15,7 +15,8 @@ openssh-server \
 apache2 \
 supervisor \
 netcat \
-vim
+vim \
+tree
 
 
 # --------------- Install Clang Tools --------------

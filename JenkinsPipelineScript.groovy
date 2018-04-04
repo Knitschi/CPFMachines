@@ -330,38 +330,38 @@ def addUpdateWebPageStage(repository, cpfConfigs, commitID)
             {
                 checkoutBranch(repository, commitID) // get the scripts
 
-                def serverHtmlDir = '$PWD/html-on-server'
-                def tempHtmlDir = '$PWD/html'
+                def oldHtmlContentDir = 'html-old'
+                def newHtmlContentDir = 'html'
                 
                 // make sure previous content of the html directory is removed.
-                sh "cmake -E remove_directory \"${serverHtmlDir}\""
-                sh "mkdir \"${serverHtmlDir}\""
-                sh "cmake -E remove_directory \"${tempHtmlDir}\""
-                sh "mkdir \"${tempHtmlDir}\""
+                sh "cmake -E remove_directory \"${oldHtmlContentDir}\""
+                sh "cmake -E remove_directory \"${newHtmlContentDir}\""
             
-                // collect all produced html content from the build-slaves
+                def web_host = "root@${params.webserverHost}"
+                def port = params.webserverSSHPort
+                def projectHtmlDirOnWebserver = '/var/www/html'
+
+                // get the current html content from the web-server
+                sh "scp -P ${port} -r ${web_host}:${projectHtmlDirOnWebserver} . || :" // || : suppresses the error message if the server html contains no files
+                sh "mv ${newHtmlContentDir} ${oldHtmlContentDir}"
+
+                // Accumulate the new html content from all built configurations.
+                // This fills the html directory.
                 for(cpfConfig in cpfConfigs)
                 {
                     unstashFiles(HTML_STASH, cpfConfig.ConfigName)
                 }
-                // sh "ls -l \"${tempHtmlDir}\""
-
-                def web_host = "root@${params.webserverHost}"
-                def port = params.webserverSSHPort
-                def projectHtmlDirOnWebserver = "/var/www/html"
-
-                // get the current html content from the web-server
-                sh "scp -P ${port} -r ${web_host}:${projectHtmlDirOnWebserver}/* \"${serverHtmlDir}\" || :" // || : suppresses the error message if the server html contains no files
 
                 // merge the new html content into the old html content
-                // sh "ls -l \$PWD/${CHECKOUT_FOLDER}/Sources/cmake/Scripts"
-                sh "cmake -DSOURCE_DIR=\"${tempHtmlDir}\" -DTARGET_DIR=\"${serverHtmlDir}\" -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPFCMAKE_DIR}/Scripts/updateExistingWebPage.cmake\""
+                sh "cmake -DFRESH_HTML_DIR=\"${newHtmlContentDir}\" -DEXISTING_HTML_DIR=\"${oldHtmlContentDir}\" -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPFCMAKE_DIR}/Scripts/updateExistingWebPage.cmake\""
+                // rename the accumulated content to html so we can copy the complete directory
+                sh "cmake -E remove_directory \"${newHtmlContentDir}\""
+                sh "mv ${oldHtmlContentDir} ${newHtmlContentDir}"
 
                 // copy the merge result back to the server
-                sh "ssh -p ${port} ${web_host} \"mkdir -p ${projectHtmlDirOnWebserver}\""
-                sh "ssh -p ${port} ${web_host} \"rm -rf ${projectHtmlDirOnWebserver}/*\""
-                sh "scp -P ${port} -r \"${serverHtmlDir}/*\" ${web_host}:${projectHtmlDirOnWebserver} || :"
-                
+                sh "ssh -p ${port} ${web_host} \"rm -rf ${projectHtmlDirOnWebserver}\""
+                sh "scp -P ${port} -r ${newHtmlContentDir} ${web_host}:/var/www || :" // we ignore errors here to prevent a fail when the job does not build the documentation
+
                 echo '----- The project web-page was updated successfully. -----'
             }
         }
@@ -444,7 +444,7 @@ def showTree()
     {
         sh 'tree'
     }
-    else if(os == 'linux')
+    else
     {
         bat 'tree /F /A'
     }
