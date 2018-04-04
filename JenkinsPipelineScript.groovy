@@ -83,16 +83,17 @@ else
 
 // For unknown reasons, the repo url can not contain the second : after the machine name
 // when used with the GitSCM class. So we remove it here.
+def repository = ''
 parts = params.cpfCIRepository.split(':')
-if(parts.size() == 3 ) 
+if(parts.size() == 3 )
 {
     // This should only be the case when using ssh addresses. 
-    def repository = parts[0] + ':' + parts[1] + parts[2]
+    repository = parts[0] + ':' + parts[1] + parts[2]
 }
 else
 {
     // This branch should be executed for https repository addresses
-    def repository = params.cpfCIRepository
+    repository = params.cpfCIRepository
 }
 
 
