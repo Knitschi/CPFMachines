@@ -85,8 +85,8 @@ def docker_run_detached(host_connection, container_config, resolved_hosts=[]):
         publish_port_args += '--publish {0}:{1} '.format(host_port, container_port)
 
     volume_args = ''
-    for host_dir, container_dir in container_config.host_volumes.items():
-        volume_args += '--volume {0}:{1} '.format(host_dir, container_dir)
+    #for host_dir, container_dir in container_config.host_volumes.items():
+    #    volume_args += '--volume {0}:{1} '.format(host_dir, container_dir)
 
     env_args = ''
     for variable in container_config.envvar_definitions:
