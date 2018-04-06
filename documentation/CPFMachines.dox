@@ -81,6 +81,10 @@ therefore must be given as ip addresses to allow the jenkins-master to reach the
 \warning All machines should be within a trusted network as machine to machine communication is currently vulnerable to man in the middle attacks due to
 ignoring ssh host key checking.
 
+\warning When the machines access git repositories with the https protocol, the passwords for these
+repositories are stored in plain text via the git credential store mechanism on the build slaves and the
+jenkins master machine.
+
 \section CPFMachinesHookSetupSection Automatic build-Job execution
 
 In day to day development it is practical when the build-job is run automatically whenever a developer
