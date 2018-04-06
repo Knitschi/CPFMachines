@@ -24,6 +24,7 @@ import pprint
 import time
 import paramiko
 import socket
+import getpass
 
 from . import cpfmachines_version
 from . import config_data
@@ -50,6 +51,7 @@ _PUBLIC_KEY_FILE_POSTFIX = '_ssh_key.rsa.pub'
 _CREATEKEYPAIR_SCRIPT = PurePath('createSSHKeyFilePair.sh')
 _ADDKNOWNHOST_SCRIPT = PurePath('addKnownSSHHost.sh')
 _ADDAUTHORIZEDKEYSBITWISESSH_SCRIPT = PurePath('addAuthorizedBitwiseSSHKey.bat')
+_GIT_CREDENTIALS_STORE = PurePosixPath('.jenkins-git-credentials')
 
 
 # directories on jenkins-slave-linux
@@ -57,7 +59,7 @@ _JENKINS_HOME_JENKINS_SLAVE_CONTAINER =  PurePosixPath('/home/jenkins')
 
 # The address of the official CPFJenkinsjob repository.
 # Is it good enough to have this hardcoded here?
-_JENKINSJOB_REPOSITORY = 'ssh://admin@datenbunker/share/GitRepositories/CPFMachines.git'
+_JENKINSJOB_REPOSITORY = 'https://github.com/Knitschi/CPFMachines.git'
 _CPF_JOB_TEMPLATE_FILE = _SCRIPT_DIR.joinpath('config.xml.in')
 
 
@@ -89,6 +91,7 @@ def main(config_file):
     config_file = PurePath(config_file)
     config_dict = config_data.read_json_file(config_file)
     config = config_data.ConfigData(config_dict)
+    _get_https_repository_passwords(config)
 
     print('----- Establish ssh connections to host machines')
     connections = ConnectionsHolder(config.host_machine_infos)
@@ -111,8 +114,8 @@ def main(config_file):
     controller.build_and_start_jenkins_linux_slaves()
 
     # setup ssh accesses
-    print( '----- Setup SSH access rights ' )
-    controller.setup_ssh_access_rights()
+    print( '----- Setup access_rights' )
+    controller.setup_access_rights()
 
     # configure jenkins
     if not config.jenkins_config.use_unconfigured_jenkins:
@@ -207,19 +210,21 @@ class MachinesController:
 
         resolved_hosts = self._get_slave_machine_host_names()
         resolved_hosts.update(self._get_web_server_host_names())
-        resolved_hosts.add(self._get_repository_host_name())
+        resolved_hosts.update(self._get_accessible_repository_host_names())
         dockerutil.docker_run_detached(connection, container_config, resolved_hosts=resolved_hosts)
 
-        # add global gitconfig after mounting the workspace volume, otherwise is gets deleted.
-        commands = [
-            'git config --global user.email not@valid.org',
-            'git config --global user.name jenkins'
-        ]
-        dockerutil.run_commands_in_container(
-            connection,
-            self.config.jenkins_master_host_config.container_conf,
-            commands
-            )
+        # Add global gitconfig after mounting the workspace volume, otherwise is gets deleted.
+        # Note that the slaves do this in the dockerfile
+        #commands = [
+        #    'git config --global user.email not@valid.org',
+        #    'git config --global user.name jenkins',
+        #    'git config --global '
+        #]
+        #dockerutil.run_commands_in_container(
+        #    connection,
+        #    self.config.jenkins_master_host_config.container_conf,
+        #    commands
+        #    )
 
     def _get_slave_machine_host_names(self):
         host_names = []
@@ -235,11 +240,21 @@ class MachinesController:
             host_names.add(connection.info.host_name)
         return host_names
 
-    def _get_repository_host_name(self):
-        return self.connections.get_connection(self.config.repository_host_config.machine_id).info.host_name
+
+    def _get_accessible_repository_host_names(self):
+        """
+        Returns the hostnames of the repository machines to which ssh accesses are established.
+        These are the ones the use fresh ssh key files.
+        """
+        host_names = set()
+        for repo_host_config in self.config.ssh_repository_host_accesses:
+            connection = self.connections.get_connection(repo_host_config.machine_id)
+            host_names.add(connection.info.host_name)
+        return host_names
+
 
     def build_and_start_web_servers(self):
-        
+
         for cpf_job_config in self.config.jenkins_config.cpf_job_configs:
 
             machine_id = cpf_job_config.webserver_config.machine_id
@@ -296,7 +311,7 @@ class MachinesController:
                 self._build_and_start_jenkins_linux_slave(slave_config.container_conf, slave_config.machine_id)
 
 
-    def setup_ssh_access_rights(self):
+    def setup_access_rights(self):
         # setup ssh accesses of the jenkins-master
         connection = self._get_jenkins_master_host_connection()
         _create_rsa_key_file_pair_on_container(
@@ -304,7 +319,7 @@ class MachinesController:
             self.config.jenkins_master_host_config.container_conf,
             config_data.JENKINS_HOME_JENKINS_MASTER_CONTAINER)
 
-        self._grant_container_ssh_access_to_repository(
+        self._grant_container_access_to_repositories(
             self.config.jenkins_master_host_config.container_conf,
             config_data.JENKINS_HOME_JENKINS_MASTER_CONTAINER)
 
@@ -314,8 +329,10 @@ class MachinesController:
         
         # setup ssh accesses used by the jenkins slaves
         self._create_rsa_key_file_pairs_on_slave_container()
-        self._grant_linux_slaves_access_to_repository()
-        # \todo Windows slaves need repository access as well. Did we do this manually?
+        self._grant_linux_slaves_access_to_repositories()
+        # \todo Windows slaves need repository access as well.
+        # We currently do this manually until we have a container solution
+        # for windows as well.
 
 
     def configure_jenkins_master(self, config_file):
@@ -424,7 +441,7 @@ class MachinesController:
             )
 
         # Start the container.
-        resolved_hosts = set([self._get_repository_host_name()]) 
+        resolved_hosts = self._get_accessible_repository_host_names()
         resolved_hosts.update(self._get_web_server_host_names()) # slaves may need to copy files from the webserver
         dockerutil.docker_run_detached(connection, container_conf, resolved_hosts=resolved_hosts)
 
@@ -440,11 +457,27 @@ class MachinesController:
                 )
 
 
-    def _grant_container_ssh_access_to_repository(self, container_conf, container_home_directory):
+    def _grant_container_access_to_repositories(self, container_conf, container_home_directory):
 
-        repository_machine_id = self.config.repository_host_config.machine_id
+        # Handle repository host for which we can access the .ssh directory and add new public key files
+        # directly.
+        for repository_host_config in self.config.ssh_repository_host_accesses:
+            self._grant_container_ssh_access_to_repository_with_fresh_key_file(container_conf, container_home_directory, repository_host_config)
+
+        # Handle repository accesses for https hosts.
+        for repository_host_config in self.config.https_repository_accesses:
+            self._grant_container_access_to_https_repositories(container_conf, container_home_directory, repository_host_config)
+        
+    
+    def _grant_container_ssh_access_to_repository_with_fresh_key_file(self, container_conf, container_home_directory, repository_host_config):
+        """
+        This function uses the freshly generated key file pair of the container and registers the public key file with
+        the repository host. Old registered public keys are removed.
+        """
+
+        repository_machine_id = repository_host_config.machine_id
         repository_connection = self.connections.get_connection(repository_machine_id)
-        repository_machine_ssh_dir = self.config.repository_host_config.ssh_dir
+        repository_machine_ssh_dir = repository_host_config.ssh_dir
 
         container_name = container_conf.container_name
         container_host_connection = self._get_container_host_connection(container_name)
@@ -480,6 +513,28 @@ class MachinesController:
             repository_connection.info.host_name, 
             22,
             repository_connection.info.user_name
+        )
+
+
+    def _grant_container_access_to_https_repositories(self, container_conf, container_home_directory, https_repository_host_config):
+        """
+        This function adds the credentials of the given https based repository accesses to the git credential store of that container.
+        """
+        container_name = container_conf.container_name
+        container_host_connection = self._get_container_host_connection(container_name)
+
+        # Add the credentials for the repository to the jenkins-git-credentials file.
+        credential_file = container_home_directory.joinpath(_GIT_CREDENTIALS_STORE)
+        command = 'echo https://{0}:{1}@{2} >> {3}'.format(
+            https_repository_host_config.user_name,
+            https_repository_host_config.user_password,
+            https_repository_host_config.host_name,
+            credential_file
+        )
+        dockerutil.run_command_in_container(
+            container_host_connection,
+            container_conf,
+            command
         )
 
 
@@ -630,10 +685,10 @@ class MachinesController:
             )
 
 
-    def _grant_linux_slaves_access_to_repository(self):
+    def _grant_linux_slaves_access_to_repositories(self):
         for slave_config in self.config.jenkins_slave_configs:
             if self.config.is_linux_machine(slave_config.machine_id):
-                self._grant_container_ssh_access_to_repository(
+                self._grant_container_access_to_repositories(
                     slave_config.container_conf,
                     PurePosixPath('/home/jenkins')
                 )
@@ -722,7 +777,7 @@ class MachinesController:
             '@JOB_NAME@' : get_job_name(cpf_job_config.base_job_name),
             '@JENKINSFILE_TAG_OR_BRANCH@' : tag_or_branch,
             '@BUILD_REPOSITORY@' : cpf_job_config.repository,
-            '@JENKINSJOB_REPOSITORY@' : _JENKINSJOB_REPOSITORY,
+            '@CPFMACHINES_REPOSITORY@' : _JENKINSJOB_REPOSITORY,
             '@WEBSERVER_HOST@' : webserver_container_host,
             '@WEBSERVER_SSH_PORT@' : str(cpf_job_config.webserver_config.container_ssh_port),
         })
@@ -875,6 +930,17 @@ def dev_message(text):
     print('--------------- ' + str(text))
 
 
+def _get_https_repository_passwords(config):
+    """
+    Prompts the user to enter the passwords for the https repositories if none are provided in
+    the config file.
+    """
+    for https_config in config.https_repository_accesses:
+        if not https_config.user_password:
+            prompt_message = "Please enter the password for https repository user {0} on host {1}.".format(https_config.user_name, https_config.host_name)
+            https_config.user_password = getpass.getpass(prompt_message)
+
+
 def _create_rsa_key_file_pair_on_container(connection, container_conf, container_home_directory):
     # copy the scripts that does the job to the container
     dockerutil.copy_textfile_to_container(
@@ -899,10 +965,25 @@ def _accept_remote_container_host_key(client_container_host_connection, client_c
     """
     Opens a ssh connection from the client container to the host container and thereby accepting the hosts ssh key.
     """
+    #dockerutil.run_command_in_container(
+    #    client_container_host_connection,
+    #    client_container_config,
+    #    'ssh -oStrictHostKeyChecking=no -p {0} {1}@{2} "echo dummy"'.format(ssh_port, host_container_user, host_host_name)
+    #)
+    _add_known_ssh_host(client_container_host_connection, client_container_config, host_host_name, ssh_port)
+
+
+
+def _add_known_ssh_host(client_container_host_connection, client_container_config, ssh_host_name, ssh_port):
+    """
+    Uses the ssh-keyscan command to add the public key of an ssh server to the known_hosts file of the
+    given container.
+    """
+    known_hosts_file = PurePosixPath('~/.ssh/known_hosts')
     dockerutil.run_command_in_container(
         client_container_host_connection,
         client_container_config,
-        'ssh -oStrictHostKeyChecking=no -p {0} {1}@{2} "echo dummy"'.format(ssh_port, host_container_user, host_host_name)
+        'ssh-keyscan -p {0} {1} >> {2}'.format(ssh_port, ssh_host_name, known_hosts_file)
     )
 
 

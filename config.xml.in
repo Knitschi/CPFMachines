@@ -83,6 +83,9 @@ This parameter is an implementation detail and is not supposed to be changed by 
       </parameterDefinitions>
     </hudson.model.ParametersDefinitionProperty>
     <org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty/>
+    <org.jenkinsci.plugins.workflow.job.properties.DurabilityHintJobProperty>
+      <hint>PERFORMANCE_OPTIMIZED</hint>
+    </org.jenkinsci.plugins.workflow.job.properties.DurabilityHintJobProperty>
     <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
       <triggers/>
     </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
@@ -92,7 +95,7 @@ This parameter is an implementation detail and is not supposed to be changed by 
       <configVersion>2</configVersion>
       <userRemoteConfigs>
         <hudson.plugins.git.UserRemoteConfig>
-          <url>@JENKINSJOB_REPOSITORY@</url>
+          <url>@CPFMACHINES_REPOSITORY@</url>
         </hudson.plugins.git.UserRemoteConfig>
       </userRemoteConfigs>
       <branches>

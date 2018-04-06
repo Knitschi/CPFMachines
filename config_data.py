@@ -22,7 +22,7 @@ KEY_VERSION = 'CPFMachinesVersion'
 
 KEY_LOGIN_DATA = 'HostMachines'
 KEY_MACHINE_ID = 'MachineID'
-KEY_MACHINE_NAME = 'HostNameOrIP'
+KEY_HOST = 'HostNameOrIP'
 KEY_USER = 'User'
 KEY_PASSWORD = 'Password'
 KEY_OSTYPE = 'OSType'
@@ -31,8 +31,10 @@ KEY_TEMPDIR = 'TemporaryDirectory'
 KEY_JENKINS_MASTER_HOST = 'JenkinsMasterHost'
 KEY_HOST_JENKINS_MASTER_SHARE = 'HostJenkinsMasterShare'
 
-KEY_REPOSITORY_HOST = 'RepositoryHost'
+KEY_SSH_REPOSITORY_HOSTS = 'SSHRepositoryHosts'
 KEY_SSH_DIR = 'SSHDir'
+
+KEY_HTTPS_REPOSITORY_HOSTS = 'HTTPSRepositoryHosts'
 
 KEY_JENKINS_SLAVES = 'JenkinsSlaves'
 KEY_EXECUTORS = "Executors"
@@ -72,7 +74,8 @@ class ConfigData:
         self.file_version = ''
         self.host_machine_infos = []
         self.jenkins_master_host_config = JenkinsMasterHostConfig()
-        self.repository_host_config = RepositoryHostConfig()
+        self.ssh_repository_host_accesses = []
+        self.https_repository_accesses = []
         self.jenkins_slave_configs = []
         self.jenkins_config = JenkinsConfig()
 
@@ -143,7 +146,8 @@ class ConfigData:
         self.file_version = self._config_file_dict[KEY_VERSION]
         self._read_host_machine_data()
         self._read_jenkins_master_host_config()
-        self._read_repository_host_config()
+        self._read_ssh_repository_host_configs()
+        self._read_https_repository_host_configs()
         self._read_jenkins_slave_configs()
         self._read_jenkins_master_config()
 
@@ -167,14 +171,32 @@ class ConfigData:
         self.jenkins_master_host_config.jenkins_home_share = PurePosixPath(get_checked_value(config_dict, KEY_HOST_JENKINS_MASTER_SHARE))
 
 
-    def _read_repository_host_config(self):
+    def _read_ssh_repository_host_configs(self):
         """
-        Reads the information under the KEY_REPOSITORY_HOST key.
+        Reads the information under the KEY_SSH_REPOSITORY_HOSTS key.
         """
-        config_dict = get_checked_value(self._config_file_dict, KEY_REPOSITORY_HOST)
+        config_dict_list = get_checked_value(self._config_file_dict, KEY_SSH_REPOSITORY_HOSTS)
+        for config_dict in config_dict_list:
+            repository_config = SSHRepositoryHostConfig()
+            repository_config.machine_id = get_checked_value(config_dict, KEY_MACHINE_ID)
+            repository_config.ssh_dir = PurePosixPath(get_checked_value(config_dict, KEY_SSH_DIR))
+            self.ssh_repository_host_accesses.append(repository_config)
 
-        self.repository_host_config.machine_id = get_checked_value(config_dict, KEY_MACHINE_ID)
-        self.repository_host_config.ssh_dir = PurePosixPath(get_checked_value(config_dict, KEY_SSH_DIR))
+
+    def _read_https_repository_host_configs(self):
+        """
+        Reads the information under the KEY_HTTPS_REPOSITORY_HOSTS key.
+        """
+        config_dict_list = get_checked_value(self._config_file_dict, KEY_HTTPS_REPOSITORY_HOSTS)
+        for config_dict in config_dict_list:
+            repository_config = HTTPSRepositoryHostConfig()
+
+            repository_config.host_name = get_checked_value(config_dict, KEY_HOST)
+            repository_config.user_name = get_checked_value(config_dict, KEY_USER)
+            if KEY_PASSWORD in config_dict: # password is optional
+                repository_config.user_password = config_dict[KEY_PASSWORD]
+
+            self.https_repository_accesses.append(repository_config)
 
 
     def _read_jenkins_slave_configs(self):
@@ -289,7 +311,10 @@ class ConfigData:
         # get all machines that are in use
         used_machines = []
         used_machines.append(self.jenkins_master_host_config.machine_id)
-        used_machines.append(self.repository_host_config.machine_id)
+
+        for host_config in self.ssh_repository_host_accesses:
+            used_machines.append(host_config.machine_id)
+        
         for slave_config in self.jenkins_slave_configs:
             used_machines.append(slave_config.machine_id)
 
@@ -321,7 +346,7 @@ class ConfigData:
             accounts.append( host_config.user_name + host_config.host_name)
 
         if len(accounts) > len(set(accounts)):
-            raise Exception("Config file Error! The host machine accounts ({0} + {1}) need to be unique in the {2} list.".format(KEY_MACHINE_NAME, KEY_USER, KEY_LOGIN_DATA) )
+            raise Exception("Config file Error! The host machine accounts ({0} + {1}) need to be unique in the {2} list.".format(KEY_HOST, KEY_USER, KEY_LOGIN_DATA) )
 
 
     def _check_jenkins_slave_executor_number(self):
@@ -412,7 +437,7 @@ class HostMachineInfo:
 
     def __init__(self, host_info_dict):
         self.machine_id = get_checked_value(host_info_dict, KEY_MACHINE_ID)
-        self.host_name = get_checked_value(host_info_dict, KEY_MACHINE_NAME)
+        self.host_name = get_checked_value(host_info_dict, KEY_HOST)
         self.user_name = get_checked_value(host_info_dict, KEY_USER)
         
         self.user_password = ''
@@ -455,16 +480,28 @@ class ContainerConfig:
         self.container_image_name = ''      # The name of the image which is used to instantiate the container.
         self.published_ports = {}           # The key is the port on the host, the value the port in the container.
         self.host_volumes = {}              # The key is the path on the host, the value the path in the container.
-        self.envvar_definitions = []         # Environment variables that are defined in the container.
+        self.envvar_definitions = []        # Environment variables that are defined in the container.
 
 
-class RepositoryHostConfig:
+class SSHRepositoryHostConfig:
     """
-    Data class that holds the information from the KEY_REPOSITORY_HOST key.
+    Data class that holds the information from the KEY_SSH_REPOSITORY_HOSTS key.
+    This is intended for git repositories that are hosted in the local network
+    and can be accessed with the ssh protocol.
     """
     def __init__(self):
         self.machine_id = ''
         self.ssh_dir = ''
+
+
+class HTTPSRepositoryHostConfig:
+    """
+    Data class that holds the credentials for repositories that are accessed via https.
+    """
+    def __init__(self):
+        self.host_name = ''
+        self.user_name = ''
+        self.user_password = ''
 
 
 class JenkinsSlaveConfig:
@@ -552,7 +589,7 @@ def get_example_config_dict():
         KEY_LOGIN_DATA : [
             {
                 KEY_MACHINE_ID : 'MyMaster',
-                KEY_MACHINE_NAME : 'lhost3',
+                KEY_HOST : 'lhost3',
                 KEY_USER : 'fritz',
                 KEY_PASSWORD : '1234password',
                 KEY_OSTYPE : 'Linux',
@@ -560,7 +597,7 @@ def get_example_config_dict():
             },
             {
                 KEY_MACHINE_ID : 'MyLinuxSlave',
-                KEY_MACHINE_NAME : '192.168.0.5',
+                KEY_HOST : '192.168.0.5',
                 KEY_USER : 'fritz',
                 KEY_PASSWORD : '1234password',
                 KEY_OSTYPE : 'Linux',
@@ -568,7 +605,7 @@ def get_example_config_dict():
             },
             {
                 KEY_MACHINE_ID : 'MyWindowsSlave',
-                KEY_MACHINE_NAME : 'whost12',
+                KEY_HOST : 'whost12',
                 KEY_USER : 'fritz',
                 KEY_OSTYPE : 'Windows',
                 KEY_TEMPDIR : 'C:/temp'
@@ -578,10 +615,28 @@ def get_example_config_dict():
             KEY_MACHINE_ID : 'MyMaster',
             KEY_HOST_JENKINS_MASTER_SHARE : '/home/fritz/jenkins_home'
         },
-        KEY_REPOSITORY_HOST : {
-            KEY_MACHINE_ID : 'MyMaster',
-            KEY_SSH_DIR : '/home/fritz/.ssh'
-        },
+        KEY_SSH_REPOSITORY_HOSTS : [
+            {
+                KEY_MACHINE_ID : 'MyMaster',
+                KEY_SSH_DIR : '/home/fritz/.ssh'
+            },
+            {
+                KEY_MACHINE_ID : 'MyLinuxSlave',
+                KEY_SSH_DIR : '/home/fritz/.ssh'
+            }
+        ],
+        KEY_HTTPS_REPOSITORY_HOSTS : [
+            {
+                KEY_HOST : 'github.com',
+                KEY_USER : 'Fritz',
+                KEY_PASSWORD : '1234password'
+            },
+            {
+                KEY_HOST : 'gitlab.com',
+                KEY_USER : 'Fratz',
+                KEY_PASSWORD : '5678password'
+            }
+        ],
         KEY_JENKINS_SLAVES : [
             {
                 KEY_MACHINE_ID : 'MyLinuxSlave',

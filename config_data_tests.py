@@ -57,9 +57,21 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_master_host_config.container_conf.host_volumes, { PurePosixPath('/home/fritz/jenkins_home') : PurePosixPath('/var/jenkins_home')})
         self.assertEqual( sut.jenkins_master_host_config.container_conf.envvar_definitions, ['JAVA_OPTS="-Djenkins.install.runSetupWizard=false"']) 
         
-        # repository host data
-        self.assertEqual( sut.repository_host_config.machine_id , 'MyMaster')
-        self.assertEqual( sut.repository_host_config.ssh_dir , PurePosixPath('/home/fritz/.ssh'))
+        # ssh repository accesses
+        self.assertEqual( sut.ssh_repository_host_accesses[0].machine_id , 'MyMaster')
+        self.assertEqual( sut.ssh_repository_host_accesses[0].ssh_dir , PurePosixPath('/home/fritz/.ssh'))
+
+        self.assertEqual( sut.ssh_repository_host_accesses[1].machine_id , 'MyLinuxSlave')
+        self.assertEqual( sut.ssh_repository_host_accesses[1].ssh_dir , PurePosixPath('/home/fritz/.ssh'))
+
+        # https repository accesses
+        self.assertEqual( sut.https_repository_accesses[0].host_name , 'github.com')
+        self.assertEqual( sut.https_repository_accesses[0].user_name , 'Fritz')
+        self.assertEqual( sut.https_repository_accesses[0].user_password , '1234password')
+
+        self.assertEqual( sut.https_repository_accesses[1].host_name , 'gitlab.com')
+        self.assertEqual( sut.https_repository_accesses[1].user_name , 'Fratz')
+        self.assertEqual( sut.https_repository_accesses[1].user_password , '5678password')
 
         # jenkins slave config
         self.assertEqual( sut.jenkins_slave_configs[0].machine_id , 'MyLinuxSlave')
@@ -140,7 +152,7 @@ class TestConfigData(unittest.TestCase):
         # add a host that is not used
         not_used_host_dict = {
                 KEY_MACHINE_ID : 'MyMaster2',
-                KEY_MACHINE_NAME : 'lhost4',
+                KEY_HOST : 'lhost4',
                 KEY_USER : 'fritz',
                 KEY_PASSWORD : '1234password',
                 KEY_OSTYPE : 'Linux'
@@ -204,7 +216,7 @@ class TestConfigData(unittest.TestCase):
         # add a host that with an existing id
         not_used_host_dict = {
                 KEY_MACHINE_ID : 'MyMaster',
-                KEY_MACHINE_NAME : 'lhost4',
+                KEY_HOST : 'lhost4',
                 KEY_USER : 'fritz',
                 KEY_PASSWORD : '1234password',
                 KEY_OSTYPE : 'Linux'
@@ -222,7 +234,7 @@ class TestConfigData(unittest.TestCase):
         # setup
         config_dict = get_example_config_dict()
         # let the linux slave use the same account as the linux master
-        config_dict[KEY_LOGIN_DATA][1][KEY_MACHINE_NAME] = config_dict[KEY_LOGIN_DATA][0][KEY_MACHINE_NAME]
+        config_dict[KEY_LOGIN_DATA][1][KEY_HOST] = config_dict[KEY_LOGIN_DATA][0][KEY_HOST]
 
         # execute
         self.assertRaises(Exception, ConfigData, config_dict)

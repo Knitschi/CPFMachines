@@ -131,7 +131,7 @@ def get_example_config_dict():
         KEY_REPOSITORY_MACHINES : [
             {
                 config_data.KEY_MACHINE_ID : 'MyMaster',
-                config_data.KEY_MACHINE_NAME : 'lhost3',
+                config_data.KEY_HOST : 'lhost3',
                 config_data.KEY_USER : 'fritz',
                 config_data.KEY_PASSWORD : '1234password',
                 config_data.KEY_OSTYPE : 'Linux',

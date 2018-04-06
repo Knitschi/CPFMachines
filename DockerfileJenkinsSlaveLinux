@@ -66,7 +66,8 @@ RUN /bin/bash buildGit.sh
 
 USER jenkins
 RUN git config --global user.email "not@valid.com" &&\
-    git config --global user.name "jenkins"
+    git config --global user.name "jenkins" &&\
+    git config --global credential.helper 'store --file ~/.jenkins-git-credentials'
 
 USER root
     

@@ -129,7 +129,7 @@ def run_command_in_container(connection, container_config, command, user=None, p
     if not user:
         user = container_config.container_user
     user_option = '--user ' + user + ':' + user + ' '
-    command = 'docker exec ' + user_option + container_config.container_name + ' ' + command
+    command = 'docker exec ' + user_option + container_config.container_name + ' sh -c \'' + command + '\''
     output = connection.run_command(command, print_command=print_command, print_output=print_output)
     return output
 
