@@ -113,6 +113,7 @@ class TestConfigData(unittest.TestCase):
         # CPF JOB 1
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].base_job_name, 'MyCPFProject1')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].repository, 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject1.git')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].enable_github_hook, False)
 
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.machine_id, 'MyMaster')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.host_html_share_dir, PurePosixPath('/home/fritz/mycpfproject1_html_share'))
@@ -128,7 +129,8 @@ class TestConfigData(unittest.TestCase):
 
         # CPF JOB 2
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].base_job_name, 'MyCPFProject2')
-        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].repository, 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject2.git')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].repository, 'https://github.com/Fritz/MyCPFProject2.git')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].enable_github_hook, True)
 
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.machine_id, 'MyMaster')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.host_html_share_dir, PurePosixPath('/home/fritz/mycpfproject2_html_share'))

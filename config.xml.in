@@ -87,7 +87,9 @@ This parameter is an implementation detail and is not supposed to be changed by 
       <hint>PERFORMANCE_OPTIMIZED</hint>
     </org.jenkinsci.plugins.workflow.job.properties.DurabilityHintJobProperty>
     <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
-      <triggers/>
+      <triggers>
+        @GITHUB_TRIGGER@
+      </triggers>
     </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
   </properties>
   <definition class="org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition" plugin="workflow-cps@2.37">
