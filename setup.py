@@ -773,9 +773,6 @@ class MachinesController:
         # For now we leave it at the master so we always get the latest version.
         tag_or_branch = 'master'
         webserver_container_host = self.config.get_host_info(cpf_job_config.webserver_config.machine_id).host_name
-        github_trigger_option = ''
-        if cpf_job_config.enable_github_hook:
-            github_trigger_option = '<com.cloudbees.jenkins.GitHubPushTrigger plugin="github@1.29.0">\n<spec></spec>\n</com.cloudbees.jenkins.GitHubPushTrigger>'
 
         configure_file(_CPF_JOB_TEMPLATE_FILE, created_config_file, {
             '@JOB_NAME@' : get_job_name(cpf_job_config.base_job_name),
@@ -784,7 +781,6 @@ class MachinesController:
             '@CPFMACHINES_REPOSITORY@' : _JENKINSJOB_REPOSITORY,
             '@WEBSERVER_HOST@' : webserver_container_host,
             '@WEBSERVER_SSH_PORT@' : str(cpf_job_config.webserver_config.container_ssh_port),
-            '@GITHUB_TRIGGER@' : github_trigger_option,
         })
 
 
