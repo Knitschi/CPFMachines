@@ -22,6 +22,13 @@ set( otherFiles
     DockerfileJenkinsMaster
     DockerfileJenkinsSlaveLinux
     documentation/CPFMachines.dox
+    documentation/BuildJobTriggerHooks.dox
+    documentation/ConfigurationFile.dox
+    documentation/JenkinsJob.dox
+    documentation/MachinesAndContainer.dox
+    documentation/ManualTests.dox
+    documentation/ProblemsNotes.dox
+    documentation/Usage.dox
     installAbiComplianceChecker.sh
     installClangTools.sh
     installCTags.sh
