@@ -52,7 +52,6 @@ KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES = 'JenkinsApprovedScriptSignatures'
 KEY_CPF_JOBS = 'CPFJobs'
 KEY_JENKINSJOB_BASE_NAME = 'JenkinsJobBasename'
 KEY_REPOSITORY = 'Repository'
-KEY_ENABLE_GITHUB_HOOK = 'EnableGithubHook'
 
 KEY_WEBSERVER_CONFIG = 'WebServerConfig'
 KEY_HOST_HTML_SHARE = 'HostHTMLShare'
@@ -249,9 +248,6 @@ class ConfigData:
             config = CPFJobConfig()
             config.base_job_name = get_checked_value(job_config_dict, KEY_JENKINSJOB_BASE_NAME)
             config.repository = get_checked_value(job_config_dict, KEY_REPOSITORY)
-
-            if KEY_ENABLE_GITHUB_HOOK in job_config_dict:
-                config.enable_github_hook = job_config_dict[KEY_ENABLE_GITHUB_HOOK]
 
             webserver_config_dict = get_checked_value(job_config_dict, KEY_WEBSERVER_CONFIG)
             config.webserver_config.machine_id = get_checked_value(webserver_config_dict, KEY_MACHINE_ID)
@@ -541,7 +537,6 @@ class CPFJobConfig:
     def __init__(self):
         self.base_job_name = ''
         self.repository = ''
-        self.enable_github_hook = False
         self.webserver_config = WebserverConfig()
 
 
@@ -672,7 +667,6 @@ def get_example_config_dict():
                 {
                     KEY_JENKINSJOB_BASE_NAME : 'MyCPFProject2',
                     KEY_REPOSITORY : 'https://github.com/Fritz/MyCPFProject2.git',
-                    KEY_ENABLE_GITHUB_HOOK : True,
                     KEY_WEBSERVER_CONFIG : {
                         KEY_MACHINE_ID : "MyMaster",
                         KEY_HOST_HTML_SHARE : "/home/fritz/mycpfproject2_html_share",
