@@ -363,6 +363,9 @@ def addUpdateWebPageStage(repository, cpfConfigs, commitID)
                 sh "ssh -p ${port} ${web_host} \"rm -rf ${projectHtmlDirOnWebserver}\""
                 sh "scp -P ${port} -r ${newHtmlContentDir} ${web_host}:/var/www || :" // we ignore errors here to prevent a fail when the job does not build the documentation
 
+                // archive the html content to allow using it in other jobs
+                archiveArtifacts artifacts '${newHtmlContentDir}'
+
                 echo '----- The project web-page was updated successfully. -----'
             }
         }
