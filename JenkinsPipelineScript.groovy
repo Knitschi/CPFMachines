@@ -410,11 +410,12 @@ def runCommand(command)
 {
     if(isUnix())
     {
-        return sh(script: command).trim()
+        //return sh(returnStdout: true, script: command).trim()
+        sh(script: command)
     }
     else
     {
-        return bat(script: command).trim()
+        bat(script: command)
     }
 }
 
