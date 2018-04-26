@@ -392,7 +392,7 @@ def unstashFiles(String stashName, String toolchain)
 def runPythonCommand(command)
 {
     def pythonCmd = getPythonCommand()
-    runCommand(pythonCmd + ' ' + command)
+    runCommand(pythonCmd + ' -u ' + command)
 }
 
 def getPythonCommand()
@@ -410,11 +410,11 @@ def runCommand(command)
 {
     if(isUnix())
     {
-        return sh(returnStdout: true, script: command).trim()
+        return sh(script: command).trim()
     }
     else
     {
-        return bat(returnStdout: true, script: command).trim()
+        return bat(script: command).trim()
     }
 }
 
