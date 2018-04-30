@@ -19,7 +19,7 @@ CPFMachines also provides a python script to deploy post-receive hooks to the cp
 - \subpage CPFMachinesUsage
 - \subpage CPFMachinesHookSetup
 - \subpage CPFMachinesConfigFile
-- \subpage JobParameterSection
+- \subpage CPFJenkinsJob
 - \subpage CPFMachinesContainer
 - \subpage CPFMachinesTests
 - \subpage CPFMachinesProblems
