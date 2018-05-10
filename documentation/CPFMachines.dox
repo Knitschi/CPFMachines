@@ -1,7 +1,6 @@
 /**
 \page CPFMachines
-
-\brief Provides a script that sets up a jenkins-server, jenkins-slaves and a web-server on machines in a local network.
+\section CPFMachines
 
 The CPF infrastructure includes a Jenkins server, build slaves and web-servers for hosting the generated html pages.
 This package provides a python script for setting up these servers. The setup script requires a user provided configuration file
