@@ -66,4 +66,7 @@ set( files
     updateAuthorizedKeysBitvise.bat.in
 )
 
-cpfAddFilePackage(${PACKAGE_NAME} "${allCMakeFiles}")
+cpfAddFilePackage(${PACKAGE_NAME} "${files}")
+
+# Add a runAllTests target to run the unit tests.
+cpfAddRunPython3TestTarget( ${PACKAGE_NAME} run_tests.py "" "${files}" "" )
