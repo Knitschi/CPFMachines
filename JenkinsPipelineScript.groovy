@@ -237,7 +237,7 @@ def addPipelineStage( cpfConfigs, repository, commitId, target)
     stage('Build Pipeline')
     {
         def parallelNodes = [:]
-        parallelNodes.failFast = true
+        // parallelNodes.failFast = true
         
         // add nodes for building the pipeline
         def nodeIndex = 0
