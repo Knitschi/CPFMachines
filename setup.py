@@ -394,12 +394,21 @@ class MachinesController:
 
     def _clear_directories(self):
         # the master share directory
-        connection = self.connections.get_connection(self.config.jenkins_master_host_config.machine_id)
-        fileutil.clear_rdirectory(connection.sftp_client, self.config.jenkins_master_host_config.jenkins_home_share)
+        jenkins_master_host_info = self.config.get_host_info(self.config.jenkins_master_host_config.machine_id)
+        self._clear_directory_on_host(jenkins_master_host_info, self.config.jenkins_master_host_config.jenkins_home_share)
+
         # all temporary directories
         for host_info in self.config.host_machine_infos:
-            connection = self.connections.get_connection(host_info.machine_id)
-            fileutil.clear_rdirectory(connection.sftp_client, host_info.temp_dir)
+            self._clear_directory_on_host(host_info, host_info.temp_dir)
+
+
+    def _clear_directory_on_host(self, host_config, directory):
+        try:
+            connection = self.connections.get_connection(host_config.machine_id)
+            fileutil.clear_rdirectory(connection.sftp_client, directory)
+        except IOError as err:
+            print("Failed to clear the remote directory {0} on host {1}!".format(directory, host_config.host_name))
+            raise
 
 
     def _get_jenkins_master_host_connection(self):
