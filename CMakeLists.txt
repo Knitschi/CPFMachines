@@ -1,4 +1,4 @@
-include(cpfAddPackage)
+include(cpfAddCppPackage)
 
 # add a custom target that does nothing, so the files appear in the Visual Studio solution explorer.
 
