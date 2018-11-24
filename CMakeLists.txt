@@ -1,12 +1,11 @@
-include(cpfAddCppPackage)
 
-# add a custom target that does nothing, so the files appear in the Visual Studio solution explorer.
+include(cpfInitPackageProject)
+include(cpfAddFilePackage)
+include(cpfAddRunTestsTarget)
 
-set( PACKAGE_NAMESPACE CPFBS )
-cpfInitPackageProject(
-	PACKAGE_NAME
-	${PACKAGE_NAMESPACE}
-)
+
+cpfInitPackageProject( CPFBS )
+
 
 set( files
     add_jenkinsjob.py
@@ -66,7 +65,9 @@ set( files
     updateAuthorizedKeysBitvise.bat.in
 )
 
-cpfAddFilePackage(${PACKAGE_NAME} "${files}")
+cpfAddFilePackage(
+    SOURCES ${files}
+)
 
 # Add a runAllTests target to run the unit tests.
-cpfAddRunPython3TestTarget( ${PACKAGE_NAME} run_tests.py "" "${files}" "" "" )
+cpfAddRunPython3TestTarget( run_tests.py "" "${files}" "" "" )
