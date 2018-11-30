@@ -14,9 +14,8 @@ Currently the setup includes the native Debian machine \c Feldrechengeraet. This
 The pipeline requires a windows based build-slave for Jenkins which is currently implemented as a virtual machine.
 This machine has been configured manually and then a backup was made.
 The backup is stored on the DatenBunker machine in the \c /share/Knitschi/SystemBackups/CurrentBuildKnechts directory.
-When the machine is started, a script will automatically start the jenkins-slave service.
 
-The medium-term goal is to remove the need for stored virtual machines and replace them with docker containers or "blank"
+The medium-term goal is to remove the need for stored virtual machines and replace them with containers or "blank"
 virtual machines plus scripts that will do the machine setup. This is supposed to improve the "documentation" of the
 state of the build-machines because all the scripts that define them are contained in the repository.
 
@@ -51,17 +50,8 @@ internet can not be made. Restarting the machine on which the script is run will
 ### The Windows Slave ###
 
 There is a virtual machine that is used as a build-slave for the parts of the pipeline that must be build on Windows.
-Whenever the container for the \c jenkins-master machine is re-built, the connection information on the windows slave
-must be updated in the script that can be found on the windows-slave under
-
-\c C:/jenkins/startSlave.bat
-
-To update the information one must to login to jenkins from within the windows-slave and go to the page
-
-<a href="http://feldrechengeraet:8080/computer/jenkins-slave-windows-0/">http://feldrechengeraet:8080/computer/jenkins-slave-windows-0</a>
-
-and copy the displayed secret into the batch file. The batch file is run after each start of the windows-slave
-to reestablish the connection to the jenkins-master server.
+The machine runs the OpenSSH server that is shipped with Windows.
+All the tools that are needed for running the CPF pipeline jobs are installed manually.
 
 
 ## The Jenkins Build Server ##

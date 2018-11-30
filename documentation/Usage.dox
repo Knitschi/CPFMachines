@@ -6,11 +6,12 @@
 - At least one Linux Machine.
 - For Windows builds, an additional Windows machine is required.
 - All machines must be in a local network, that also contains the machine that runs the setup script.
-- Linux machines must be accessible via OpenSSH from the script-runner.
+- All machines must be accessible via OpenSSH from the script-runner. Linux machines use the sshd service
+provided that can be installed with apt-get. The Windows machines use the OpenSSH server that is shipped
+with Windows.
 - Linux machines must have docker installed.
-- Windows machines must be accessible via "Bitvise SSH Server" from the script-runner.
 - Windows machines must have the `slave.jar` copied to "C:\jenkins"?
-- On windows build-slaves all tools that are required to run the CPF pipeline must be manually installed.
+- On windows slaves, all build-tools that are required to run the CPF pipeline must be manually installed.
 
 \todo Setup infrastructure on fresh systems and complete the list.
 \todo This section has overlapping content with \ref CPFSettingUpTheInfrastructure. We should merge them together.
