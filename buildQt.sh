@@ -70,4 +70,4 @@ rm $PACKAGE_NAME.tar.xz
 # Create symlink to uic because environment variables did not work.
 # This is needed for the static conde analysis job.
 cd /usr/local/bin
-ln -s /usr/local/Qt-$VERSION/bin/uic uic
+ln -s /usr/local/Qt-$VERSION/release/bin/uic uic
