@@ -5,6 +5,7 @@ This module holds functionality for executing commands and filesystem operations
 import paramiko
 import getpass
 import weakref
+import time
 
 
 from . import config_data
@@ -98,20 +99,28 @@ class ConnectionHolder:
 
         The function throws if the return code is not zero and ignore_return_code is set to False.
         """
-        stdin, stdout, stderr = self._ssh_client.exec_command(command, get_pty=True)
-
         if print_command:
             print(self._prepend_machine_id(command))
 
+        stdin, stdout, stderr = self._ssh_client.exec_command(command, get_pty=True)
+
         # print output as soon as it is produced
         out_list = []
-        if print_output:
-            for line in iter(stdout.readline, ""):
-                out_list.append(line.rstrip()) # add the line without line separators
+        for line in iter(stdout.readline, ""):
+            
+            # add the line without line separators
+            out_list.append(line.rstrip()) 
+
+            if print_output:
                 print(self._prepend_machine_id(line), end="")
-        else:
-            out_list = stdout.readlines()
-            out_list = self._remove_line_separators(out_list)
+
+            # Paramiko sometimes does not close the channel after the command is done.
+            # See https://github.com/paramiko/paramiko/issues/109
+            # The exit code is however set. With this we can close the channel
+            # and prevent infinite loops.
+            if stdout.channel.recv_exit_status():
+                stdout.channel.close()
+                stderr.channel.close()
 
         err_list = stderr.readlines()
         err_list = self._remove_line_separators(err_list)

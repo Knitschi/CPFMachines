@@ -29,6 +29,3 @@ echo %publicKey% >> authorized_keys
 :: of this script are automatically removed from the servers public key list. This step requires to enter the password again.
 set publicKeyFile=%sshDir%/%accessingMachine%_ssh_key.rsa.pub
 echo %publicKey% > %publicKeyFile%
-
-cd "C:/Program Files (x86)/Bitvise SSH Client"
-spksc %user%@buildknechtwin -pw="%password%" -unat=n -cmd="Add File %publicKeyFile%"
