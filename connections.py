@@ -118,7 +118,7 @@ class ConnectionHolder:
             # See https://github.com/paramiko/paramiko/issues/109
             # The exit code is however set. With this we can close the channel
             # and prevent infinite loops.
-            if stdout.channel.recv_exit_status():
+            if stdout.channel.exit_status_ready():
                 stdout.channel.close()
                 stderr.channel.close()
 
