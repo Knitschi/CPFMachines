@@ -4,7 +4,7 @@ include(cpfAddFilePackage)
 include(cpfAddRunTestsTarget)
 
 
-cpfInitPackageProject( CPFBS )
+cpfInitPackageProject()
 
 
 set( files
