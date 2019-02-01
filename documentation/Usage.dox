@@ -39,17 +39,17 @@ the CPFJenkinsjob package to the CPF-project that holds the configuration files.
 When you added the configuration file to the project, you are ready to go.
 Start the setup script by running
 
-\code{.sh}
+\verbatim{.sh}
 python -m Sources.CPFMachines.setup Sources/MyCPFMachinesConfig.json
-\endcode
+\endverbatim
 
 in the root directory of your project. This may take some time because some of
 the tools required for the pipeline build need to be compiled while setting up
 the docker container. If everything went well the script ends with the output
 
-\code{.sh}
+\verbatim{.sh}
 Successfully startet jenkins master, build slaves and the documentation server.
-\endcode
+\endverbatim
 
 If you used the example config file, you should now be able to access the Jenkins
 web-interface under [http://MyMaster:8080](http://MyMaster:8080) and the projects
