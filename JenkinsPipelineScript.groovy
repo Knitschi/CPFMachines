@@ -271,15 +271,6 @@ def createBuildNode( nodeLabel, cpfConfig, repository, commitId, target, compile
                     // Make the python scripts available in the root directory
                     runPythonCommand("Sources/CPFBuildscripts/0_CopyScripts.py")
 
-                    // Setup build configurations
-                    // We do not use the ninja build-system for msvc because ninja in combination with mscv can randomly fail with an error thet says that a .pdb file could not be opened.
-                    // This usually does not happen when doing a fresh build, but rather when doing incremental builds.
-                    // https://github.com/ninja-build/ninja/issues/620
-                    runPythonCommand("1_Configure.py ${cpfConfig} --inherits ${cpfConfig}")
-                    
-                    // generate makefiles
-                    runPythonCommand("2_Generate.py ${cpfConfig}")
-
                     // build the pipeline target
                     def configOption = ''
                     if(compilerConfig) // The build config option is only needed for multi-config generators.
