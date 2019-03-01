@@ -36,4 +36,5 @@ llvm-$CLANG_VERSION-runtime \
 clang-format-$CLANG_VERSION \
 python-clang-$CLANG_VERSION \
 libfuzzer-$CLANG_VERSION-dev \
-clang-tidy-$CLANG_VERSION
+clang-tidy-$CLANG_VERSION \
+clang-format
