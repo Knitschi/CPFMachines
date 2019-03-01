@@ -165,6 +165,7 @@ class MachinesController:
         files = [
             docker_file,
             'tini_pub.gpg',
+            'tini-shim.sh',
             'init.groovy',
             'jenkins-support',
             'jenkins.sh',
