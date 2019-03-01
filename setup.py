@@ -431,7 +431,7 @@ class MachinesController:
             'buildGit.sh',
             'buildCMake.sh',
             'buildDoxygen.sh',
-            'installCTags.sh',
+            'buildCTags.sh',
             'installAbiComplianceChecker.sh',
             'ssh_config',
         ]
@@ -596,7 +596,7 @@ class MachinesController:
 
         # configure the script for adding an authorized key to the bitwise ssh server on the
         # windows machine
-        authorized_keys_script = 'updateAuthorizedKeysBitvise.bat'
+        authorized_keys_script = 'updateAuthorizedKeys.bat'
         full_authorized_keys_script = _SCRIPT_DIR.joinpath(authorized_keys_script)
 
         master_connection = self._get_jenkins_master_host_connection()

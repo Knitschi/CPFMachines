@@ -4,8 +4,10 @@
 # Which is a dependency of the abi-compliance-checker tools.
 set -e
 
-archive=master.zip
-extractDir=ctags-master
+apt-get -q update && apt-get -q -y install autoconf autogen
+
+archive=89811d9e.zip
+extractDir=ctags-89811d9ec18bcff68d7a0d34050047ef7e9c61bc
 
 # download and extract
 wget https://github.com/universal-ctags/ctags/archive/$archive

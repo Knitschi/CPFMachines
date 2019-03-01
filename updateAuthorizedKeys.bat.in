@@ -22,10 +22,6 @@ move /y keys_temp authorized_keys
 echo %publicKey% >> authorized_keys
 
 
-:: Update the bitvise server with the new authorized key.
-:: With the Bitvise SSH Server the keys in the authorized_keys file are only imported to the server when the windows user logs out. 
-:: To force an immediate update, we use the Bitvise SSH Client tool spksc to register the public key with the server.
-:: The synchronisation mechanism with the authorized_keys file will make sure that public keys from previous runs 
-:: of this script are automatically removed from the servers public key list. This step requires to enter the password again.
+:: Add the new key to the public key file file
 set publicKeyFile=%sshDir%/%accessingMachine%_ssh_key.rsa.pub
 echo %publicKey% > %publicKeyFile%

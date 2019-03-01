@@ -77,8 +77,8 @@ COPY buildDoxygen.sh buildDoxygen.sh
 RUN /bin/bash buildDoxygen.sh
 
 # --------------- ctags --------------
-COPY installCTags.sh installCTags.sh
-RUN /bin/bash installCTags.sh
+COPY buildCTags.sh buildCTags.sh
+RUN /bin/bash buildCTags.sh
 
 # --------------- abi-compliance-checker ---------------
 COPY installAbiComplianceChecker.sh installAbiComplianceChecker.sh
