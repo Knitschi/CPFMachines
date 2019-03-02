@@ -70,6 +70,13 @@ In this case the following parameters must be set:
 - <b>target:</b>            The target that is build.
 
 
+\subsection CPFJobSubsection5 Let the build-job do the code formatting.
+
+If you enabled the \ref clang-format_package target, the build-job will
+format all the owned packages in your project on each execution.
+This is triggered if the \c Sources/.clang-format file exits.
+
+
 \section CPFJobDocumentationAssembly Documentation publishing
 
 After a successful build, the jenkins job accumulates the html output from all configurations

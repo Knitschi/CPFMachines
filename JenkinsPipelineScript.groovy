@@ -128,7 +128,7 @@ def addRepositoryOperationsStage( repository, branchOrTag, taggingOption, tagged
     def usedConfigurations = []
     def commitID = ""
 
-    stage('Get Build-Configurations')
+    stage('Get Build-Configurations and format')
     {
         node(getDebianNodeLabel())
         {
@@ -137,18 +137,19 @@ def addRepositoryOperationsStage( repository, branchOrTag, taggingOption, tagged
                 checkoutBranch(repository, branchOrTag)
                 dir(CHECKOUT_FOLDER)
                 {
+                    // read the CiBuiltConfigurations.json file
+                    usedConfigurations = getBuildConfigurations()
+                    debianConfig = getFirstDebianConfiguration(usedConfigurations)
+
                     // Update all owned packages if the commit is at the end of a branch.
                     // Otherwise do nothing
-                    sh "cmake -DROOT_DIR=\"\$PWD\" -DGIT_REF=${branchOrTag} -DTAGGING_OPTION=${taggingOption} -DRELEASED_PACKAGE=\"${taggedPackage}\" -P Sources/${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
+                    sh "cmake -DROOT_DIR=\"\$PWD\" -DGIT_REF=${branchOrTag} -DTAGGING_OPTION=${taggingOption} -DRELEASED_PACKAGE=\"${taggedPackage}\" -DCONFIG=\"${debianConfig}\" -P Sources/${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
 
                     // Get the id of HEAD, which will be used in all further steps that do repository check outs.
                     // Using a specific commit instead of a branch makes us invulnerable against changes the may
                     // be pushed to the repo while we run the job.
                     commitID = sh( script:"git rev-parse HEAD", returnStdout: true).trim()
                 }
-
-                // read the CiBuiltConfigurations.json file
-                usedConfigurations = getBuildConfigurations()
             }
         }
     }
@@ -209,6 +210,18 @@ def assertConfigurationExists(configurations, requestedConfig)
 
         throw new Exception('Invalid build configuration.')
     }
+}
+
+def getFirstDebianConfiguration(configurations)
+{
+    for(config in configurations)
+    {
+        if(config.BuildSlaveLabel == getDebianNodeLabel())
+        {
+            return config.ConfigName
+        }
+    }
+    return ""
 }
 
 def checkoutBranch(repository, branch)
