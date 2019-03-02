@@ -387,7 +387,6 @@ class MachinesController:
                 dockerutil.stop_docker_container(connection, container)
             dockerutil.remove_container(connection, container)
 
-
     def _get_container_host_connection(self, container):
         machine_id = self.config.get_container_host(container)
         return self.connections.get_connection(machine_id)

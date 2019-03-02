@@ -22,4 +22,3 @@ make install
 
 # clean up the downloaded files
 rm -rf $extractDir
-rm $archive

@@ -106,10 +106,12 @@ class ConnectionHolder:
 
         # print output as soon as it is produced
         out_list = []
+        err_list = []
         for line in iter(stdout.readline, ""):
             
             # add the line without line separators
             out_list.append(line.rstrip()) 
+            err_list.append(stderr.readline())
 
             if print_output:
                 print(self._prepend_machine_id(line), end="")
@@ -122,7 +124,7 @@ class ConnectionHolder:
                 stdout.channel.close()
                 stderr.channel.close()
 
-        err_list = stderr.readlines()
+        #err_list = stderr.readlines()
         err_list = self._remove_line_separators(err_list)
         retcode = stdout.channel.recv_exit_status()
 
