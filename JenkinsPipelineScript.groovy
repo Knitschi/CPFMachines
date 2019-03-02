@@ -218,6 +218,7 @@ def getFirstDebianConfiguration(configurations)
 {
     for(config in configurations)
     {
+        echo config.BuildSlaveLabel
         if(config.BuildSlaveLabel == getDebianNodeLabel())
         {
             return config.ConfigName
