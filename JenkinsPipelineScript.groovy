@@ -135,11 +135,13 @@ def addRepositoryOperationsStage( repository, branchOrTag, taggingOption, tagged
             ws(getRepositoryName(repository))
             {
                 checkoutBranch(repository, branchOrTag)
+                // read the CiBuiltConfigurations.json file
+                usedConfigurations = getBuildConfigurations()
+                debianConfig = getFirstDebianConfiguration(usedConfigurations)
+
                 dir(CHECKOUT_FOLDER)
                 {
-                    // read the CiBuiltConfigurations.json file
-                    usedConfigurations = getBuildConfigurations()
-                    debianConfig = getFirstDebianConfiguration(usedConfigurations)
+
 
                     // Update all owned packages if the commit is at the end of a branch.
                     // Otherwise do nothing
