@@ -130,7 +130,7 @@ def addRepositoryOperationsStage( repository, branchOrTag, taggingOption, tagged
 
     stage('Get Build-Configurations and format')
     {
-        node(getDebianNodeLabel())
+        node(getDebianNodeZeroLabel())
         {
             ws(getRepositoryName(repository))
             {
@@ -159,9 +159,14 @@ def addRepositoryOperationsStage( repository, branchOrTag, taggingOption, tagged
     return [usedConfigurations,commitID]
 }
 
+def getDebianNodeZeroLabel()
+{
+    return  getDebianNodeLabel() + "-0"
+}
+
 def getDebianNodeLabel()
 {
-    return "Debian-8.9-${CPF_JENKINSJOB_VERSION}-0"
+    return "Debian-8.9-${CPF_JENKINSJOB_VERSION}"
 }
 
 def getBuildConfigurations()
@@ -216,12 +221,10 @@ def assertConfigurationExists(configurations, requestedConfig)
 
 def getFirstDebianConfiguration(configurations)
 {
-    def debianLabel = getDebianNodeLabel()
-    echo debianLabel
     for(config in configurations)
     {
         echo config.BuildSlaveLabel
-        if(config.BuildSlaveLabel == debianLabel)
+        if(config.BuildSlaveLabel == getDebianNodeLabel())
         {
             echo config.ConfigName
             return config.ConfigName
@@ -316,7 +319,7 @@ def addTaggingStage(repository, commitID)
 {
     stage('Tag verified commit')
     {
-        node(getDebianNodeLabel())
+        node(getDebianNodeZeroLabel())
         {
             ws(getRepositoryName(repository))
             {
