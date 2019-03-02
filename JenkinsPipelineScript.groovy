@@ -216,11 +216,14 @@ def assertConfigurationExists(configurations, requestedConfig)
 
 def getFirstDebianConfiguration(configurations)
 {
+    def debianLabel = getDebianNodeLabel()
+    echo debianLabel
     for(config in configurations)
     {
         echo config.BuildSlaveLabel
-        if(config.BuildSlaveLabel == getDebianNodeLabel())
+        if(config.BuildSlaveLabel == debianLabel)
         {
+            echo config.ConfigName
             return config.ConfigName
         }
     }
