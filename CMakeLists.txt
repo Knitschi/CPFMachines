@@ -62,7 +62,7 @@ set( files
     setup.py
     ssh_config
     supervisord.conf
-    updateAuthorizedKeysBitvise.bat.in
+    updateAuthorizedKeys.bat.in
 )
 
 cpfAddFilePackage(
