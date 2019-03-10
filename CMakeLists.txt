@@ -12,6 +12,7 @@ set( files
     agent.jar
     buildCMake.sh
     buildCurl.sh
+    buildCTags.sh
     buildDoxygen.sh
     buildGit.sh
     BuildHostLinux/shutdownVms
@@ -42,7 +43,6 @@ set( files
     hook_config.py
     installAbiComplianceChecker.sh
     installClangTools.sh
-    installCTags.sh
     installGcc.sh
     jenkins_remote_access.py
     JenkinsConfig/config.xml
