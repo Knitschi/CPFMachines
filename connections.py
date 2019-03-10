@@ -124,7 +124,7 @@ class ConnectionHolder:
                 stdout.channel.close()
                 stderr.channel.close()
 
-        #err_list = stderr.readlines()
+        err_list = stderr.readlines()
         err_list = self._remove_line_separators(err_list)
         retcode = stdout.channel.recv_exit_status()
 

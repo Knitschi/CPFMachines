@@ -730,7 +730,7 @@ class MachinesController:
         """
         temp_dir = self._configure_cpf_job_files(config_file)
         self._copy_jenkins_config_files(config_file, 'jobs', self.config.jenkins_config.job_config_files)
-        shutil.rmtree(temp_dir)
+        shutil.rmtree(str(temp_dir))
 
 
     def _configure_cpf_job_files(self, config_file):
@@ -742,9 +742,9 @@ class MachinesController:
         abs_temp_dir = _SCRIPT_DIR.joinpath(PurePath('../..').joinpath(temp_dir))
         
         # clean up the temporary files
-        if os.path.isdir(abs_temp_dir):
-            shutil.rmtree(abs_temp_dir)
-        os.makedirs(abs_temp_dir)
+        if os.path.isdir(str(abs_temp_dir)):
+            shutil.rmtree(str(abs_temp_dir))
+        os.makedirs(str(abs_temp_dir))
 
         job_dict = {}
         for cpf_job_config in self.config.jenkins_config.cpf_job_configs:
