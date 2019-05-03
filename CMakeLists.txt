@@ -30,14 +30,14 @@ set( files
     DockerfileJenkinsMaster
     DockerfileJenkinsSlaveLinux
     dockerutil.py
-    documentation/BuildJobTriggerHooks.dox
-    documentation/ConfigurationFile.dox
-    documentation/CPFMachines.dox
-    documentation/JenkinsJob.dox
-    documentation/MachinesAndContainer.dox
-    documentation/ManualTests.dox
-    documentation/ProblemsNotes.dox
-    documentation/Usage.dox
+    documentation/BuildJobTriggerHooks.rst
+    documentation/ConfigurationFile.rst
+    documentation/CPFMachines.rst
+    documentation/JenkinsJob.rst
+    documentation/MachinesAndContainer.rst
+    documentation/ManualTests.rst
+    documentation/ProblemsNotes.rst
+    documentation/Usage.rst
     fileutil.py
     hook_config_tests.py
     hook_config.py
