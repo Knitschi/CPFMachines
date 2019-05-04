@@ -1,10 +1,12 @@
-/**
-\page CPFMachinesContainer Machines and Container
+
+Machines and Container
+======================
 
 This section contains information about the machines and containers that are used to host the services that are
 needed to run the CPF build-pipeline.
 
-## Machine Setup ##
+Machine Setup
+-------------
 
 This section describes which machines, virtual machines and docker images are used to provide the development infrastructure
 for the CppCodeBase project.
@@ -23,7 +25,8 @@ Setting up the involved docker containers on Linux only requires the execution o
 \c Infrastructure/DockerImages directory of the CppCodeBase.
 
 
-### Starting The Linux Docker Containers ###
+Starting The Linux Docker Containers
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Currently the following machines are implemented as Linux based docker containers.
 
@@ -47,29 +50,31 @@ Setting up the docker container changes the network settings of the host. This m
 internet can not be made. Restarting the machine on which the script is run will solve the problem.
 
 
-### The Windows Slave ###
+The Windows Slave
+^^^^^^^^^^^^^^^^^
 
 There is a virtual machine that is used as a build-slave for the parts of the pipeline that must be build on Windows.
 The machine runs the OpenSSH server that is shipped with Windows.
 All the tools that are needed for running the CPF pipeline jobs are installed manually.
 
 
-## The Jenkins Build Server ##
+The Jenkins Build Server
+------------------------
 
 * The server is setup in the \c jenkins-master container. Manual changes to the server via the web-interface
-are lost when the \c setupDockerContainer.sh is re-run. This includes updates to plugins and jenkins itself.
-Therefore non-experimental changes must be implemented by changing the files in the \c Infrastructure/DockerImages directory.
+  are lost when the \c setupDockerContainer.sh is re-run. This includes updates to plugins and jenkins itself.
+  Therefore non-experimental changes must be implemented by changing the files in the \c Infrastructure/DockerImages directory.
 * The web-page of the jenkins-server is <a href="https://jenkins.io/"><b>here</b></a>.
 * There is a post-commit hook that starts the pipeline.
 * The pipeline script builds the \c pipeline target on Linux and Windows in two configurations each.
 * The pipeline script collects html output of the pipeline and copies it to a web-server.
 
 
-## Git ##
+Git
+---
 
 The Git repository is hosted on the DatenBunker machine in the directory \c /share/GitRepositories/CppCodeBase. The repository
 has a post-commit-hook that triggers the <a href="http://feldrechengeraet:8080/job/CppCodeBase_Build_PipeLine/">CppCodeBase_Build_Pipeline</a> job on the Jenkins server.
 
 
 \todo Buy a more powerfull build-machine to reduce the overall pipeline time.
-*/

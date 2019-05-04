@@ -1,13 +1,16 @@
-/**
-\page CPFJenkinsJob The jenkins build-job
 
-\section CPFJobParameterSection Running the CPF Jenkins job
+The jenkins build-job
+=====================
+
+Running the CPF Jenkins job
+---------------------------
 
 The jenkins job that is created by this package is a parameterized job. The parameters can be used to
 execute multiple tasks on a CPF CI-project when the job is started via the Jenkins web-interface.
 
 
-\subsection CPFJobSubsection1 Integrating new commits
+Integrating new commits
+^^^^^^^^^^^^^^^^^^^^^^^
 
 In this mode, the job verifies the commits made to an integration branch by building the pipeline in all
 configurations, merge the commits to a main branch and add a new internal-version tag to mark
@@ -27,7 +30,8 @@ To do an integration job following parameters must be set:
 all other can be left at their defaults.
 
 
-\subsection CPFJobSubsection2 Tagging a commit with a release version
+Tagging a commit with a release version
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 In this mode the job will overwrite an existing internal version tag with a release version and rebuild
 the tagged commit to create build artifacts with the new version. In this case you need to specify which 
@@ -42,7 +46,8 @@ To create a release tag, the following parameters must be set:
 all other can be left at their defaults.
 
 
-\subsection CPFJobSubsection3 Rebuild an existing commit
+Rebuild an existing commit
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Sometimes it is necessary to rebuild an already integrated commit in order to recreate build artifacts.
 In this mode, the job will not touch the version tags are changed. This will also update the projects web-page.
@@ -55,7 +60,8 @@ To rebuild an existing commit the following parameters must be set:
 all other can be left at their defaults.
 
 
-\subsection CPFJobSubsection4 Testing or debugging the job itself
+Testing or debugging the job itself
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When working on the CMakeProjectFramework itself, it is sometimes useful to speed up the build-job by running it
 with a reduced workload and without modifying the repository. Reducing the workload can be achieved by limiting
@@ -70,14 +76,16 @@ In this case the following parameters must be set:
 - <b>target:</b>            The target that is build.
 
 
-\subsection CPFJobSubsection5 Let the build-job do the code formatting.
+Let the build-job do the code formatting
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you enabled the \ref clang-format_package target, the build-job will
 format all the owned packages in your project on each execution.
 This is triggered if the \c Sources/.clang-format file exits.
 
 
-\section CPFJobDocumentationAssembly Documentation publishing
+Documentation publishing
+------------------------
 
 After a successful build, the jenkins job accumulates the html output from all configurations
 that are specified in the \c cpfCIBuildConfigurations.json file. This is done, because not all
@@ -94,4 +102,3 @@ After accumulation the content of the html directory is copied to the web-server
 project and can be accessed via that server. In case you want to use a custom jenkins-job for publishing the
 webpage, the CPF-job creates a build-artifact that contains the complete html directory.
 
-*/
