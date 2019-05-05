@@ -1,4 +1,6 @@
 
+.. _cpfmachines:
+
 CPFMachines
 ===========
 
