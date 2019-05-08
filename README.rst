@@ -1,4 +1,5 @@
-# Welcome to CPFMachines
+Welcome to CPFMachines
+======================
 
 Please note that this project is in an early, quick-moving stage. Interfaces are not stable.
 

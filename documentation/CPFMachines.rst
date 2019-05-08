@@ -24,6 +24,7 @@ Index
 .. toctree::
   :maxdepth: 1
 
+  ../README
   Usage
   BuildJobTriggerHooks
   ConfigurationFile

@@ -54,7 +54,7 @@ set( files
     JenkinsPipelineScript.groovy
     jenkinsSlaveNodeConfig.xml.in
     post-receive.in
-    README.md
+    README.rst
     run_tests.py
     run_tests.py
     serve-cgi-bin.conf

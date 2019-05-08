@@ -1,4 +1,6 @@
 
+.. _CPFMachinesProblems:
+
 Current problems
 ================
 

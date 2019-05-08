@@ -1,4 +1,6 @@
 
+.. _TheCPFMachinesConfigFile:
+
 The CPFMachines config file
 ===========================
 
