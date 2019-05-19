@@ -247,7 +247,7 @@ class ConfigData:
         for job_config_dict in job_config_dict_list:
             config = CPFJobConfig()
             config.base_job_name = get_checked_value(job_config_dict, KEY_JENKINSJOB_BASE_NAME)
-            config.repository = get_checked_value(job_config_dict, KEY_REPOSITORY)
+            config.ci_repository = get_checked_value(job_config_dict, KEY_REPOSITORY)
 
             webserver_config_dict = get_checked_value(job_config_dict, KEY_WEBSERVER_CONFIG)
             config.webserver_config.machine_id = get_checked_value(webserver_config_dict, KEY_MACHINE_ID)
@@ -396,7 +396,7 @@ class ConfigData:
         mapped_ssh_port = 23
         for slave_config in self.jenkins_slave_configs:
             if self.is_linux_machine(slave_config.machine_id):
-                # do not use ports that are used othervise
+                # do not use ports that are used otherwise
                 while mapped_ssh_port in used_ports:
                     mapped_ssh_port += 1
                 used_ports.add( mapped_ssh_port)
@@ -404,7 +404,7 @@ class ConfigData:
                 slave_config.container_conf.published_ports = {mapped_ssh_port:22}
 
 
-        # set mapped ports and names of web-server conatiner
+        # set mapped ports and names of web-server container
         mapped_web_port = 8081
         for job_config in self.jenkins_config.cpf_job_configs:
 
@@ -536,7 +536,8 @@ class CPFJobConfig:
     """
     def __init__(self):
         self.base_job_name = ''
-        self.repository = ''
+        self.ci_repository = ''
+        self.build_result_repository = ''
         self.webserver_config = WebserverConfig()
 
 
@@ -549,7 +550,7 @@ class WebserverConfig:
         self.host_html_share_dir = PurePosixPath()          # A directory on the host machine that is shared with the containers html directory. This can be used to look at the page content.
         self.container_ssh_port = None                      # The port on the host that is mapped to the containers ssh port.
         self.container_web_port = None                      # The port on the host that is mapped to the containers port 80 under which the webpage can be reached.
-        self.container_conf = ContainerConfig() # More information about the container that runs the web-server.
+        self.container_conf = ContainerConfig()             # More information about the container that runs the web-server.
 
 
 class ConfigItem:
