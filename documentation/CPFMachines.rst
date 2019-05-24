@@ -1,6 +1,8 @@
-/**
-\page CPFMachines
-\section CPFMachines
+
+.. _cpfmachines:
+
+CPFMachines
+===========
 
 The CPF infrastructure includes a Jenkins server, build slaves and web-servers for hosting the generated html pages.
 This package provides a python script for setting up these servers. The setup script requires a user provided configuration file
@@ -15,16 +17,18 @@ CPFMachines also provides a python script to deploy post-receive hooks to the cp
 Users still have to do a lot of manual work like setting up ssh servers and manual installation of
 build-tools on the windows build-slaves.
 
-<HR>
 
-# Index #
+Index
+-----
 
-- \subpage CPFMachinesUsage
-- \subpage CPFMachinesHookSetup
-- \subpage CPFMachinesConfigFile
-- \subpage CPFJenkinsJob
-- \subpage CPFMachinesContainer
-- \subpage CPFMachinesTests
-- \subpage CPFMachinesProblems
+.. toctree::
+  :maxdepth: 1
 
-*/
+  ../README
+  Usage
+  BuildJobTriggerHooks
+  ConfigurationFile
+  JenkinsJob
+  MachinesAndContainer
+  ManualTests
+  ProblemsNotes

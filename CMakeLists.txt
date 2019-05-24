@@ -12,6 +12,7 @@ set( files
     agent.jar
     buildCMake.sh
     buildCurl.sh
+    buildCTags.sh
     buildDoxygen.sh
     buildGit.sh
     BuildHostLinux/shutdownVms
@@ -29,20 +30,19 @@ set( files
     DockerfileJenkinsMaster
     DockerfileJenkinsSlaveLinux
     dockerutil.py
-    documentation/BuildJobTriggerHooks.dox
-    documentation/ConfigurationFile.dox
-    documentation/CPFMachines.dox
-    documentation/JenkinsJob.dox
-    documentation/MachinesAndContainer.dox
-    documentation/ManualTests.dox
-    documentation/ProblemsNotes.dox
-    documentation/Usage.dox
+    documentation/BuildJobTriggerHooks.rst
+    documentation/ConfigurationFile.rst
+    documentation/CPFMachines.rst
+    documentation/JenkinsJob.rst
+    documentation/MachinesAndContainer.rst
+    documentation/ManualTests.rst
+    documentation/ProblemsNotes.rst
+    documentation/Usage.rst
     fileutil.py
     hook_config_tests.py
     hook_config.py
     installAbiComplianceChecker.sh
     installClangTools.sh
-    installCTags.sh
     installGcc.sh
     jenkins_remote_access.py
     JenkinsConfig/config.xml
@@ -54,7 +54,7 @@ set( files
     JenkinsPipelineScript.groovy
     jenkinsSlaveNodeConfig.xml.in
     post-receive.in
-    README.md
+    README.rst
     run_tests.py
     run_tests.py
     serve-cgi-bin.conf
@@ -62,7 +62,7 @@ set( files
     setup.py
     ssh_config
     supervisord.conf
-    updateAuthorizedKeysBitvise.bat.in
+    updateAuthorizedKeys.bat.in
 )
 
 cpfAddFilePackage(

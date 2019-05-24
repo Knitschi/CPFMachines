@@ -11,7 +11,7 @@ params.taggingOption
 params.packages
 params.cpfConfiguration
 params.target
-params.webserverHost
+params.buildResultRepository
 
 */
 
@@ -44,8 +44,7 @@ branchOrTag: ${params.branchOrTag}
 cpfConfiguration: ${params.cpfConfiguration}
 target: ${params.target}
 cpfCIRepository: ${params.cpfCIRepository}
-webserverHost: ${params.webserverHost}
-webserverSSHPort: ${params.webserverSSHPort}
+buildResultRepository: ${params.buildResultRepository}
 ----------------------------------------------------
 ####################################################
 """)
@@ -80,25 +79,9 @@ else
     }
 }
 
-
-// For unknown reasons, the repo url can not contain the second : after the machine name
-// when used with the GitSCM class. So we remove it here.
-def repository = ''
-parts = params.cpfCIRepository.split(':')
-if(parts.size() == 3 )
-{
-    // This should only be the case when using ssh addresses. 
-    repository = parts[0] + ':' + parts[1] + parts[2]
-}
-else
-{
-    // This branch should be executed for https repository addresses
-    repository = params.cpfCIRepository
-}
-
-
-//(configurations,commitID) = addRepositoryOperationsStage(repository, params.branchOrTag, taggingOption, taggedPackage)
-def retlist = addRepositoryOperationsStage(repository, params.branchOrTag, taggingOption, taggedPackage)
+// Repository update stage
+def projectRepository = prepareRepositoryAddress(params.cpfCIRepository)
+def retlist = addRepositoryOperationsStage(projectRepository, params.branchOrTag, taggingOption, taggedPackage)
 def configurations = retlist[0]
 def commitID = retlist[1]
 def author = retlist[2]
@@ -111,19 +94,45 @@ This job is run for commit: ${commitID}
 """ 
 )
 
-addPipelineStage(configurations, repository, commitID, params.target)
+// Pipeline stage
+addPipelineStage(configurations, projectRepository, commitID, params.target)
 // Only tag commits that have been built with the full pipline and all configurations.
 if(params.target == 'pipeline' && params.cpfConfiguration == '' )
 {
-    addTaggingStage(repository, commitID)
+    addTaggingStage(projectRepository, commitID)
 }
-addUpdateWebPageStage(repository, configurations, commitID)
+
+// Store build results stage
+def buildResultsRepository = prepareRepositoryAddress(params.buildResultRepository)
+addUpdateBuildResultsRepositoryStage(projectRepository, buildResultsRepository, configurations, commitID)
+
+
+// For unknown reasons, the repo url can not contain the second : after the machine name
+// when used with the GitSCM class. So we remove it here.
+def prepareRepositoryAddress( repository )
+{
+
+	def preparedRepo = ''
+	parts = repository.split(':')
+	if(parts.size() == 3 )
+	{
+		// This should only be the case when using ssh addresses. 
+		preparedRepo = parts[0] + ':' + parts[1] + parts[2]
+	}
+	else
+	{
+		// This branch should be executed for https projectRepository addresses
+		preparedRepo = repository
+	}
+
+	return preparedRepo;
+}
 
 
 // Create a temporary branch that contains the the latest revision of the
 // main branch (e.g. master) and merge the revisions into it that were pushed to
 // the developer branch.
-def addRepositoryOperationsStage( repository, branchOrTag, taggingOption, taggedPackage)
+def addRepositoryOperationsStage( projectRepository, branchOrTag, taggingOption, taggedPackage)
 {
     def usedConfigurations = []
     def commitID = ""
@@ -132,9 +141,9 @@ def addRepositoryOperationsStage( repository, branchOrTag, taggingOption, tagged
     {
         node(getDebianNodeZeroLabel())
         {
-            ws(getRepositoryName(repository))
+            ws(getRepositoryName(projectRepository))
             {
-                checkoutBranch(repository, branchOrTag)
+                checkoutBranch(projectRepository, branchOrTag)
                 // read the CiBuiltConfigurations.json file
                 usedConfigurations = getBuildConfigurations()
                 debianConfig = getFirstDebianConfiguration(usedConfigurations)
@@ -147,7 +156,7 @@ def addRepositoryOperationsStage( repository, branchOrTag, taggingOption, tagged
                     // Otherwise do nothing
                     sh "cmake -DROOT_DIR=\"\$PWD\" -DGIT_REF=${branchOrTag} -DTAGGING_OPTION=${taggingOption} -DRELEASED_PACKAGE=\"${taggedPackage}\" -DCONFIG=\"${debianConfig}\" -P Sources/${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
 
-                    // Get the id of HEAD, which will be used in all further steps that do repository check outs.
+                    // Get the id of HEAD, which will be used in all further steps that do projectRepository check outs.
                     // Using a specific commit instead of a branch makes us invulnerable against changes the may
                     // be pushed to the repo while we run the job.
                     commitID = sh( script:"git rev-parse HEAD", returnStdout: true).trim()
@@ -231,14 +240,14 @@ def getFirstDebianConfiguration(configurations)
     return ""
 }
 
-def checkoutBranch(repository, branch)
+def checkoutBranch(projectRepository, branch, subdirectory = CHECKOUT_FOLDER )
 {
     checkout([$class: 'GitSCM',
-            userRemoteConfigs: [[url: repository]],
+            userRemoteConfigs: [[url: projectRepository]],
             branches: [[name: branch]],
             extensions: [
                 [$class: 'CleanBeforeCheckout'],
-                // We checkout to a subdirectory so the folders for the test files that lie parallel to the repository are still within the workspace.
+                // We checkout to a subdirectory so the folders for the test files that lie parallel to the projectRepository are still within the workspace.
                 [$class: 'RelativeTargetDirectory', 
                     relativeTargetDir: CHECKOUT_FOLDER],
                 [$class: 'SubmoduleOption', 
@@ -252,7 +261,7 @@ def checkoutBranch(repository, branch)
     )
 }
 
-def addPipelineStage( cpfConfigs, repository, commitId, target)
+def addPipelineStage( cpfConfigs, projectRepository, commitId, target)
 {
     stage('Build Pipeline')
     {
@@ -266,7 +275,7 @@ def addPipelineStage( cpfConfigs, repository, commitId, target)
             echo "Create build node " + config
             def nodeLabel = config.BuildSlaveLabel + '-' + nodeIndex
             echo "Build ${config.ConfigName} under label ${nodeLabel}"
-            def myNode = createBuildNode( nodeLabel, config.ConfigName, repository, commitId, target, config?.CompilerConfig)
+            def myNode = createBuildNode( nodeLabel, config.ConfigName, projectRepository, commitId, target, config?.CompilerConfig)
             parallelNodes[config.ConfigName] = myNode
             nodeIndex++
         }
@@ -276,20 +285,24 @@ def addPipelineStage( cpfConfigs, repository, commitId, target)
     }
 }
 
-def createBuildNode( nodeLabel, cpfConfig, repository, commitId, target, compilerConfig)
+def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, compilerConfig)
 {
     return {
         node(nodeLabel)
         {
-            // get the main name of repository
-            ws("${getRepositoryName(repository)}-${cpfConfig}") 
+            // get the main name of projectRepository
+            ws("${getRepositoryName(projectRepository)}-${cpfConfig}") 
             { 
-                checkoutBranch(repository, commitId)
+                checkoutBranch(projectRepository, commitId)
 
                 dir(CHECKOUT_FOLDER)
                 {
+                    def installDir = "\"\$PWD\"/install"
+
                     // Make the python scripts available in the root directory
                     runPythonCommand("Sources/CPFBuildscripts/0_CopyScripts.py")
+                    // Set the install prefix so we can archive the installed files.
+                    runPythonCommand("1_Configure ${cpfConfig} -DCMAKE_INSTALL_PREFIX=${installDir}")
 
                     // build the pipeline target
                     def configOption = ''
@@ -299,12 +312,9 @@ def createBuildNode( nodeLabel, cpfConfig, repository, commitId, target, compile
                     }
                     runXvfbWrappedPythonCommand( "3_Make.py ${cpfConfig} --target ${target} ${configOption}" )
 
-                    // stash generated html content
-                    dir( "Generated/${cpfConfig}" )
-                    {
-                        def htmlStash = "${HTML_STASH}${cpfConfig}"
-                        stash includes: 'html/**', name: htmlStash
-                    }
+                    // Stash the installed files
+                    def htmlStash = "${HTML_STASH}${cpfConfig}"
+                    stash includes: 'install/**', name: htmlStash
                     
                     echo "----- The pipeline finished successfully for configuration ${cpfConfig}. -----"
                 }
@@ -313,15 +323,15 @@ def createBuildNode( nodeLabel, cpfConfig, repository, commitId, target, compile
     }
 }
 
-def addTaggingStage(repository, commitID)
+def addTaggingStage(projectRepository, commitID)
 {
     stage('Tag verified commit')
     {
         node(getDebianNodeZeroLabel())
         {
-            ws(getRepositoryName(repository))
+            ws(getRepositoryName(projectRepository))
             {
-                checkoutBranch(repository, commitID)
+                checkoutBranch(projectRepository, commitID)
                 dir(CHECKOUT_FOLDER)
                 {
                     sh "cmake -DROOT_DIR=\"\$PWD\" -P Sources/${CPFCMAKE_DIR}/Scripts/addVersionTag.cmake"
@@ -331,61 +341,40 @@ def addTaggingStage(repository, commitID)
     }
 }
 
-def addUpdateWebPageStage(repository, cpfConfigs, commitID)
+def addUpdateBuildResultsRepositoryStage(projectRepository, buildResultsRepository, cpfConfigs, commitID)
 {
-    stage('Update Project Web-Page')
+    stage('Archive build results')
     {
         node('master')
         {
-            def repositoryName = getRepositoryName(repository)
-            ws(repositoryName)
+			// Get the build results repository.
+			def buildResultRepositoryName = getRepositoryName(buildResultRepositoryName)
+			checkoutBranch(buildResultsRepository, 'master', buildResultRepositoryName) // get the build results
+
+			// Checkout the project repository, get the archived build results and commit them to the result repository.
+            def projectRepositoryName = getRepositoryName(projectRepository)
+			checkoutBranch(projectRepository, commitID, projectRepositoryName) // get the scripts
+            ws(projectRepositoryName)
             {
-                checkoutBranch(repository, commitID) // get the scripts
-
-                def oldHtmlContentDir = 'html-old'
-                def newHtmlContentDir = 'html'
-                
-                // make sure previous content of the html directory is removed.
-                sh "cmake -E remove_directory \"${oldHtmlContentDir}\""
-                sh "cmake -E remove_directory \"${newHtmlContentDir}\""
-            
-                def web_host = "root@${params.webserverHost}"
-                def port = params.webserverSSHPort
-                def projectHtmlDirOnWebserver = '/var/www/html'
-
-                // get the current html content from the web-server
-                sh "scp -P ${port} -r ${web_host}:${projectHtmlDirOnWebserver} . || :" // || : suppresses the error message if the server html contains no files
-                sh "mv ${newHtmlContentDir} ${oldHtmlContentDir}"
-
-                // Accumulate the new html content from all built configurations.
-                // This fills the html directory.
+                // Accumulate all installed files from all configurations.
+                // This fills the install directory.
                 for(cpfConfig in cpfConfigs)
                 {
                     unstashFiles(HTML_STASH, cpfConfig.ConfigName)
                 }
 
-                // merge the new html content into the old html content
-                sh "cmake -DFRESH_HTML_DIR=\"${newHtmlContentDir}\" -DEXISTING_HTML_DIR=\"${oldHtmlContentDir}\" -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPFCMAKE_DIR}/Scripts/updateExistingWebPage.cmake\""
-                // rename the accumulated content to html so we can copy the complete directory
-                sh "cmake -E remove_directory \"${newHtmlContentDir}\""
-                sh "mv ${oldHtmlContentDir} ${newHtmlContentDir}"
-
-                // copy the merge result back to the server
-                sh "ssh -p ${port} ${web_host} \"rm -rf ${projectHtmlDirOnWebserver}\""
-                sh "scp -P ${port} -r ${newHtmlContentDir} ${web_host}:/var/www || :" // we ignore errors here to prevent a fail when the job does not build the documentation
-
-                // archive the html content to allow using it in other jobs
-                archiveArtifacts artifacts: "${newHtmlContentDir}/**", onlyIfSuccessful: true
-
-                echo '----- The project web-page was updated successfully. -----'
+                // Copy the new build results to the results repository and commit them.
+                sh "cmake -DCMAKE_INSTALL_PREFIX=\"\$PWD/install\" -DBUILD_RESULTS_REPOSITORY_DIR=\"\$PWD/../${buildResultRepositoryName}\" -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\""
             }
+
+			echo '----- The build results were stored successfully. -----'
         }
     }
 }
 
-def getRepositoryName(repository)
+def getRepositoryName(projectRepository)
 {
-    def lastPart = repository.split('/').last()
+    def lastPart = projectRepository.split('/').last()
     if(lastPart.matches(~'^.*\\.git$') )
     {
         lastPart = lastPart[0..-5]
@@ -446,10 +435,10 @@ def runXvfbWrappedPythonCommand(command)
     }
 }
 
-def cleanWorkspace(repository, cpfConfig)
+def cleanWorkspace(projectRepository, cpfConfig)
 {
     echo 'Clean Workspace ...'
-    dir("${getRepositoryName(repository)}-${cpfConfig}"){ // todo use 
+    dir("${getRepositoryName(projectRepository)}-${cpfConfig}"){ // todo use 
         deleteDir()
     }
 }

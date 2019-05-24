@@ -254,7 +254,7 @@ class ConfigData:
         for job_config_dict in job_config_dict_list:
             config = CPFJobConfig()
             config.base_job_name = get_checked_value(job_config_dict, KEY_JENKINSJOB_BASE_NAME)
-            config.repository = get_checked_value(job_config_dict, KEY_CI_REPOSITORY)
+            config.ci_repository = get_checked_value(job_config_dict, KEY_CI_REPOSITORY)
 
             webserver_config_dict = get_checked_value(job_config_dict, KEY_WEBSERVER_CONFIG)
             config.webserver_config.machine_id = get_checked_value(webserver_config_dict, KEY_MACHINE_ID)
@@ -403,7 +403,7 @@ class ConfigData:
         mapped_ssh_port = 23
         for slave_config in self.jenkins_slave_configs:
             if self.is_linux_machine(slave_config.machine_id):
-                # do not use ports that are used othervise
+                # do not use ports that are used otherwise
                 while mapped_ssh_port in used_ports:
                     mapped_ssh_port += 1
                 used_ports.add( mapped_ssh_port)
@@ -411,7 +411,7 @@ class ConfigData:
                 slave_config.container_conf.published_ports = {mapped_ssh_port:22}
 
 
-        # set mapped ports and names of web-server conatiner
+        # set mapped ports and names of web-server container
         mapped_web_port = 8081
         for job_config in self.jenkins_config.cpf_job_configs:
 
