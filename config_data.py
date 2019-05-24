@@ -31,6 +31,10 @@ KEY_TEMPDIR = 'TemporaryDirectory'
 KEY_JENKINS_MASTER_HOST = 'JenkinsMasterHost'
 KEY_HOST_JENKINS_MASTER_SHARE = 'HostJenkinsMasterShare'
 
+KEY_WEBSERVER = 'WebServer'
+KEY_BUILD_RESULT_REPOSITORY = 'BuildResultRepository'
+KEY_HOSTED_SUBDIRECTORY = 'HostedSubdirectory'
+
 KEY_SSH_REPOSITORY_HOSTS = 'SSHRepositoryHosts'
 KEY_SSH_DIR = 'SSHDir'
 
@@ -51,10 +55,12 @@ KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES = 'JenkinsApprovedScriptSignatures'
 
 KEY_CPF_JOBS = 'CPFJobs'
 KEY_JENKINSJOB_BASE_NAME = 'JenkinsJobBasename'
-KEY_REPOSITORY = 'Repository'
+KEY_CI_REPOSITORY = 'CIRepository'
+KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY = 'BuildResultRepositoryProjectSubdirectory'
 
 KEY_WEBSERVER_CONFIG = 'WebServerConfig'
 KEY_HOST_HTML_SHARE = 'HostHTMLShare'
+KEY_HOSTED_SUBDIRECTORY = 'HostedSubdirectory'
 
 # directories on jenkins-master
 # This is the location of the jenkins configuration files on the jenkins-master.
@@ -74,6 +80,7 @@ class ConfigData:
         self.file_version = ''
         self.host_machine_infos = []
         self.jenkins_master_host_config = JenkinsMasterHostConfig()
+        self.webserver_config = WebserverConfig()
         self.ssh_repository_host_accesses = []
         self.https_repository_accesses = []
         self.jenkins_slave_configs = []
@@ -247,7 +254,7 @@ class ConfigData:
         for job_config_dict in job_config_dict_list:
             config = CPFJobConfig()
             config.base_job_name = get_checked_value(job_config_dict, KEY_JENKINSJOB_BASE_NAME)
-            config.repository = get_checked_value(job_config_dict, KEY_REPOSITORY)
+            config.repository = get_checked_value(job_config_dict, KEY_CI_REPOSITORY)
 
             webserver_config_dict = get_checked_value(job_config_dict, KEY_WEBSERVER_CONFIG)
             config.webserver_config.machine_id = get_checked_value(webserver_config_dict, KEY_MACHINE_ID)
@@ -535,9 +542,10 @@ class CPFJobConfig:
     Data class that holds the information from the KEY_CPF_JOBS key.
     """
     def __init__(self):
-        self.base_job_name = ''
-        self.repository = ''
-        self.webserver_config = WebserverConfig()
+        self.base_job_name = ''                                         # The name of the buildjob
+        self.ci_repository = ''                                         # The repository that contains the CPF ci-project that shall be build.
+        self.result_repository = ''                                     # The repository to which installed build-results are committed.
+        self.result_repository_project_subdirectory = PurePosixPath()   # The subdirectory in the build-results repository to which the installed build-results are committed.
 
 
 class WebserverConfig:
@@ -546,10 +554,11 @@ class WebserverConfig:
     """
     def __init__(self):
         self.machine_id = ''                                # The id of the host machine of the webserver container.
-        self.host_html_share_dir = PurePosixPath()          # A directory on the host machine that is shared with the containers html directory. This can be used to look at the page content.
+        self.build_result_repository = ''                   # The address of the git repository that provides the content of the hosted pages.
+        self.hosted_subdirectory = PurePosixPath()          # The subdirectory in the build_result_repository that shall be published.
         self.container_ssh_port = None                      # The port on the host that is mapped to the containers ssh port.
         self.container_web_port = None                      # The port on the host that is mapped to the containers port 80 under which the webpage can be reached.
-        self.container_conf = ContainerConfig() # More information about the container that runs the web-server.
+        self.container_conf = ContainerConfig()             # More information about the container that runs the web-server.
 
 
 class ConfigItem:
@@ -615,6 +624,11 @@ def get_example_config_dict():
             KEY_MACHINE_ID : 'MyMaster',
             KEY_HOST_JENKINS_MASTER_SHARE : '/home/fritz/jenkins_home'
         },
+        KEY_WEBSERVER : {
+            KEY_MACHINE_ID : 'MyMaster',
+            KEY_BUILD_RESULT_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults',
+            KEY_HOSTED_SUBDIRECTORY : 'projects'
+        },
         KEY_SSH_REPOSITORY_HOSTS : [
             {
                 KEY_MACHINE_ID : 'MyMaster',
@@ -658,19 +672,15 @@ def get_example_config_dict():
             KEY_CPF_JOBS : [
                 {
                     KEY_JENKINSJOB_BASE_NAME : 'MyCPFProject1',
-                    KEY_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject1.git',
-                    KEY_WEBSERVER_CONFIG : {
-                        KEY_MACHINE_ID : "MyMaster",
-                        KEY_HOST_HTML_SHARE : "/home/fritz/mycpfproject1_html_share",
-                    }
+                    KEY_CI_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject1.git',
+                    KEY_BUILD_RESULT_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults',
+                    KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'projects/MyCPFProject1'
                 },
                 {
                     KEY_JENKINSJOB_BASE_NAME : 'MyCPFProject2',
-                    KEY_REPOSITORY : 'https://github.com/Fritz/MyCPFProject2.git',
-                    KEY_WEBSERVER_CONFIG : {
-                        KEY_MACHINE_ID : "MyMaster",
-                        KEY_HOST_HTML_SHARE : "/home/fritz/mycpfproject2_html_share",
-                    }
+                    KEY_CI_REPOSITORY : 'https://github.com/Fritz/MyCPFProject2.git',
+                    KEY_BUILD_RESULT_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults',
+                    KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'projects/MyCPFProject2'
                 },
             ],
             KEY_JENKINS_ACCOUNT_CONFIG_FILES : {
