@@ -31,10 +31,6 @@ KEY_TEMPDIR = 'TemporaryDirectory'
 KEY_JENKINS_MASTER_HOST = 'JenkinsMasterHost'
 KEY_HOST_JENKINS_MASTER_SHARE = 'HostJenkinsMasterShare'
 
-KEY_WEBSERVER = 'WebServer'
-KEY_BUILD_RESULT_REPOSITORY = 'BuildResultRepository'
-KEY_HOSTED_SUBDIRECTORY = 'HostedSubdirectory'
-
 KEY_SSH_REPOSITORY_HOSTS = 'SSHRepositoryHosts'
 KEY_SSH_DIR = 'SSHDir'
 
@@ -56,17 +52,14 @@ KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES = 'JenkinsApprovedScriptSignatures'
 KEY_CPF_JOBS = 'CPFJobs'
 KEY_JENKINSJOB_BASE_NAME = 'JenkinsJobBasename'
 KEY_CI_REPOSITORY = 'CIRepository'
-KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY = 'BuildResultRepositoryProjectSubdirectory'
 
-KEY_WEBSERVER_CONFIG = 'WebServerConfig'
-KEY_HOST_HTML_SHARE = 'HostHTMLShare'
-KEY_HOSTED_SUBDIRECTORY = 'HostedSubdirectory'
+KEY_WEBSERVER = 'WebServer'
+KEY_BUILD_RESULT_REPOSITORY = 'BuildResultRepository'
+KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY = 'BuildResultRepositoryProjectSubdirectory'
 
 # directories on jenkins-master
 # This is the location of the jenkins configuration files on the jenkins-master.
 JENKINS_HOME_JENKINS_MASTER_CONTAINER = PurePosixPath('/var/jenkins_home')
-
-_HTML_SHARE_WEB_SERVER_CONTAINER = PurePosixPath('/var/www/html')
 
 
 class ConfigData:
@@ -80,7 +73,6 @@ class ConfigData:
         self.file_version = ''
         self.host_machine_infos = []
         self.jenkins_master_host_config = JenkinsMasterHostConfig()
-        self.webserver_config = WebserverConfig()
         self.ssh_repository_host_accesses = []
         self.https_repository_accesses = []
         self.jenkins_slave_configs = []
@@ -170,7 +162,7 @@ class ConfigData:
 
     def _read_jenkins_master_host_config(self):
         """
-        Reads the information under the 
+        Reads the information under the KEY_JENKINS_MASTER_HOST key.
         """
         config_dict = get_checked_value(self._config_file_dict, KEY_JENKINS_MASTER_HOST)
 
@@ -256,9 +248,10 @@ class ConfigData:
             config.base_job_name = get_checked_value(job_config_dict, KEY_JENKINSJOB_BASE_NAME)
             config.ci_repository = get_checked_value(job_config_dict, KEY_CI_REPOSITORY)
 
-            webserver_config_dict = get_checked_value(job_config_dict, KEY_WEBSERVER_CONFIG)
+            webserver_config_dict = get_checked_value(job_config_dict, KEY_WEBSERVER)
             config.webserver_config.machine_id = get_checked_value(webserver_config_dict, KEY_MACHINE_ID)
-            config.webserver_config.host_html_share_dir = PurePosixPath(get_checked_value(webserver_config_dict, KEY_HOST_HTML_SHARE))
+            config.webserver_config.result_repository = get_checked_value(webserver_config_dict, KEY_BUILD_RESULT_REPOSITORY)
+            config.webserver_config.result_repository_project_subdirectory = PurePosixPath(get_checked_value(webserver_config_dict, KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY))
 
             self.jenkins_config.cpf_job_configs.append(config)
 
@@ -430,7 +423,6 @@ class ConfigData:
             job_config.webserver_config.container_conf.container_user = 'root'
             job_config.webserver_config.container_conf.container_image_name = 'cpf-web-server-image'
             job_config.webserver_config.container_conf.published_ports = {mapped_web_port:80, mapped_ssh_port:22}
-            job_config.webserver_config.container_conf.host_volumes = {job_config.webserver_config.host_html_share_dir : _HTML_SHARE_WEB_SERVER_CONTAINER}
 
 
         self._next_free_ssh_port = mapped_ssh_port
@@ -544,21 +536,19 @@ class CPFJobConfig:
     def __init__(self):
         self.base_job_name = ''                                         # The name of the buildjob
         self.ci_repository = ''                                         # The repository that contains the CPF ci-project that shall be build.
-        self.result_repository = ''                                     # The repository to which installed build-results are committed.
-        self.result_repository_project_subdirectory = PurePosixPath()   # The subdirectory in the build-results repository to which the installed build-results are committed.
-
+        self.webserver_config = WebserverConfig()                       # The configuration of the webserver that is used publish this jobs build results.
 
 class WebserverConfig:
     """
     Data class that holds the configuration of the web-server host machine.
     """
     def __init__(self):
-        self.machine_id = ''                                # The id of the host machine of the webserver container.
-        self.build_result_repository = ''                   # The address of the git repository that provides the content of the hosted pages.
-        self.hosted_subdirectory = PurePosixPath()          # The subdirectory in the build_result_repository that shall be published.
-        self.container_ssh_port = None                      # The port on the host that is mapped to the containers ssh port.
-        self.container_web_port = None                      # The port on the host that is mapped to the containers port 80 under which the webpage can be reached.
-        self.container_conf = ContainerConfig()             # More information about the container that runs the web-server.
+        self.machine_id = ''                                            # The id of the host machine of the webserver container.
+        self.result_repository = ''                                     # The address of the git repository that provides the content of the hosted pages.
+        self.result_repository_project_subdirectory = PurePosixPath()   # The subdirectory in the build_result_repository that shall be published.
+        self.container_ssh_port = None                                  # The port on the host that is mapped to the containers ssh port.
+        self.container_web_port = None                                  # The port on the host that is mapped to the containers port 80 under which the webpage can be reached.
+        self.container_conf = ContainerConfig()                         # More information about the container that runs the web-server.
 
 
 class ConfigItem:
@@ -624,11 +614,6 @@ def get_example_config_dict():
             KEY_MACHINE_ID : 'MyMaster',
             KEY_HOST_JENKINS_MASTER_SHARE : '/home/fritz/jenkins_home'
         },
-        KEY_WEBSERVER : {
-            KEY_MACHINE_ID : 'MyMaster',
-            KEY_BUILD_RESULT_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults',
-            KEY_HOSTED_SUBDIRECTORY : 'projects'
-        },
         KEY_SSH_REPOSITORY_HOSTS : [
             {
                 KEY_MACHINE_ID : 'MyMaster',
@@ -673,14 +658,20 @@ def get_example_config_dict():
                 {
                     KEY_JENKINSJOB_BASE_NAME : 'MyCPFProject1',
                     KEY_CI_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject1.git',
-                    KEY_BUILD_RESULT_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults',
-                    KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'projects/MyCPFProject1'
+                    KEY_WEBSERVER : {
+                        KEY_MACHINE_ID : 'MyMaster',
+                        KEY_BUILD_RESULT_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults',
+                        KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'projects/MyCPFProject1'
+                    }
                 },
                 {
                     KEY_JENKINSJOB_BASE_NAME : 'MyCPFProject2',
                     KEY_CI_REPOSITORY : 'https://github.com/Fritz/MyCPFProject2.git',
-                    KEY_BUILD_RESULT_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults',
-                    KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'projects/MyCPFProject2'
+                    KEY_WEBSERVER : {
+                        KEY_MACHINE_ID : 'MyMaster',
+                        KEY_BUILD_RESULT_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults',
+                        KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'projects/MyCPFProject2',
+                    }
                 },
             ],
             KEY_JENKINS_ACCOUNT_CONFIG_FILES : {

@@ -115,7 +115,8 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].ci_repository, 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject1.git')
 
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.machine_id, 'MyMaster')
-        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.host_html_share_dir, PurePosixPath('/home/fritz/mycpfproject1_html_share'))
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.result_repository, 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.result_repository_project_subdirectory, PurePosixPath('projects/MyCPFProject1'))
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_ssh_port, 25)
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_web_port, 8081)
 
@@ -123,7 +124,7 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.container_user, 'root')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.container_image_name, 'cpf-web-server-image')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.published_ports, {8081:80, 25:22})
-        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.host_volumes, {PurePosixPath('/home/fritz/mycpfproject1_html_share') : PurePosixPath('/var/www/html')})
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.host_volumes, {})
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.envvar_definitions, [])
 
         # CPF JOB 2
@@ -131,7 +132,8 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].ci_repository, 'https://github.com/Fritz/MyCPFProject2.git')
 
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.machine_id, 'MyMaster')
-        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.host_html_share_dir, PurePosixPath('/home/fritz/mycpfproject2_html_share'))
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.result_repository, 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.result_repository_project_subdirectory, PurePosixPath('projects/MyCPFProject2'))
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_ssh_port, 26)
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_web_port, 8082)
 
@@ -139,7 +141,7 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.container_user, 'root')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.container_image_name, 'cpf-web-server-image')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.published_ports, {8082:80, 26:22})
-        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.host_volumes, {PurePosixPath('/home/fritz/mycpfproject2_html_share') : PurePosixPath('/var/www/html')})
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.host_volumes, {})
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.envvar_definitions, [])
 
 
@@ -200,7 +202,7 @@ class TestConfigData(unittest.TestCase):
 
         # setup
         config_dict = get_example_config_dict()
-        config_dict[KEY_JENKINS_CONFIG][KEY_CPF_JOBS][0][KEY_WEBSERVER_CONFIG][KEY_MACHINE_ID] = 'MyWindowsSlave'
+        config_dict[KEY_JENKINS_CONFIG][KEY_CPF_JOBS][0][KEY_WEBSERVER][KEY_MACHINE_ID] = 'MyWindowsSlave'
 
         # execute
         self.assertRaises(Exception, ConfigData, config_dict)
