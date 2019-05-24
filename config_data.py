@@ -52,10 +52,10 @@ KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES = 'JenkinsApprovedScriptSignatures'
 KEY_CPF_JOBS = 'CPFJobs'
 KEY_JENKINSJOB_BASE_NAME = 'JenkinsJobBasename'
 KEY_CI_REPOSITORY = 'CIRepository'
-
-KEY_WEBSERVER = 'WebServer'
 KEY_BUILD_RESULT_REPOSITORY = 'BuildResultRepository'
 KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY = 'BuildResultRepositoryProjectSubdirectory'
+
+KEY_WEBSERVER = 'WebServer'
 
 # directories on jenkins-master
 # This is the location of the jenkins configuration files on the jenkins-master.
@@ -247,11 +247,13 @@ class ConfigData:
             config = CPFJobConfig()
             config.base_job_name = get_checked_value(job_config_dict, KEY_JENKINSJOB_BASE_NAME)
             config.ci_repository = get_checked_value(job_config_dict, KEY_CI_REPOSITORY)
+            config.result_repository = get_checked_value(job_config_dict, KEY_BUILD_RESULT_REPOSITORY)
+            config.result_repository_project_subdirectory = PurePosixPath(get_checked_value(job_config_dict, KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY))
 
-            webserver_config_dict = get_checked_value(job_config_dict, KEY_WEBSERVER)
-            config.webserver_config.machine_id = get_checked_value(webserver_config_dict, KEY_MACHINE_ID)
-            config.webserver_config.result_repository = get_checked_value(webserver_config_dict, KEY_BUILD_RESULT_REPOSITORY)
-            config.webserver_config.result_repository_project_subdirectory = PurePosixPath(get_checked_value(webserver_config_dict, KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY))
+            # Using a cpf provided webserver is optional
+            if KEY_WEBSERVER in job_config_dict:
+                webserver_config_dict = get_checked_value(job_config_dict, KEY_WEBSERVER)
+                config.webserver_config.machine_id = get_checked_value(webserver_config_dict, KEY_MACHINE_ID)
 
             self.jenkins_config.cpf_job_configs.append(config)
 
@@ -300,7 +302,7 @@ class ConfigData:
         # web server hosts
         for job_config in self.jenkins_config.cpf_job_configs:
             machine_id = job_config.webserver_config.machine_id
-            if not self.is_linux_machine(machine_id):
+            if machine_id and not self.is_linux_machine(machine_id):
                 raise Exception("Config file Error! The webserver container host with {0} \"{1}\" is not a Linux machine.".format(KEY_MACHINE_ID, machine_id))
 
 
@@ -407,22 +409,23 @@ class ConfigData:
         # set mapped ports and names of web-server container
         mapped_web_port = 8081
         for job_config in self.jenkins_config.cpf_job_configs:
+            if job_config.webserver_config.machine_id:  # Setting up a webserver is optional
 
-            while mapped_ssh_port in used_ports:
-                mapped_ssh_port += 1
-            used_ports.add( mapped_ssh_port)
+                while mapped_ssh_port in used_ports:
+                    mapped_ssh_port += 1
+                used_ports.add( mapped_ssh_port)
             
-            while mapped_web_port in used_ports:
-                mapped_web_port += 1
-            used_ports.add(mapped_web_port)
+                while mapped_web_port in used_ports:
+                    mapped_web_port += 1
+                used_ports.add(mapped_web_port)
 
-            job_config.webserver_config.container_ssh_port = mapped_ssh_port
-            job_config.webserver_config.container_web_port = mapped_web_port
+                job_config.webserver_config.container_ssh_port = mapped_ssh_port
+                job_config.webserver_config.container_web_port = mapped_web_port
             
-            job_config.webserver_config.container_conf.container_name = '{0}-web-server'.format(job_config.base_job_name)
-            job_config.webserver_config.container_conf.container_user = 'root'
-            job_config.webserver_config.container_conf.container_image_name = 'cpf-web-server-image'
-            job_config.webserver_config.container_conf.published_ports = {mapped_web_port:80, mapped_ssh_port:22}
+                job_config.webserver_config.container_conf.container_name = '{0}-web-server'.format(job_config.base_job_name)
+                job_config.webserver_config.container_conf.container_user = 'root'
+                job_config.webserver_config.container_conf.container_image_name = 'cpf-web-server-image'
+                job_config.webserver_config.container_conf.published_ports = {mapped_web_port:80, mapped_ssh_port:22}
 
 
         self._next_free_ssh_port = mapped_ssh_port
@@ -536,6 +539,8 @@ class CPFJobConfig:
     def __init__(self):
         self.base_job_name = ''                                         # The name of the buildjob
         self.ci_repository = ''                                         # The repository that contains the CPF ci-project that shall be build.
+        self.result_repository = ''                                     # The address of the git repository that provides the content of the hosted pages.
+        self.result_repository_project_subdirectory = PurePosixPath()   # The subdirectory in the build_result_repository that shall be published.
         self.webserver_config = WebserverConfig()                       # The configuration of the webserver that is used publish this jobs build results.
 
 class WebserverConfig:
@@ -544,8 +549,6 @@ class WebserverConfig:
     """
     def __init__(self):
         self.machine_id = ''                                            # The id of the host machine of the webserver container.
-        self.result_repository = ''                                     # The address of the git repository that provides the content of the hosted pages.
-        self.result_repository_project_subdirectory = PurePosixPath()   # The subdirectory in the build_result_repository that shall be published.
         self.container_ssh_port = None                                  # The port on the host that is mapped to the containers ssh port.
         self.container_web_port = None                                  # The port on the host that is mapped to the containers port 80 under which the webpage can be reached.
         self.container_conf = ContainerConfig()                         # More information about the container that runs the web-server.
@@ -658,21 +661,27 @@ def get_example_config_dict():
                 {
                     KEY_JENKINSJOB_BASE_NAME : 'MyCPFProject1',
                     KEY_CI_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject1.git',
+                    KEY_BUILD_RESULT_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults',
+                    KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'projects/MyCPFProject1',
                     KEY_WEBSERVER : {
-                        KEY_MACHINE_ID : 'MyMaster',
-                        KEY_BUILD_RESULT_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults',
-                        KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'projects/MyCPFProject1'
+                        KEY_MACHINE_ID : 'MyMaster'
                     }
                 },
                 {
                     KEY_JENKINSJOB_BASE_NAME : 'MyCPFProject2',
                     KEY_CI_REPOSITORY : 'https://github.com/Fritz/MyCPFProject2.git',
+                    KEY_BUILD_RESULT_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults',
+                    KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'projects/MyCPFProject2',
                     KEY_WEBSERVER : {
-                        KEY_MACHINE_ID : 'MyMaster',
-                        KEY_BUILD_RESULT_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults',
-                        KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'projects/MyCPFProject2',
+                        KEY_MACHINE_ID : 'MyMaster'
                     }
                 },
+                {
+                    KEY_JENKINSJOB_BASE_NAME : 'MyCPFProject3',
+                    KEY_CI_REPOSITORY : 'https://github.com/Fritz/MyCPFProject3.git',
+                    KEY_BUILD_RESULT_REPOSITORY : 'https://github.com/Knitschi/Knitschi.github.io.git',
+                    KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'MyCPFProject3'
+                }
             ],
             KEY_JENKINS_ACCOUNT_CONFIG_FILES : {
                 'hans' : 'UserHans.xml'

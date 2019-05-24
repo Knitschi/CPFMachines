@@ -113,10 +113,10 @@ class TestConfigData(unittest.TestCase):
         # CPF JOB 1
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].base_job_name, 'MyCPFProject1')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].ci_repository, 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject1.git')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].result_repository, 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].result_repository_project_subdirectory, PurePosixPath('projects/MyCPFProject1'))
 
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.machine_id, 'MyMaster')
-        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.result_repository, 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults')
-        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.result_repository_project_subdirectory, PurePosixPath('projects/MyCPFProject1'))
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_ssh_port, 25)
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_web_port, 8081)
 
@@ -130,10 +130,10 @@ class TestConfigData(unittest.TestCase):
         # CPF JOB 2
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].base_job_name, 'MyCPFProject2')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].ci_repository, 'https://github.com/Fritz/MyCPFProject2.git')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].result_repository, 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].result_repository_project_subdirectory, PurePosixPath('projects/MyCPFProject2'))
 
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.machine_id, 'MyMaster')
-        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.result_repository, 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults')
-        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.result_repository_project_subdirectory, PurePosixPath('projects/MyCPFProject2'))
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_ssh_port, 26)
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_web_port, 8082)
 
@@ -143,6 +143,25 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.published_ports, {8082:80, 26:22})
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.host_volumes, {})
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.envvar_definitions, [])
+
+        # CPF JOB 3
+        # A job that does not use a cpf provided web server.
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[2].base_job_name, 'MyCPFProject3')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[2].ci_repository, 'https://github.com/Fritz/MyCPFProject3.git')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[2].result_repository, 'https://github.com/Knitschi/Knitschi.github.io.git')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[2].result_repository_project_subdirectory, PurePosixPath('MyCPFProject3'))
+
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[2].webserver_config.machine_id, '')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[2].webserver_config.container_ssh_port, None)
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[2].webserver_config.container_web_port, None)
+
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[2].webserver_config.container_conf.container_name, '')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[2].webserver_config.container_conf.container_user, '')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[2].webserver_config.container_conf.container_image_name, '')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[2].webserver_config.container_conf.published_ports, {})
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[2].webserver_config.container_conf.host_volumes, {})
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[2].webserver_config.container_conf.envvar_definitions, [])
+
 
 
     def test_validation_checks_that_all_hosts_are_in_use(self):
