@@ -16,39 +16,52 @@ apache2 \
 supervisor \
 netcat \
 vim \
-tree
+tree \
+git
+
+# --------------- SETUP JENKINS USER ---------------
+ARG user=jenkins
+ARG group=jenkins
+ARG uid=1000
+ARG gid=1000
+ARG JENKINS_HOME=/home/${user}
+# Jenkins is run with user `jenkins`, uid = 1000
+# If you bind mount a volume from the host or a data container,
+# ensure you use the same uid
+RUN mkdir -p $JENKINS_HOME \
+  && chown ${uid}:${gid} $JENKINS_HOME \
+  && groupadd -g ${gid} ${group} \
+  && useradd -d "$JENKINS_HOME" -u ${uid} -g ${gid} -m -s /bin/bash ${user}
 
 
-# --------------- Install Clang Tools --------------
-COPY installClangTools.sh installClangTools.sh
-RUN /bin/bash installClangTools.sh
-    
-# ------------------- GCC --------------------
-COPY installGcc.sh installGcc.sh
-RUN /bin/bash installGcc.sh
-        
-# -------------- COMPILE DOXYGEN --------------
-# We need doxygen to get the doxyserach.cgi binary which is neede to enable server side searchin in the doxygen documentation.
-# Sadly the packaged doxygen version 1.8.4 does not work with the serach db of the 1.8.13 version which is used to generate
-# the search database. To get version 1.8.13 we need to compile doxygen and the xapian dependency from source 
-COPY buildDoxygen.sh /usr/bin
-RUN /bin/bash /usr/bin/buildDoxygen.sh    
+# --------------- SETUP WEB CONTENT REPOSITORY --------------- 
+RUN mkdir $JENKINS_HOME/WebContentRepository \
+    && git init --bare $JENKINS_HOME/WebContentRepository \
+    && mkdir $JENKINS_HOME/WebContent
+
+# The post-receive hook checks out the repo content into the WebContent directory after
+# each commit.
+COPY web-server-post-receive.in $JENKINS_HOME/WebContentRepository/hooks/post-receive
+RUN chmod +x $JENKINS_HOME/WebContentRepository/hooks/post-receive
 
 
 # --------------- PREPARE SSH DEAMON ---------------     
 # prepare running sshd
-RUN sed -i 's|session required pam_loginuid.so|session optional pam_loginuid.so|g' /etc/pam.d/sshd &&\
-    mkdir -p /var/run/sshd &&\
-    mkdir /root/.ssh
+RUN sed -i 's|session required pam_loginuid.so|session optional pam_loginuid.so|g' /etc/pam.d/sshd \
+    && mkdir -p /var/run/sshd \
+    && mkdir /root/.ssh
     
 COPY ssh_config /etc/ssh/sshd_config
 
 
 # -------------- CONFIGURE WEBSERVER --------------
 # Allow the webserver to execute cgi scripts
-COPY serve-cgi-bin.conf /etc/apache2/conf-available
-RUN a2enmod cgi
+#COPY serve-cgi-bin.conf /etc/apache2/conf-available/
+#RUN a2enmod cgi
 
-# -------------- START WEBSERVER AND SSHDAEMON VIA SUPERVISOR --------------
+# Change the hosted directory to $JENKINS_HOME/WebContent
+COPY 000-default.conf /etc/apache2/sites-available/
+
+# -------------- START WEBSERVER AND SSH-DAEMON VIA SUPERVISOR --------------
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 CMD ["/usr/bin/supervisord"]

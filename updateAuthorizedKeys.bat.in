@@ -15,13 +15,15 @@ set password=%1
 
 set sshDir="C:/Users/%user%/.ssh"
 cd %sshDir%
-:: write the content of authorized_keys to keys_temp excluding the public key of the accessing machine
+:: Write the content of authorized_keys to keys_temp excluding the public key of the accessing machine
 type authorized_keys | findstr /v @JENKINS_MASTER_CONTAINER@ >> keys_temp
 move /y keys_temp authorized_keys
-:: add the new public key to the authorized_keys file
+:: Add the new public key to the authorized_keys file
 echo %publicKey% >> authorized_keys
 
 
 :: Add the new key to the public key file file
 set publicKeyFile=%sshDir%/%accessingMachine%_ssh_key.rsa.pub
 echo %publicKey% > %publicKeyFile%
+
+

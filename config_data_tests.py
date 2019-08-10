@@ -163,6 +163,26 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_config.cpf_job_configs[2].webserver_config.container_conf.envvar_definitions, [])
 
 
+    def test_get_all_container_returns_the_correct_containers(self):
+        """
+        Happy case test for reading a config file.
+        """
+        self.maxDiff = None
+
+        # execute
+        sut = ConfigData(get_example_config_dict())
+        containers = sut.get_all_container()
+
+        # verify
+        expected_containers = [
+            'jenkins-master',
+            'jenkins-slave-linux-0',
+            'jenkins-slave-linux-1',
+            'MyCPFProject1-web-server',
+            'MyCPFProject2-web-server'
+            ] 
+        self.assertEqual(containers, expected_containers)
+
 
     def test_validation_checks_that_all_hosts_are_in_use(self):
         """

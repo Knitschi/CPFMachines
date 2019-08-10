@@ -57,9 +57,11 @@ KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY = 'BuildResultRepositoryProject
 
 KEY_WEBSERVER = 'WebServer'
 
-# directories on jenkins-master
+# locations
 # This is the location of the jenkins configuration files on the jenkins-master.
 JENKINS_HOME_JENKINS_MASTER_CONTAINER = PurePosixPath('/var/jenkins_home')
+# The location of the web repository on the web-server container
+WEB_SERVER_REPOSITORY_DIR = '/home/'
 
 
 class ConfigData:
@@ -100,7 +102,7 @@ class ConfigData:
         """
         Returns the names of all the containers in the infrastructure.
         """
-        return self._container_dict.keys()
+        return list(self._container_dict)
 
     def get_container_machines(self):
         """
@@ -132,7 +134,8 @@ class ConfigData:
                 id_dict[slave_config.container_conf.container_name] = slave_config.machine_id
 
         for cpf_job_config in self.jenkins_config.cpf_job_configs:
-            id_dict[cpf_job_config.webserver_config.container_conf.container_name] = cpf_job_config.webserver_config.machine_id
+            if cpf_job_config.webserver_config.machine_id:
+                id_dict[cpf_job_config.webserver_config.container_conf.container_name] = cpf_job_config.webserver_config.machine_id
 
         return id_dict
 

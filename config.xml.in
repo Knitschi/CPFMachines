@@ -67,13 +67,30 @@ This parameter is an implementation detail and is not supposed to be changed by 
           <defaultValue>@CI_REPOSITORY@</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
-          <name>buildResultRepository</name>
+          <name>buildResultRepositoryMaster</name>
           <description>
 The address of the git repository to which the installed files of the
 build project are committed.
 This parameter is an implementation detail and is not supposed to be changed by the user.
           </description>
-          <defaultValue>@BUILD_RESULT_REPOSITORY@</defaultValue>
+          <defaultValue>@BUILD_RESULT_REPOSITORY_MASTER@</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>buildResultRepositoryWebServer</name>
+          <description>
+An optional parameter that holds the address to a clone of buildResultRepositoryMaster to which
+the created build results are additionally pushed.
+This parameter is an implementation detail and is not supposed to be changed by the user.
+          </description>
+          <defaultValue>@BUILD_RESULT_REPOSITORY_WEB_SERVER@</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>buildResultRepositorySubdirectory</name>
+          <description>
+The subdirectory in the build result repository to which the installed files are added.
+This parameter is an implementation detail and is not supposed to be changed by the user.
+          </description>
+          <defaultValue>@BUILD_RESULT_REPOSITORY_SUBDIRECTORY@</defaultValue>
         </hudson.model.StringParameterDefinition>
       </parameterDefinitions>
     </hudson.model.ParametersDefinitionProperty>
@@ -99,7 +116,7 @@ This parameter is an implementation detail and is not supposed to be changed by 
       <submoduleCfg class="list"/>
       <extensions/>
     </scm>
-    <scriptPath>JenkinsPipelineScript.groovy</scriptPath>
+    <scriptPath>jenkinsfile</scriptPath>
     <lightweight>false</lightweight>
   </definition>
   <triggers/>

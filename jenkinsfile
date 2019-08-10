@@ -11,7 +11,9 @@ params.taggingOption
 params.packages
 params.cpfConfiguration
 params.target
-params.buildResultRepository
+params.buildResultRepositoryMaster
+params.buildResultRepositoryWebServer
+params.buildResultRepositorySubdirectory
 
 */
 
@@ -28,7 +30,7 @@ class Constants {
     static final CPFCMAKE_DIR = 'CPFCMake'
 
     // stash names
-    static final HTML_STASH = "html"
+    static final INSTALL_STASH = "install"
 
     static final RELEASE_TAGGING_OPTIONS = ['incrementMajor', 'incrementMinor', 'incrementPatch']
     static final TAGGING_OPTIONS = ['internal'] + RELEASE_TAGGING_OPTIONS
@@ -44,7 +46,9 @@ branchOrTag: ${params.branchOrTag}
 cpfConfiguration: ${params.cpfConfiguration}
 target: ${params.target}
 cpfCIRepository: ${params.cpfCIRepository}
-buildResultRepository: ${params.buildResultRepository}
+buildResultRepositoryMaster: ${params.buildResultRepositoryMaster}
+buildResultRepositoryWebServer: ${params.buildResultRepositoryWebServer}
+buildResultRepositorySubdirectory: ${params.buildResultRepositorySubdirectory}
 ----------------------------------------------------
 ####################################################
 """)
@@ -95,17 +99,22 @@ This job is run for commit: ${commitID}
 )
 
 // Pipeline stage
-addPipelineStage(configurations, projectRepository, commitID, params.target)
-// Only tag commits that have been built with the full pipline and all configurations.
+addBuildStage(configurations, projectRepository, commitID, params.target)
+
+// Only tag and store results if the job ran a full build.
 if(params.target == 'pipeline' && params.cpfConfiguration == '' )
 {
+    // Add a tag for the verified build
     addTaggingStage(projectRepository, commitID)
+
+    // Store the results and push them to the web-server.
+    def buildResultsRepositoryMaster = prepareRepositoryAddress(params.buildResultRepositoryMaster)
+    def buildResultsRepositoryWebServer = prepareRepositoryAddress(params.buildResultRepositoryWebServer)
+    addUpdateBuildResultsRepositoryStage(projectRepository, buildResultsRepositoryMaster, buildResultRepositoryWebServer, params.buildResultRepositorySubdirectory, configurations, commitID)
 }
 
-// Store build results stage
-def buildResultsRepository = prepareRepositoryAddress(params.buildResultRepository)
-addUpdateBuildResultsRepositoryStage(projectRepository, buildResultsRepository, configurations, commitID)
 
+//#######################################################################################################################
 
 // For unknown reasons, the repo url can not contain the second : after the machine name
 // when used with the GitSCM class. So we remove it here.
@@ -261,9 +270,9 @@ def checkoutBranch(projectRepository, branch, subdirectory = CHECKOUT_FOLDER )
     )
 }
 
-def addPipelineStage( cpfConfigs, projectRepository, commitId, target)
+def addBuildStage( cpfConfigs, projectRepository, commitId, target)
 {
-    stage('Build Pipeline')
+    stage('Build Stage')
     {
         def parallelNodes = [:]
         // parallelNodes.failFast = true
@@ -304,7 +313,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                     // Set the install prefix so we can archive the installed files.
                     runPythonCommand("1_Configure ${cpfConfig} -DCMAKE_INSTALL_PREFIX=${installDir}")
 
-                    // build the pipeline target
+                    // build the pipeline target or a user specified target.
                     def configOption = ''
                     if(compilerConfig) // The build config option is only needed for multi-config generators.
                     {
@@ -312,11 +321,15 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                     }
                     runXvfbWrappedPythonCommand( "3_Make.py ${cpfConfig} --target ${target} ${configOption}" )
 
-                    // Stash the installed files
-                    def htmlStash = "${HTML_STASH}${cpfConfig}"
-                    stash includes: 'install/**', name: htmlStash
-                    
-                    echo "----- The pipeline finished successfully for configuration ${cpfConfig}. -----"
+                    // Install and stash files in case of a pipeline build.
+                    if( target == 'pipeline' )
+                    {
+                        runXvfbWrappedPythonCommand( "3_Make.py ${cpfConfig} --target install_all ${configOption}" )
+                        def installStash = "${INSTALL_STASH}${cpfConfig}"
+                        stash includes: 'install/**', name: installStash
+                    }
+
+                    echo "----- Successfully built target ${target} in ${cpfConfig} configuration. -----"
                 }
             }
         }
@@ -341,7 +354,14 @@ def addTaggingStage(projectRepository, commitID)
     }
 }
 
-def addUpdateBuildResultsRepositoryStage(projectRepository, buildResultsRepository, cpfConfigs, commitID)
+def addUpdateBuildResultsRepositoryStage(
+    projectRepository,
+    buildResultsRepositoryMaster,
+    buildResultsRepositoryWebServer,
+    buildResultsRepositorySubDir,
+    cpfConfigs,
+    commitID
+    )
 {
     stage('Archive build results')
     {
@@ -349,7 +369,7 @@ def addUpdateBuildResultsRepositoryStage(projectRepository, buildResultsReposito
         {
 			// Get the build results repository.
 			def buildResultRepositoryName = getRepositoryName(buildResultRepositoryName)
-			checkoutBranch(buildResultsRepository, 'master', buildResultRepositoryName) // get the build results
+			checkoutBranch(buildResultsRepositoryMaster, 'master', buildResultRepositoryName) // get the build results
 
 			// Checkout the project repository, get the archived build results and commit them to the result repository.
             def projectRepositoryName = getRepositoryName(projectRepository)
@@ -360,11 +380,21 @@ def addUpdateBuildResultsRepositoryStage(projectRepository, buildResultsReposito
                 // This fills the install directory.
                 for(cpfConfig in cpfConfigs)
                 {
-                    unstashFiles(HTML_STASH, cpfConfig.ConfigName)
+                    unstashFiles(INSTALL_STASH, cpfConfig.ConfigName)
                 }
 
                 // Copy the new build results to the results repository and commit them.
-                sh "cmake -DCMAKE_INSTALL_PREFIX=\"\$PWD/install\" -DBUILD_RESULTS_REPOSITORY_DIR=\"\$PWD/../${buildResultRepositoryName}\" -DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\" -P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\""
+                def scriptCommand = 
+"""
+cmake 
+-DCMAKE_INSTALL_PREFIX=\"\$PWD/install\"
+-DMASTER_BUILD_RESULTS_REPOSITORY_DIR=\"\$PWD/../${buildResultRepositoryName}\"
+-DWEB_SERVER_BUILD_RESULTS_REPOSITORY=\"${buildResultsRepositoryWebServer}\"
+-DBUILD_RESULTS_REPOSITORY_PROJECT_SUBDIR=\"${buildResultsRepositorySubDir}\"
+-DROOT_DIR=\"\$PWD/${CHECKOUT_FOLDER}\"
+-P \"\$PWD/${CHECKOUT_FOLDER}/Sources/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\"
+"""
+                sh scriptCommand
             }
 
 			echo '----- The build results were stored successfully. -----'

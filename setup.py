@@ -75,7 +75,7 @@ def configure_file(source_file, dest_file, replacement_dictionary):
     # Read the lines from the template, substitute the values, and write to the new config file
     for line in io.open(str(source_file), 'r'):
         for key, value in replacement_dictionary.items():
-            line = line.replace(key, value)
+            line = line.replace(key, str(value))
         config_file.write(line)
 
     # Close target file
@@ -147,10 +147,6 @@ class MachinesController:
         """
         self._remove_all_container()
         self._clear_directories()
-        # we do not clear the webshare directories to preserve the accumulated web content.
-        for cpf_job_config in self.config.jenkins_config.cpf_job_configs:
-            connection = self.connections.get_connection(cpf_job_config.webserver_config.machine_id)
-            fileutil.guarantee_directory_exists(connection.sftp_client, cpf_job_config.webserver_config.host_html_share_dir)
 
 
     def build_jenkins_base(self):
@@ -237,8 +233,9 @@ class MachinesController:
     def _get_web_server_host_names(self):
         host_names = set()
         for cpf_job_config in self.config.jenkins_config.cpf_job_configs:
-            connection = self.connections.get_connection(cpf_job_config.webserver_config.machine_id)
-            host_names.add(connection.info.host_name)
+            if cpf_job_config.webserver_config.machine_id:
+                connection = self.connections.get_connection(cpf_job_config.webserver_config.machine_id)
+                host_names.add(connection.info.host_name)
         return host_names
 
 
@@ -259,6 +256,9 @@ class MachinesController:
         for cpf_job_config in self.config.jenkins_config.cpf_job_configs:
 
             machine_id = cpf_job_config.webserver_config.machine_id
+            if not machine_id:
+                continue
+
             connection = self.connections.get_connection(machine_id)
             container_config = cpf_job_config.webserver_config.container_conf
             container_image = container_config.container_image_name
@@ -273,8 +273,10 @@ class MachinesController:
                 'installGcc.sh',
                 'buildDoxygen.sh',
                 'ssh_config',
-                'serve-cgi-bin.conf',
+                #'serve-cgi-bin.conf',
+                '000-default.conf',
                 'supervisord.conf',
+                'web-server-post-receive.in'
             ]
 
             # build container image
@@ -291,6 +293,7 @@ class MachinesController:
             dockerutil.docker_run_detached(connection, container_config)
 
             # copy the doxyserach.cgi to the html share
+            """
             html_share_container = next(iter(container_config.host_volumes.values()))
             cgi_bin_dir = html_share_container.joinpath('cgi-bin')
             commands = [
@@ -304,6 +307,7 @@ class MachinesController:
                 container_config,
                 commands
                 )
+            """
 
 
     def build_and_start_jenkins_linux_slaves(self):
@@ -659,6 +663,9 @@ class MachinesController:
         
         for cpf_job_config in self.config.jenkins_config.cpf_job_configs:
 
+            if not cpf_job_config.webserver_config.machine_id:
+                continue
+
             webserver_host_connection = self.connections.get_connection(cpf_job_config.webserver_config.machine_id)
             webserver_container_config = cpf_job_config.webserver_config.container_conf
 
@@ -781,15 +788,23 @@ class MachinesController:
         # TODO this should be a version tag of CPFMachines once automatic versioning for CPFJenkinsjob works.
         # For now we leave it at the master so we always get the latest version.
         tag_or_branch = 'master'
-        webserver_container_host = self.config.get_host_info(cpf_job_config.webserver_config.machine_id).host_name
 
-        configure_file(_CPF_JOB_TEMPLATE_FILE, created_config_file, {
+        jobConfigVariableMap = {
             '@JOB_NAME@' : get_job_name(cpf_job_config.base_job_name),
             '@JENKINSFILE_TAG_OR_BRANCH@' : tag_or_branch,
             '@CI_REPOSITORY@' : cpf_job_config.ci_repository,
-            '@BUILD_RESULT_REPOSITORY@' : cpf_job_config.build_result_repository,
+            '@BUILD_RESULT_REPOSITORY_MASTER@' : cpf_job_config.result_repository,
+            '@BUILD_RESULT_REPOSITORY_SUBDIRECTORY@' : cpf_job_config.result_repository_project_subdirectory,
             '@CPFMACHINES_REPOSITORY@' : _JENKINSJOB_REPOSITORY,
-        })
+        }
+
+        # If the job comes with a web-server we add the content repository on the webserver to job-config.
+        if cpf_job_config.webserver_config.machine_id:
+            info = self.connections.get_connection(cpf_job_config.webserver_config.machine_id).info
+            port = cpf_job_config.webserver_config.container_ssh_port
+            jobConfigVariableMap['@BUILD_RESULT_REPOSITORY_WEB_SERVER@'] = 'ssh://jenkins@{0}:{1}:/home/jenkins/WebContentRepository'.format(info.host_name, port)
+
+        configure_file(_CPF_JOB_TEMPLATE_FILE, created_config_file, jobConfigVariableMap)
 
 
     def _copy_jenkins_config_files(self, config_file, config_dir, config_items):
@@ -1041,9 +1056,10 @@ def _print_access_summary(config):
     print()
     print('Project web-pages:')
     for cpf_job_config in config.jenkins_config.cpf_job_configs:
-        host_info = config.get_host_info(cpf_job_config.webserver_config.machine_id)
-        mapped_port = cpf_job_config.webserver_config.container_web_port
-        print('{0} -> http://{1}:{2}/doxygen'.format(cpf_job_config.base_job_name, host_info.host_name, mapped_port))
+        if cpf_job_config.webserver_config.machine_id:
+            host_info = config.get_host_info(cpf_job_config.webserver_config.machine_id)
+            mapped_port = cpf_job_config.webserver_config.container_web_port
+            print('{0} -> http://{1}:{2}/doxygen'.format(cpf_job_config.base_job_name, host_info.host_name, mapped_port))
     print()
     print('SSH accesses build-slaves:')
     for slave_config in config.jenkins_slave_configs:
@@ -1068,6 +1084,7 @@ def _print_access_summary(config):
     print()
     print('SSH accesses web-server:')
     for cpf_job_config in config.jenkins_config.cpf_job_configs:
+        if cpf_job_config.webserver_config.machine_id:
             container_conf = cpf_job_config.webserver_config.container_conf
             host_info = config.get_host_info(cpf_job_config.webserver_config.machine_id)
             print('{0} -> \"ssh -p{1} {2}@{3}\"'.format(
@@ -1076,10 +1093,6 @@ def _print_access_summary(config):
                 container_conf.container_user,
                 host_info.host_name
             ))
-
-
-
-
 
 
 

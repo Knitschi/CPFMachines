@@ -102,7 +102,8 @@ class ConnectionHolder:
         if print_command:
             print(self._prepend_machine_id(command))
 
-        stdin, stdout, stderr = self._ssh_client.exec_command(command, get_pty=True)
+        stdin, stdout, stderr = self._ssh_client.exec_command(command, get_pty=False)
+
 
         # print output as soon as it is produced
         out_list = []
@@ -123,6 +124,7 @@ class ConnectionHolder:
             if stdout.channel.exit_status_ready():
                 stdout.channel.close()
                 stderr.channel.close()
+
 
         err_list = stderr.readlines()
         err_list = self._remove_line_separators(err_list)
