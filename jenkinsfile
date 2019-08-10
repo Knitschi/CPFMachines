@@ -311,7 +311,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                     // Make the python scripts available in the root directory
                     runPythonCommand("Sources/CPFBuildscripts/0_CopyScripts.py")
                     // Set the install prefix so we can archive the installed files.
-                    runPythonCommand("1_Configure ${cpfConfig} -DCMAKE_INSTALL_PREFIX=${installDir}")
+                    runPythonCommand("1_Configure.py ${cpfConfig} -DCMAKE_INSTALL_PREFIX=${installDir}")
 
                     // build the pipeline target or a user specified target.
                     def configOption = ''
