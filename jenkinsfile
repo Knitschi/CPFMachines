@@ -381,6 +381,9 @@ def addUpdateBuildResultsRepositoryStage(
                     unstashFiles(INSTALL_STASH, cpfConfig.ConfigName)
                 }
 
+                // debug
+                showTree()
+
                 // Copy the new build results to the results repository and commit them.
                 def scriptCommand = 
 """
