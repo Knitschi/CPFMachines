@@ -388,16 +388,14 @@ def addUpdateBuildResultsRepositoryStage(
                 sh 'ls -l'
 
                 // Copy the new build results to the results repository and commit them.
-                def scriptCommand = 
-"""
-cmake 
--DCMAKE_INSTALL_PREFIX=\"\$PWD/install\"
--DMASTER_BUILD_RESULTS_REPOSITORY_DIR=\"\$PWD/${buildResultRepositoryName}\"
--DWEB_SERVER_BUILD_RESULTS_REPOSITORY=\"${buildResultsRepositoryWebServer}\"
--DBUILD_RESULTS_REPOSITORY_PROJECT_SUBDIR=\"${buildResultsRepositorySubDir}\"
--DROOT_DIR=\"\$PWD/${projectRepositoryName}"
--P \"\$PWD/${projectRepositoryName}/Sources/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\"
-"""
+                def scriptCommand = 'cmake '
+                scriptCommand += "-DCMAKE_INSTALL_PREFIX=\"\$PWD/install\" "
+                scriptCommand += "-DMASTER_BUILD_RESULTS_REPOSITORY_DIR=\"\$PWD/${buildResultRepositoryName}\" "
+                scriptCommand += "-DWEB_SERVER_BUILD_RESULTS_REPOSITORY=\"${buildResultsRepositoryWebServer}\" "
+                scriptCommand += "-DBUILD_RESULTS_REPOSITORY_PROJECT_SUBDIR=\"${buildResultsRepositorySubDir}\" "
+                scriptCommand += "-DROOT_DIR=\"\$PWD/${projectRepositoryName}\" "
+                scriptCommand += "-P \"\$PWD/${projectRepositoryName}/Sources/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\" "
+                
                 sh scriptCommand
             }
 
