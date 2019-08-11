@@ -306,10 +306,16 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
 
                 dir(CHECKOUT_FOLDER)
                 {
+                    // Clean directories
+                    cleanSubdirectory('install')  // Remove results from the previous build.
+
                     // Make the python scripts available in the root directory
                     runPythonCommand("Sources/CPFBuildscripts/0_CopyScripts.py")
                     // Set the install prefix so we can archive the installed files.
                     runPythonCommand("1_Configure.py ${cpfConfig}")
+
+                    // Run a fresh generate
+                    runXvfbWrappedPythonCommand( "2_Generate.py ${cpfConfig} --clean" )
 
                     // build the pipeline target or a user specified target.
                     def configOption = ''
@@ -378,6 +384,7 @@ def addUpdateBuildResultsRepositoryStage(
                 
                 // Accumulate all installed files from all configurations.
                 // This fills the install directory.
+                cleanSubdirectory('install')    // Remove the results from the previous build.
                 for(cpfConfig in cpfConfigs)
                 {
                     unstashFiles(INSTALL_STASH, cpfConfig.ConfigName)
@@ -395,7 +402,7 @@ def addUpdateBuildResultsRepositoryStage(
                 scriptCommand += "-DBUILD_RESULTS_REPOSITORY_PROJECT_SUBDIR=\"${buildResultsRepositorySubDir}\" "
                 scriptCommand += "-DROOT_DIR=\"\$PWD/${projectRepositoryName}\" "
                 scriptCommand += "-P \"\$PWD/${projectRepositoryName}/Sources/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\" "
-                
+
                 sh scriptCommand
             }
 
@@ -467,10 +474,10 @@ def runXvfbWrappedPythonCommand(command)
     }
 }
 
-def cleanWorkspace(projectRepository, cpfConfig)
+def cleanSubdirectory(subdirectory)
 {
-    echo 'Clean Workspace ...'
-    dir("${getRepositoryName(projectRepository)}-${cpfConfig}"){ // todo use 
+    dir(subdirectory)
+    {
         deleteDir()
     }
 }
