@@ -51,22 +51,22 @@ set( files
     updateAuthorizedKeys.bat.in
     web-server-post-receive.in
     __init__.py
-    BuildHostLinux\shutdownVms
-    BuildHostLinux\shutdownVms.service
-    documentation\BuildJobTriggerHooks.rst
-    documentation\ConfigurationFile.rst
-    documentation\CPFMachines.rst
-    documentation\JenkinsJob.rst
-    documentation\MachinesAndContainer.rst
-    documentation\ManualTests.rst
-    documentation\ProblemsNotes.rst
-    documentation\Usage.rst
-    JenkinsConfig\config.xml
-    JenkinsConfig\jenkins.CLI.xml
-    JenkinsConfig\jenkins.model.DownloadSettings.xml
-    JenkinsConfig\jenkins.security.UpdateSiteWarningsConfiguration.xml
-    JenkinsConfig\org.jenkinsci.plugins.xvfb.Xvfb.xml
-    JenkinsConfig\secrets\slave-to-master-security-kill-switch
+    BuildHostLinux/shutdownVms
+    BuildHostLinux/shutdownVms.service
+    documentation/BuildJobTriggerHooks.rst
+    documentation/ConfigurationFile.rst
+    documentation/CPFMachines.rst
+    documentation/JenkinsJob.rst
+    documentation/MachinesAndContainer.rst
+    documentation/ManualTests.rst
+    documentation/ProblemsNotes.rst
+    documentation/Usage.rst
+    JenkinsConfig/config.xml
+    JenkinsConfig/jenkins.CLI.xml
+    JenkinsConfig/jenkins.model.DownloadSettings.xml
+    JenkinsConfig/jenkins.security.UpdateSiteWarningsConfiguration.xml
+    JenkinsConfig/org.jenkinsci.plugins.xvfb.Xvfb.xml
+    JenkinsConfig/secrets/slave-to-master-security-kill-switch
 )
 
 cpfAddFilePackage(

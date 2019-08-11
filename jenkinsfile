@@ -396,10 +396,6 @@ def addUpdateBuildResultsRepositoryStage(
                     unstashFiles(INSTALL_STASH, cpfConfig.ConfigName)
                 }
 
-                // debug
-                sh 'echo \$PWD'
-                sh 'ls -l'
-
                 // Copy the new build results to the results repository and commit them.
                 def scriptCommand = 'cmake '
                 scriptCommand += "-DCMAKE_INSTALL_PREFIX=\"\$PWD/install\" "
