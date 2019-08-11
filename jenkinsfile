@@ -372,7 +372,7 @@ def addUpdateBuildResultsRepositoryStage(
 			// Checkout the project repository, get the archived build results and commit them to the result repository.
             def projectRepositoryName = getRepositoryName(projectRepository)
 			checkoutBranch(projectRepository, commitID, projectRepositoryName) // Get the updateBuildResultsRepository.cmake script. We should only check-out CPFCMake in the future here.
-            ws(projectRepositoryName)
+            ws(projectRepositoryName + '-archive-stage')
             {
                 // Accumulate all installed files from all configurations.
                 // This fills the install directory.
