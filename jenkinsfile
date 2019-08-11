@@ -392,8 +392,8 @@ cmake
 -DMASTER_BUILD_RESULTS_REPOSITORY_DIR=\"\$PWD/../${buildResultRepositoryName}\"
 -DWEB_SERVER_BUILD_RESULTS_REPOSITORY=\"${buildResultsRepositoryWebServer}\"
 -DBUILD_RESULTS_REPOSITORY_PROJECT_SUBDIR=\"${buildResultsRepositorySubDir}\"
--DROOT_DIR=\"\$PWD/${buildResultRepogitsitoryName}\"
--P \"\$PWD/${buildResultRepogitsitoryName}/Sources/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\"
+-DROOT_DIR=\"\$PWD\"
+-P \"\$PWD/Sources/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\"
 """
                 sh scriptCommand
             }
