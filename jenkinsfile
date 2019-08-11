@@ -383,7 +383,7 @@ def addUpdateBuildResultsRepositoryStage(
                 checkoutBranch(projectRepository, commitID, projectRepositoryName) // Get the updateBuildResultsRepository.cmake script. We should only check-out CPFCMake in the future here.
                 
                 // debug
-                dir(projectRepositoryName)
+                dir(buildResultRepositoryName)
                 {
                     sh 'git branch'
                 }
