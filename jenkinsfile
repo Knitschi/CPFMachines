@@ -365,15 +365,17 @@ def addUpdateBuildResultsRepositoryStage(
     {
         node(getDebianNodeZeroLabel())
         {
-			// Get the build results repository.
-			def buildResultRepositoryName = getRepositoryName(buildResultsRepositoryMaster)
-			checkoutBranch(buildResultsRepositoryMaster, 'master', buildResultRepositoryName) // get the build results
-
-			// Checkout the project repository, get the archived build results and commit them to the result repository.
             def projectRepositoryName = getRepositoryName(projectRepository)
-			checkoutBranch(projectRepository, commitID, projectRepositoryName) // Get the updateBuildResultsRepository.cmake script. We should only check-out CPFCMake in the future here.
             ws(projectRepositoryName + '-archive-stage')
             {
+
+                // Get the build results repository.
+                def buildResultRepositoryName = getRepositoryName(buildResultsRepositoryMaster)
+                checkoutBranch(buildResultsRepositoryMaster, 'master', buildResultRepositoryName) // get the build results
+
+                // Checkout the project repository, get the archived build results and commit them to the result repository.
+                checkoutBranch(projectRepository, commitID, projectRepositoryName) // Get the updateBuildResultsRepository.cmake script. We should only check-out CPFCMake in the future here.
+                
                 // Accumulate all installed files from all configurations.
                 // This fills the install directory.
                 for(cpfConfig in cpfConfigs)
