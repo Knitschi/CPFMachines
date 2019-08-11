@@ -26,7 +26,8 @@ class Constants {
     static final CPF_JENKINSJOB_VERSION = '0.0.0' // how can we get this from a generated file?
     
     // locations
-    static final CHECKOUT_FOLDER = 'C O' // this needs a space to test if spaced directories work. It also must be short because of path limits on windows
+    static final CHECKOUT_FOLDER = 'C O'    // We checkout to a subdirectory so the folders for the test files that lie parallel to the projectRepository are still within the workspace.
+                                            // This needs a space to test if spaced directories work. It also must be short because of path limits on windows
     static final CPFCMAKE_DIR = 'CPFCMake'
 
     // stash names
@@ -256,7 +257,6 @@ def checkoutBranch(projectRepository, branch, subdirectory = CHECKOUT_FOLDER )
             branches: [[name: branch]],
             extensions: [
                 [$class: 'CleanBeforeCheckout'],
-                // We checkout to a subdirectory so the folders for the test files that lie parallel to the projectRepository are still within the workspace.
                 [$class: 'RelativeTargetDirectory', 
                     relativeTargetDir: subdirectory],
                 [$class: 'SubmoduleOption', 
@@ -383,7 +383,7 @@ def addUpdateBuildResultsRepositoryStage(
                 checkoutBranch(projectRepository, commitID, projectRepositoryName) // Get the updateBuildResultsRepository.cmake script. We should only check-out CPFCMake in the future here.
                 
                 // debug
-                dir('${projectRepositoryName}')
+                dir(projectRepositoryName)
                 {
                     sh 'git branch'
                 }
