@@ -382,6 +382,12 @@ def addUpdateBuildResultsRepositoryStage(
                 // Checkout the project repository, get the archived build results and commit them to the result repository.
                 checkoutBranch(projectRepository, commitID, projectRepositoryName) // Get the updateBuildResultsRepository.cmake script. We should only check-out CPFCMake in the future here.
                 
+                // debug
+                dir('${projectRepositoryName}')
+                {
+                    sh 'git branch'
+                }
+
                 // Accumulate all installed files from all configurations.
                 // This fills the install directory.
                 cleanSubdirectory('install')    // Remove the results from the previous build.
