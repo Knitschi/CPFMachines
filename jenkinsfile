@@ -384,7 +384,8 @@ def addUpdateBuildResultsRepositoryStage(
                 }
 
                 // debug
-                showTree()
+                sh 'echo \$PWD'
+                sh 'ls -l'
 
                 // Copy the new build results to the results repository and commit them.
                 def scriptCommand = 
