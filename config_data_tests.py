@@ -171,7 +171,7 @@ class TestConfigData(unittest.TestCase):
 
         # execute
         sut = ConfigData(get_example_config_dict())
-        containers = sut.get_all_container()
+        containers = sut.get_all_container().sort()
 
         # verify
         expected_containers = [
@@ -180,7 +180,7 @@ class TestConfigData(unittest.TestCase):
             'jenkins-slave-linux-1',
             'MyCPFProject1-web-server',
             'MyCPFProject2-web-server'
-            ] 
+            ].sort()
         self.assertEqual(containers, expected_containers)
 
 
