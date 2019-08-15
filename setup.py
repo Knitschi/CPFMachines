@@ -803,6 +803,8 @@ class MachinesController:
             info = self.connections.get_connection(cpf_job_config.webserver_config.machine_id).info
             port = cpf_job_config.webserver_config.container_ssh_port
             jobConfigVariableMap['@BUILD_RESULT_REPOSITORY_WEB_SERVER@'] = 'ssh://jenkins@{0}:{1}:/home/jenkins/WebContentRepository'.format(info.host_name, port)
+        else:
+            jobConfigVariableMap['@BUILD_RESULT_REPOSITORY_WEB_SERVER@'] = ''
 
         configure_file(_CPF_JOB_TEMPLATE_FILE, created_config_file, jobConfigVariableMap)
 
