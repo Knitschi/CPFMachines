@@ -116,7 +116,8 @@ RUN apt-get update &&\
 # This should be done in the cmake code of the package-project
 RUN python3 -m pip install \
 paramiko \
-requests
+requests \
+sphinx-build
 
 
 
