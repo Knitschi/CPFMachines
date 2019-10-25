@@ -42,7 +42,7 @@ set( files
     jenkins_remote_access.py
     LICENSE
     post-receive.in
-    README.rst
+    README.md
     run_tests.py
     serve-cgi-bin.conf
     setup.py
