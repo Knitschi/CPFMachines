@@ -110,7 +110,7 @@ if(params.target == 'pipeline' && params.cpfConfiguration == '' )
 
     // Store the results and push them to the web-server.
     def buildResultsRepositoryMaster = prepareRepositoryAddress(params.buildResultRepositoryMaster)
-    def buildResultsRepositoryWebServer = prepareRepositoryAddress(params.buildResultRepositoryWebServer)
+    def buildResultsRepositoryWebServer = params.buildResultRepositoryWebServer
     addUpdateBuildResultsRepositoryStage(projectRepository, buildResultsRepositoryMaster, buildResultsRepositoryWebServer, params.buildResultRepositorySubdirectory, configurations, commitID)
 }
 
