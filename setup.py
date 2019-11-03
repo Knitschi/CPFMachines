@@ -275,6 +275,8 @@ class MachinesController:
                 'ssh_config',
                 #'serve-cgi-bin.conf',
                 '000-default.conf',
+                'apache2_envvars',
+                'apache2.conf',
                 'supervisord.conf',
                 'web-server-post-receive.in'
             ]
@@ -330,11 +332,12 @@ class MachinesController:
 
         self._grant_jenkins_master_ssh_access_to_jenkins_linux_slaves()
         self._grant_jenkins_master_ssh_access_to_jenkins_windows_slaves()
-        self._grant_jenkins_master_ssh_access_to_web_servers()
+        #self._grant_jenkins_master_ssh_access_to_web_servers()
         
         # setup ssh accesses used by the jenkins slaves
         self._create_rsa_key_file_pairs_on_slave_container()
         self._grant_linux_slaves_access_to_repositories()
+        self._grant_linux_slaves_access_to_web_servers()    # They need access to push the build-results to the web-servers.
         # \todo Windows slaves need repository access as well.
         # We currently do this manually until we have a container solution
         # for windows as well.
@@ -475,33 +478,41 @@ class MachinesController:
         # Handle repository host for which we can access the .ssh directory and add new public key files
         # directly.
         for repository_host_config in self.config.ssh_repository_host_accesses:
-            self._grant_container_ssh_access_to_repository_with_fresh_key_file(container_conf, container_home_directory, repository_host_config)
+            self._register_public_key_file_with_ssh_server(container_conf, container_home_directory, repository_host_config, False)
 
         # Handle repository accesses for https hosts.
         for repository_host_config in self.config.https_repository_accesses:
             self._grant_container_access_to_https_repositories(container_conf, container_home_directory, repository_host_config)
         
     
-    def _grant_container_ssh_access_to_repository_with_fresh_key_file(self, container_conf, container_home_directory, repository_host_config):
+    def _register_public_key_file_with_ssh_server(self, ssh_client_container_config, ssh_client_container_home_directory, ssh_host_config, host_is_container):
         """
-        This function uses the freshly generated key file pair of the container and registers the public key file with
-        the repository host. Old registered public keys are removed.
+        This function assumes that the ssh client container has a public key file in its ssh_client_container_home_directory.
+        It copies that file to the ssh_server and adds the public key into the authorized keys file.
+        It also adds the ssh_server to the known hosts file on the client machine.
+        The server can be a container or a normal machine in the network.
         """
 
-        repository_machine_id = repository_host_config.machine_id
-        repository_connection = self.connections.get_connection(repository_machine_id)
-        repository_machine_ssh_dir = repository_host_config.ssh_dir
+        ssh_server_machine_id = ssh_host_config.machine_id
+        ssh_server_host_connection = self.connections.get_connection(ssh_server_machine_id)
+        repository_machine_ssh_dir = ssh_host_config.ssh_dir
 
-        container_name = container_conf.container_name
+        container_name = ssh_client_container_config.container_name
         container_host_connection = self._get_container_host_connection(container_name)
-
-        print('----- Grant container ' + container_name + ' SSH access to the repository machine ' + repository_machine_id)
 
         # COPY AND REGISTER THE PUBLIC KEY WITH repositoryMachine
         public_key_file = _get_public_key_filename(container_name)
-        source_file = container_home_directory.joinpath(public_key_file)
+        source_file = ssh_client_container_home_directory.joinpath(public_key_file)
         target_file = repository_machine_ssh_dir.joinpath(public_key_file)
-        dockerutil.containertorcopy(container_host_connection, container_conf, repository_connection, source_file, target_file)
+
+        ssh_port = 22
+        if host_is_container:
+            print('----- Grant container ' + container_name + ' SSH access to container ' + ssh_host_config.container_conf.container_name + ' on machine ' + ssh_server_machine_id)
+            ssh_port = ssh_host_config.container_ssh_port
+            dockerutil.container_to_container_copy(container_host_connection, ssh_client_container_config, ssh_server_host_connection, ssh_host_config.container_conf, source_file, target_file)
+        else:
+            print('----- Grant container ' + container_name + ' SSH access to machine ' + ssh_server_machine_id)
+            dockerutil.containertorcopy(container_host_connection, ssh_client_container_config, ssh_server_host_connection, source_file, target_file)
 
         # add the key file to authorized_keys
         authorized_keys_file = repository_machine_ssh_dir.joinpath('authorized_keys')
@@ -517,15 +528,19 @@ class MachinesController:
             container_name,
             repository_machine_ssh_dir,
             public_key_file)
-        repository_connection.run_command(command)
+
+        if host_is_container:
+            dockerutil.run_command_in_container(ssh_server_host_connection, ssh_host_config.container_conf, command)
+        else:
+            ssh_server_host_connection.run_command(command)
 
         # Add the repository machine as known host to prevent the authentication request on the first run
         _accept_remote_container_host_key(
             container_host_connection, 
-            container_conf, 
-            repository_connection.info.host_name, 
-            22,
-            repository_connection.info.user_name
+            ssh_client_container_config, 
+            ssh_server_host_connection.info.host_name, 
+            ssh_port,
+            ssh_server_host_connection.info.user_name
         )
 
 
@@ -659,7 +674,6 @@ class MachinesController:
         master_container = master_container_config.container_name
         master_public_key_file = config_data.JENKINS_HOME_JENKINS_MASTER_CONTAINER.joinpath('.ssh/' + _get_public_key_filename(master_container))
         master_host_connection = self._get_jenkins_master_host_connection()
-        authorized_keys_file = PurePosixPath('/root/.ssh/authorized_keys')
         
         for cpf_job_config in self.config.jenkins_config.cpf_job_configs:
 
@@ -668,6 +682,7 @@ class MachinesController:
 
             webserver_host_connection = self.connections.get_connection(cpf_job_config.webserver_config.machine_id)
             webserver_container_config = cpf_job_config.webserver_config.container_conf
+            webserver_authorized_keys_file = cpf_job_config.webserver_config.ssh_dir.joinpath('authorized_keys')
 
             # set the authorized keys file in the webserver container
             dockerutil.container_to_container_copy(
@@ -676,13 +691,13 @@ class MachinesController:
                 webserver_host_connection, 
                 webserver_container_config, 
                 master_public_key_file, 
-                authorized_keys_file
+                webserver_authorized_keys_file
             )
             
             # we need to change the file owner from jenkins to root
             commands = [
-                'chown root:root ' + str(authorized_keys_file),
-                'chmod 600 ' + str(authorized_keys_file),
+                #'chown root:root ' + str(webserver_authorized_keys_file),
+                'chmod 600 ' + str(webserver_authorized_keys_file),
                 'service ssh start',
             ]
             dockerutil.run_commands_in_container(
@@ -708,6 +723,24 @@ class MachinesController:
                     slave_config.container_conf,
                     PurePosixPath('/home/jenkins')
                 )
+
+
+    def _grant_linux_slaves_access_to_web_servers(self):
+        for slave_config in self.config.jenkins_slave_configs:
+            if self.config.is_linux_machine(slave_config.machine_id):
+                self._grant_linux_slave_access_to_web_servers(slave_config.container_conf)
+
+    
+    def _grant_linux_slave_access_to_web_servers(self, slave_container_config):
+        
+        for cpf_job_config in self.config.jenkins_config.cpf_job_configs:
+
+            # Ignore jobs that have no extra-webserver assigned.
+            machine_id = cpf_job_config.webserver_config.machine_id
+            if not machine_id:
+                continue
+
+            self._register_public_key_file_with_ssh_server(slave_container_config, PurePosixPath('/home/jenkins'), cpf_job_config.webserver_config, True)
 
 
     def _configure_general_jenkins_options(self):
@@ -802,7 +835,7 @@ class MachinesController:
         if cpf_job_config.webserver_config.machine_id:
             info = self.connections.get_connection(cpf_job_config.webserver_config.machine_id).info
             port = cpf_job_config.webserver_config.container_ssh_port
-            jobConfigVariableMap['@BUILD_RESULT_REPOSITORY_WEB_SERVER@'] = 'ssh://jenkins@{0}:{1}:/home/jenkins/WebContent'.format(info.host_name, port)
+            jobConfigVariableMap['@BUILD_RESULT_REPOSITORY_WEB_SERVER@'] = 'ssh://jenkins@{0}:{1}:/home/jenkins/WebContentRepository'.format(info.host_name, port)
         else:
             jobConfigVariableMap['@BUILD_RESULT_REPOSITORY_WEB_SERVER@'] = ''
 
@@ -1061,7 +1094,7 @@ def _print_access_summary(config):
         if cpf_job_config.webserver_config.machine_id:
             host_info = config.get_host_info(cpf_job_config.webserver_config.machine_id)
             mapped_port = cpf_job_config.webserver_config.container_web_port
-            print('{0} -> http://{1}:{2}/doxygen'.format(cpf_job_config.base_job_name, host_info.host_name, mapped_port))
+            print('{0} -> http://{1}:{2}/LastBuild/sphinx/html'.format(cpf_job_config.base_job_name, host_info.host_name, mapped_port))
     print()
     print('SSH accesses build-slaves:')
     for slave_config in config.jenkins_slave_configs:

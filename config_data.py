@@ -179,7 +179,7 @@ class ConfigData:
         """
         config_dict_list = get_checked_value(self._config_file_dict, KEY_SSH_REPOSITORY_HOSTS)
         for config_dict in config_dict_list:
-            repository_config = SSHRepositoryHostConfig()
+            repository_config = SSHRepositoryConfig()
             repository_config.machine_id = get_checked_value(config_dict, KEY_MACHINE_ID)
             repository_config.ssh_dir = PurePosixPath(get_checked_value(config_dict, KEY_SSH_DIR))
             self.ssh_repository_host_accesses.append(repository_config)
@@ -426,7 +426,8 @@ class ConfigData:
                 job_config.webserver_config.container_web_port = mapped_web_port
             
                 job_config.webserver_config.container_conf.container_name = '{0}-web-server'.format(job_config.base_job_name)
-                job_config.webserver_config.container_conf.container_user = 'root'
+                job_config.webserver_config.container_conf.container_user = 'jenkins'
+                job_config.webserver_config.ssh_dir = PurePosixPath('/home/' + job_config.webserver_config.container_conf.container_user + '/.ssh')
                 job_config.webserver_config.container_conf.container_image_name = 'cpf-web-server-image'
                 job_config.webserver_config.container_conf.published_ports = {mapped_web_port:80, mapped_ssh_port:22}
 
@@ -488,7 +489,7 @@ class ContainerConfig:
         self.envvar_definitions = []        # Environment variables that are defined in the container.
 
 
-class SSHRepositoryHostConfig:
+class SSHRepositoryConfig:
     """
     Data class that holds the information from the KEY_SSH_REPOSITORY_HOSTS key.
     This is intended for git repositories that are hosted in the local network
@@ -555,7 +556,7 @@ class WebserverConfig:
         self.container_ssh_port = None                                  # The port on the host that is mapped to the containers ssh port.
         self.container_web_port = None                                  # The port on the host that is mapped to the containers port 80 under which the webpage can be reached.
         self.container_conf = ContainerConfig()                         # More information about the container that runs the web-server.
-
+        self.ssh_dir = ''
 
 class ConfigItem:
     """

@@ -197,11 +197,11 @@ def containertorcopy(source_host_connection, container_conf, target_host_connect
     # delete previously copied key-files
     full_temp_public_key_file = temp_dir_chost.joinpath(source_file.name)
     if fileutil.rexists(sftp_client, full_temp_public_key_file):
-        sftp_client.remove(full_temp_public_key_file)
+        sftp_client.remove(str(full_temp_public_key_file))
 
-    # Copy the public key from the jenkins home directory to the
+    # Copy the file from the jenkins home directory to the
     # jenkins-workspace directory on the host
-    source_host_connection.run_command('docker cp {0}:{1} {2}'.format(container_conf.container_name, source_file, full_temp_public_key_file))
+    source_host_connection.run_command('docker cp {0}:{1} {2}'.format(container_conf.container_name, str(source_file), str(full_temp_public_key_file)))
 
     # Then copy it to the repository machine
     fileutil.rtorcopy(sftp_client, target_host_connection.sftp_client, full_temp_public_key_file, target_file)

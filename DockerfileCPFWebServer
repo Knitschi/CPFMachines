@@ -1,66 +1,89 @@
-# This is a docker image for a container that runs the apache2 webserver 
-# to publish the doxygen generated documentation with server-side searching.
-# To implement server-side searching the web-server needs the doxysearch.cgi
-# from the doxygen application.
-
-# The container needs a serach database and the html content of the displayed page.
-# The information is provided by external sources over the shared mounted volume /var/www/html
-# Refer to the CMakeProjectFramework documentation on how to start the container.
+# The docker image file for the jenkins slave nodes.
+# 
+# This is a debian based container that includes the tools that are required to execute a CPF build-pipeline.
 
 FROM debian:9.3
 
-# INSTALL PACKAGES
-RUN apt-get -y update && apt-get install -y \
+
+# ----------------------- ADD USER JENKINS -------------------------------
+# Set user jenkins to the image 
+RUN useradd -m -d /home/jenkins -s /bin/sh jenkins &&\
+    echo "jenkins:jenkins" | chpasswd
+
+
+    
+# ----------------------- INSTALL SOFTWARE -------------------------------
+RUN apt-get -q update && apt-get -q -y install \
 openssh-server \
 apache2 \
 supervisor \
-netcat \
 vim \
+netcat \
 tree \
 git
 
-# --------------- SETUP JENKINS USER ---------------
-ARG user=jenkins
-ARG group=jenkins
-ARG uid=1000
-ARG gid=1000
-ARG JENKINS_HOME=/home/${user}
-# Jenkins is run with user `jenkins`, uid = 1000
-# If you bind mount a volume from the host or a data container,
-# ensure you use the same uid
-RUN mkdir -p $JENKINS_HOME \
-  && chown ${uid}:${gid} $JENKINS_HOME \
-  && groupadd -g ${gid} ${group} \
-  && useradd -d "$JENKINS_HOME" -u ${uid} -g ${gid} -m -s /bin/bash ${user}
+
+# ----------------- Git ---------------
+USER jenkins
+
+RUN git config --global user.email "not@valid.com" &&\
+    git config --global user.name "jenkins" &&\
+    git config --global credential.helper 'store --file ~/.jenkins-git-credentials'
 
 
 # --------------- SETUP WEB CONTENT REPOSITORY --------------- 
-RUN mkdir $JENKINS_HOME/WebContentRepository \
-    && git init --bare $JENKINS_HOME/WebContentRepository \
-    && mkdir $JENKINS_HOME/WebContent
+RUN mkdir /home/jenkins/WebContentRepository \
+    && git init --bare /home/jenkins/WebContentRepository \
+    && mkdir /home/jenkins/WebContent
 
+USER root
 # The post-receive hook checks out the repo content into the WebContent directory after
 # each commit.
-COPY web-server-post-receive.in $JENKINS_HOME/WebContentRepository/hooks/post-receive
-RUN chmod +x $JENKINS_HOME/WebContentRepository/hooks/post-receive
+COPY web-server-post-receive.in /home/jenkins/WebContentRepository/hooks/post-receive
+RUN chmod +x /home/jenkins/WebContentRepository/hooks/post-receive
 
 
+# --------------- CREATE DIRECTORIES FOR APACHE2 ---------------
+#USER jenkins
+#RUN mkdir /home/jenkins/lock &&\
+#  mkdir /home/jenkins/run &&\
+#  mkdir /home/jenkins/log
+
+USER root
+    
 # --------------- PREPARE SSH DEAMON ---------------     
 # prepare running sshd
-RUN sed -i 's|session required pam_loginuid.so|session optional pam_loginuid.so|g' /etc/pam.d/sshd \
-    && mkdir -p /var/run/sshd \
-    && mkdir /root/.ssh
+RUN sed -i 's|session required pam_loginuid.so|session optional pam_loginuid.so|g' /etc/pam.d/sshd &&\
+    mkdir -p /var/run/sshd
     
 COPY ssh_config /etc/ssh/sshd_config
 
+# -------------- Create some directories and copy some files -----------
+RUN mkdir /home/jenkins/.ssh &&\
+mkdir /home/jenkins/bin &&\
+mkdir -p /home/jenkins/.ssh &&\
+chown -R jenkins:jenkins /home/jenkins/.ssh &&\
+echo "" >> /home/jenkins/.ssh/authorized_keys
 
+# This file is run by the jenkins-master to start the slave
+RUN chown -R jenkins:jenkins /home/jenkins/bin
+ 
 # -------------- CONFIGURE WEBSERVER --------------
 # Allow the webserver to execute cgi scripts
 #COPY serve-cgi-bin.conf /etc/apache2/conf-available/
 #RUN a2enmod cgi
 
-# Change the hosted directory to $JENKINS_HOME/WebContent
-COPY 000-default.conf /etc/apache2/sites-available/
+# Change the hosted directory to /home/jenkins/WebContent
+COPY 000-default.conf /etc/apache2/sites-available/ 
+# Set permissions for the non default hosted directory
+COPY apache2.conf /etc/apache2/apache2.conf
+# Change the apache user to jenkins
+COPY apache2_envvars /etc/apache2/envvars
+
+
+# --------------- START SSH DAEMON ---------------
+# Run the sshd server as command to keep the container alive.
+# CMD ["/usr/sbin/sshd", "-D"]
 
 # -------------- START WEBSERVER AND SSH-DAEMON VIA SUPERVISOR --------------
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
