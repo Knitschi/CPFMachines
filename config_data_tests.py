@@ -121,7 +121,7 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_web_port, 8081)
 
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.container_name, 'MyCPFProject1-web-server')
-        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.container_user, 'root')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.container_user, 'jenkins')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.container_image_name, 'cpf-web-server-image')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_conf.published_ports, {8081:80, 25:22})
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.host_volumes, {})
@@ -138,7 +138,7 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_web_port, 8082)
 
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.container_name, 'MyCPFProject2-web-server')
-        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.container_user, 'root')
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.container_user, 'jenkins')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.container_image_name, 'cpf-web-server-image')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.published_ports, {8082:80, 26:22})
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_conf.host_volumes, {})
