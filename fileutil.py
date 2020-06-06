@@ -8,7 +8,7 @@ import shutil
 import platform
 from pathlib import PureWindowsPath, PurePosixPath, PurePath
 
-from .connections import ConnectionHolder
+from connections import ConnectionHolder
 
 
 _SCRIPT_DIR = PurePath(os.path.dirname(os.path.realpath(__file__)))

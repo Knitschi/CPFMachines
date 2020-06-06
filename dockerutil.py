@@ -6,8 +6,8 @@ import os
 import socket
 import pprint
 
-from .connections import ConnectionHolder
-from . import fileutil
+from connections import ConnectionHolder
+import fileutil
 
 def container_exists(connection, container):
     """

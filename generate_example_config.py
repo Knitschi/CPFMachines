@@ -3,7 +3,7 @@ This script is used to generate an example configuration .json file that can be 
 """
 
 import sys
-from .config_data import *
+from config_data import *
 
 
 if __name__ == '__main__':

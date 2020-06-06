@@ -15,7 +15,7 @@ import pprint
 
 from pathlib import PureWindowsPath, PurePosixPath, PurePath
 
-from . import cpfmachines_version
+import cpfmachines_version
 
 # define config file keys
 KEY_VERSION = 'CPFMachinesVersion'

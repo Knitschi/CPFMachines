@@ -8,7 +8,7 @@ import weakref
 import time
 
 
-from . import config_data
+import config_data
 
 
 class ConnectionsHolder:
@@ -102,7 +102,7 @@ class ConnectionHolder:
         if print_command:
             print(self._prepend_machine_id(command))
 
-        stdin, stdout, stderr = self._ssh_client.exec_command(command, get_pty=False)
+        stdin, stdout, stderr = self._ssh_client.exec_command(command, get_pty=True)
 
 
         # print output as soon as it is produced

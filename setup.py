@@ -26,15 +26,20 @@ import paramiko
 import socket
 import getpass
 
-from . import cpfmachines_version
-from . import config_data
-from .jenkins_remote_access import JenkinsRESTAccessor
-from .connections import ConnectionsHolder
-
-from . import dockerutil
-from . import fileutil
-
+# Add the script path to the python path
 _SCRIPT_DIR = PurePath(os.path.dirname(os.path.realpath(__file__)))
+sys.path.append(_SCRIPT_DIR)
+
+import cpfmachines_version
+import config_data
+
+from jenkins_remote_access import JenkinsRESTAccessor
+from connections import ConnectionsHolder
+
+import dockerutil
+import fileutil
+
+
 
 # Constants
 # The version of the jenkins CI server that is installed on the jenkins-master machine.

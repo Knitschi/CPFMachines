@@ -17,7 +17,7 @@ libssl-dev
 
 CMAKE_BUILD_DIR=TempCMakeBuild
 
-git clone https://cmake.org/cmake.git $CMAKE_BUILD_DIR
+git clone https://gitlab.kitware.com/cmake/cmake.git $CMAKE_BUILD_DIR
 
 cd $CMAKE_BUILD_DIR
 git checkout v3.12.2

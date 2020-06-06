@@ -7,8 +7,8 @@ import unittest
 import os
 import pprint
 
-from .config_data import *
-from . import cpfmachines_version
+from config_data import *
+import cpfmachines_version
 
 
 class TestConfigData(unittest.TestCase):

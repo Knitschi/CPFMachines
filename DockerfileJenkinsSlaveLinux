@@ -50,8 +50,8 @@ RUN /bin/bash installGcc.sh
     
 # ----------------- QT ---------------
 # Compile and install qt manually for linux for now
-COPY buildQt.sh buildQt.sh
-RUN /bin/bash buildQt.sh
+# COPY buildQt.sh buildQt.sh
+# RUN /bin/bash buildQt.sh
     
 # ----------------- Git ---------------
 # Make sure we get a more modern version then the one included in debian 8
