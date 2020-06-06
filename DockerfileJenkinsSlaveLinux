@@ -7,8 +7,7 @@ FROM ubuntu:20.04
 
 # Prevents the need of user interaction with "Configuring tzdata"
 ENV DEBIAN_FRONTEND=noninteractive 
-#ENV TZ=Europe/Berlin
-#RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
 
 # ----------------------- ADD USER JENKINS -------------------------------
 # Set user jenkins to the image 

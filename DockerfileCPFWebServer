@@ -4,6 +4,8 @@
 
 FROM ubuntu:20.04
 
+# Prevents the need of user interaction with "Configuring tzdata"
+ENV DEBIAN_FRONTEND=noninteractive 
 
 # ----------------------- ADD USER JENKINS -------------------------------
 # Set user jenkins to the image 
