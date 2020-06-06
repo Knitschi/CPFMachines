@@ -102,7 +102,7 @@ class ConnectionHolder:
         if print_command:
             print(self._prepend_machine_id(command))
 
-        stdin, stdout, stderr = self._ssh_client.exec_command(command, get_pty=True)
+        stdin, stdout, stderr = self._ssh_client.exec_command(command, get_pty=False)
 
 
         # print output as soon as it is produced
