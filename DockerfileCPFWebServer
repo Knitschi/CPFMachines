@@ -2,7 +2,7 @@
 # 
 # This is a debian based container that includes the tools that are required to execute a CPF build-pipeline.
 
-FROM debian:9.3
+FROM ubuntu:20.04
 
 
 # ----------------------- ADD USER JENKINS -------------------------------
