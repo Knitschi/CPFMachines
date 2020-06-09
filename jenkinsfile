@@ -180,12 +180,12 @@ def addRepositoryOperationsStage( projectRepository, branchOrTag, taggingOption,
 
 def getDebianNodeZeroLabel()
 {
-    return  getDebianNodeLabel() + "-0"
+    return  getLinuxNodeLabel() + "-0"
 }
 
-def getDebianNodeLabel()
+def getLinuxNodeLabel()
 {
-    return "Debian-8.9-${CPF_JENKINSJOB_VERSION}"
+    return "Ubuntu-20.04-${CPF_JENKINSJOB_VERSION}"
 }
 
 def getBuildConfigurations()
@@ -242,7 +242,7 @@ def getFirstDebianConfiguration(configurations)
 {
     for(config in configurations)
     {
-        if(config.BuildSlaveLabel == getDebianNodeLabel())
+        if(config.BuildSlaveLabel == getLinuxNodeLabel())
         {
             return config.ConfigName
         }

@@ -43,7 +43,7 @@ import fileutil
 
 # Constants
 # The version of the jenkins CI server that is installed on the jenkins-master machine.
-_JENKINS_VERSION = '2.89.4'
+_JENKINS_VERSION = '2.190.1'
 #_JENKINS_VERSION = '2.110'
 # The sha256 checksum of the jenkins.war package of the given jenkins version.
 # This is currently manually computed with cmake
@@ -167,7 +167,7 @@ class MachinesController:
             docker_file,
             'tini_pub.gpg',
             'tini-shim.sh',
-            'init.groovy',
+            #'init.groovy',
             'jenkins-support',
             'jenkins.sh',
             'plugins.sh',
@@ -278,13 +278,28 @@ class MachinesController:
                 'installGcc.sh',
                 'buildDoxygen.sh',
                 'ssh_config',
-                #'serve-cgi-bin.conf',
                 '000-default.conf',
                 'apache2_envvars',
                 'apache2.conf',
                 'supervisord.conf',
                 'web-server-post-receive.in'
             ]
+
+            """
+            files = [
+                docker_file,
+                'installClangTools.sh',
+                'installGcc.sh',
+                'buildDoxygen.sh',
+                'ssh_config',
+                'serve-cgi-bin.conf',
+                '000-default.conf',
+                'apache2_envvars',
+                'apache2.conf',
+                'supervisord.conf',
+                'web-server-post-receive.in'
+            ]
+            """
 
             # build container image
             dockerutil.build_docker_image(
@@ -907,10 +922,10 @@ class MachinesController:
                 )
                 self._configure_node_config_file(
                     slave_config.slave_name,
-                    'A Debian 8.9 build slave based on a docker container.',
+                    'An Ubuntu 20 build machine.',
                     '/home/{0}/workspaces'.format(slave_config.container_conf.container_user),
                     linux_slave_start_command,
-                    _get_slave_labels_string('Debian-8.9', 10),
+                    _get_slave_labels_string('Ubuntu-20.04', 10),
                     slave_config.executors
                 )
                 start_commands.append(linux_slave_start_command)
@@ -926,7 +941,7 @@ class MachinesController:
                 )
                 self._configure_node_config_file(
                     slave_config.slave_name,
-                    'A Windows 10 build slave based on a virtual machine.',
+                    'A Windows 10 build machine.',
                     slave_workspace,
                     windows_slave_start_command,
                     _get_slave_labels_string('Windows-10', 10),
