@@ -44,11 +44,10 @@ import fileutil
 # Constants
 # The version of the jenkins CI server that is installed on the jenkins-master machine.
 _JENKINS_VERSION = '2.190.1'
-#_JENKINS_VERSION = '2.110'
 # The sha256 checksum of the jenkins.war package of the given jenkins version.
+# https://repo.jenkins-ci.org/public/org/jenkins-ci/main/jenkins-war/
 # This is currently manually computed with cmake
-#_JENKINS_SHA256 = 'f9f363959042fce1615ada81ae812e08d79075218c398ed28e68e1302c4b272f'
-_JENKINS_SHA256 = '1d893aa30e49a3130e4f90268044dafb34f7c32b573970f2acca8c2c821f9b53'
+_JENKINS_SHA256 = '46fb1d25d9423fc66aadd648dc74b9772863a7fbbd89bfc14c873cd0c3436f05'
 _JENKINS_BASE_IMAGE = 'jenkins-image-' + _JENKINS_VERSION
 
 # Files
