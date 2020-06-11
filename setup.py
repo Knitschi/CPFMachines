@@ -273,9 +273,6 @@ class MachinesController:
             docker_file = 'DockerfileCPFWebServer'
             files = [
                 docker_file,
-                'installClangTools.sh',
-                'installGcc.sh',
-                'buildDoxygen.sh',
                 'ssh_config',
                 '000-default.conf',
                 'apache2_envvars',
@@ -283,22 +280,6 @@ class MachinesController:
                 'supervisord.conf',
                 'web-server-post-receive.in'
             ]
-
-            """
-            files = [
-                docker_file,
-                'installClangTools.sh',
-                'installGcc.sh',
-                'buildDoxygen.sh',
-                'ssh_config',
-                'serve-cgi-bin.conf',
-                '000-default.conf',
-                'apache2_envvars',
-                'apache2.conf',
-                'supervisord.conf',
-                'web-server-post-receive.in'
-            ]
-            """
 
             # build container image
             dockerutil.build_docker_image(
@@ -450,14 +431,6 @@ class MachinesController:
         docker_file = 'DockerfileJenkinsSlaveLinux'
         text_files = [
             docker_file,
-            'installClangTools.sh',
-            'installGcc.sh',
-            'buildQt.sh',
-            'buildGit.sh',
-            'buildCMake.sh',
-            'buildDoxygen.sh',
-            'buildCTags.sh',
-            'installAbiComplianceChecker.sh',
             'ssh_config',
         ]
         binary_files = [
