@@ -57,26 +57,6 @@ requests \
 sphinx
 
 
-# ------------------- CLANG TOOLS ---------------------
-#COPY installClangTools.sh installClangTools.sh
-#RUN /bin/bash installClangTools.sh 
-
-    
-# ------------------- GCC --------------------
-#COPY installGcc.sh installGcc.sh
-#RUN /bin/bash installGcc.sh
-    
-    
-# ----------------- QT ---------------
-# Compile and install qt manually for linux for now
-# COPY buildQt.sh buildQt.sh
-# RUN /bin/bash buildQt.sh
-    
-# ----------------- Git ---------------
-# Make sure we get a more modern version then the one included in debian 8
-#COPY buildGit.sh buildGit.sh
-#RUN /bin/bash buildGit.sh
-
 USER jenkins
 RUN git config --global user.email "not@valid.com" &&\
     git config --global user.name "jenkins" &&\
@@ -84,25 +64,6 @@ RUN git config --global user.email "not@valid.com" &&\
 
 USER root
     
-# ----------------- CMAKE ---------------
-# cmake needs to be build and installed by hand because the debian version is too old.
-#COPY buildCMake.sh buildCMake.sh
-#RUN /bin/bash buildCMake.sh
-
-
-# --------------- DOXYGEN ---------------    
-# we use the same doxygen version as the DocumentationServer
-#COPY buildDoxygen.sh buildDoxygen.sh
-#RUN /bin/bash buildDoxygen.sh
-
-# --------------- ctags --------------
-#COPY buildCTags.sh buildCTags.sh
-#RUN /bin/bash buildCTags.sh
-
-# --------------- abi-compliance-checker ---------------
-#COPY installAbiComplianceChecker.sh installAbiComplianceChecker.sh
-#RUN /bin/bash installAbiComplianceChecker.sh
-
 
 # --------------- PREPARE SSH DEAMON ---------------     
 # prepare running sshd

@@ -39,8 +39,13 @@
     <string>JNLP3-connect</string>
   </disabledAgentProtocols>
   <label></label>
-  <crumbIssuer class="hudson.security.csrf.DefaultCrumbIssuer">
-    <excludeClientIPFromCrumb>true</excludeClientIPFromCrumb>
+  <crumbIssuer class="org.jenkinsci.plugins.strictcrumbissuer.StrictCrumbIssuer" plugin="strict-crumb-issuer@2.1.0">
+    <checkClientIP>false</checkClientIP>
+    <checkSameSource>false</checkSameSource>
+    <checkOnlyLocalPath>false</checkOnlyLocalPath>
+    <checkSessionMatch>false</checkSessionMatch>
+    <xorMasking>true</xorMasking>
+    <hoursValid>1</hoursValid>
   </crumbIssuer>
   <nodeProperties/>
   <globalNodeProperties/>

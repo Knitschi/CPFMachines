@@ -57,12 +57,15 @@ RUN git config --global user.email "not@valid.com" &&\
 # geenballs -> green instead of blue balls
 # xvfb -> mock x-server needed to run Qt guy tests on linux
 # command-launcher -> "Launch agent via execution of command on the master" option for jenkins slaves.
+# strict-crumb-issuer -> Using this crumb issuer + disabling the option "Check the session ID" fixed
+# the "No valid Crumb was included in the request" issue when doing the remote groovy script execution.
 
 RUN /bin/bash install-plugins.sh \
 blueocean:1.3.4 \
 greenballs:1.15 \
 xvfb:1.1.3 \
-command-launcher:1.2
+command-launcher:1.2 \
+strict-crumb-issuer:2.1.0
 
 # create share and home directories
 RUN mkdir -p /var/jenkins_home/html
