@@ -54,7 +54,8 @@ doxygen
 RUN python3 -m pip install \
 paramiko \
 requests \
-sphinx
+sphinx \
+conan
 
 
 USER jenkins
