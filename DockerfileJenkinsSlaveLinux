@@ -67,7 +67,7 @@ RUN git config --global user.email "not@valid.com" &&\
 
 # ----------------- Configure Conan --------------
 # Add the additional bincrafters package repository 
-conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan
+RUN conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan
 
 
 
