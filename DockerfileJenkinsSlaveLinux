@@ -27,12 +27,19 @@ RUN useradd -m -d /home/jenkins -s /bin/sh jenkins &&\
 # - sudo is required by some conan packages.
 # - libgl1-mesa-dev is a dependency of the conan qt package. If this is not installed, conan will try to apt-get install it itself
 #   which blocks the conan execution due to the sudo password request.
+# - pkg-config If this is missing we get errors in the conan qt clang build.
 #
 RUN apt-get -q update && apt-get -q -y install \
 build-essential \
 llvm-10 \
+clang \
+clang-10 \
 clang-format-10 \
+clang-tidy-10 \
+ninja-build \
 cmake \
+python3 \
+python3-pip \
 wget \
 openssh-server \
 vim \
@@ -40,18 +47,16 @@ netcat \
 tree \
 unzip \
 git \
-python3 \
-python3-pip \
 xvfb \
 graphviz \
 valgrind \
-ninja-build \
 abi-compliance-checker \
 universal-ctags \
 abi-dumper \
 abi-compliance-checker \
 openjdk-8-jdk \
 libgl1-mesa-dev \
+pkg-config \
 doxygen
 
 
