@@ -58,14 +58,21 @@ sphinx \
 conan
 
 
+# ----------------- Configure Git --------------
 USER jenkins
 RUN git config --global user.email "not@valid.com" &&\
     git config --global user.name "jenkins" &&\
     git config --global credential.helper 'store --file ~/.jenkins-git-credentials'
 
+
+# ----------------- Configure Conan --------------
+# Add the additional bincrafters package repository 
+conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan
+
+
+
 USER root
     
-
 # --------------- PREPARE SSH DEAMON ---------------     
 # prepare running sshd
 RUN sed -i 's|session required pam_loginuid.so|session optional pam_loginuid.so|g' /etc/pam.d/sshd &&\
