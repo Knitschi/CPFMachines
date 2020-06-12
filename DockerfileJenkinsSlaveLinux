@@ -24,9 +24,14 @@ RUN useradd -m -d /home/jenkins -s /bin/sh jenkins &&\
 # - tree is used when running the pipeline for debug purposes
 # - git for downloading the code-base
 # - python is used to implement the build-pipeline.
+# - sudo is required by some conan packages.
+# - libgl1-mesa-dev is a dependency of the conan qt package. If this is not installed, conan will try to apt-get install it itself
+#   which blocks the conan execution due to the sudo password request.
+#
 RUN apt-get -q update && apt-get -q -y install \
 build-essential \
 llvm-10 \
+clang-format-10 \
 cmake \
 wget \
 openssh-server \
@@ -46,6 +51,7 @@ universal-ctags \
 abi-dumper \
 abi-compliance-checker \
 openjdk-8-jdk \
+libgl1-mesa-dev \
 doxygen
 
 

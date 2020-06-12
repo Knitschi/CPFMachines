@@ -440,7 +440,7 @@ def runPythonCommand(command)
 
 def getPythonCommand()
 {
-    pythonVersion = sh(returnStdout: true, script: 'python --version').trim()
+    pythonVersion = sh(returnStdout: true, script: 'python --version || true').trim()
     def pythonCmd = 'python'
     if(!pythonVersion.matches(~'^.*3\\..*$'))
     {
