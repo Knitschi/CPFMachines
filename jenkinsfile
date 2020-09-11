@@ -314,10 +314,10 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                     // Set the install prefix so we can archive the installed files.
                     runPythonCommand("1_Configure.py ${cpfConfig}")
 
-                    runCommand("conan install -pr Sources/CIBuildConfigurations/ConanProfile-${cpfConfig} -if Configuration/${cpfConfig} Sources --build=missing")
+                    runCommand("2_GetDependencies.py ${cpfConfig}")
 
                     // Run a fresh generate
-                    runXvfbWrappedPythonCommand( "2_Generate.py ${cpfConfig} --clean" )
+                    runXvfbWrappedPythonCommand( "3_Generate.py ${cpfConfig} --clean" )
 
                     // build the pipeline target or a user specified target.
                     def configOption = ''
@@ -325,12 +325,12 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                     {
                         configOption = "--config ${compilerConfig}"
                     }
-                    runXvfbWrappedPythonCommand( "3_Make.py ${cpfConfig} --target ${target} ${configOption}" )
+                    runXvfbWrappedPythonCommand( "4_Make.py ${cpfConfig} --target ${target} ${configOption}" )
 
                     // Install and stash files in case of a pipeline build.
                     if( target == 'pipeline' )
                     {
-                        runXvfbWrappedPythonCommand( "3_Make.py ${cpfConfig} --target install_all ${configOption}" )
+                        runXvfbWrappedPythonCommand( "4_Make.py ${cpfConfig} --target install_all ${configOption}" )
                         def installStash = "${INSTALL_STASH}${cpfConfig}"
                         stash includes: 'install/**', name: installStash
                     }
