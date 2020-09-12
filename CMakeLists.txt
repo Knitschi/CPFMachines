@@ -12,11 +12,7 @@ set( files
     add_jenkinsjob.py
     agent.jar
     buildCMake.sh
-    buildCTags.sh
-    buildCurl.sh
-    buildDoxygen.sh
     buildGit.sh
-    buildQt.sh
     CMakeLists.txt
     config.xml.in
     config_data.py
@@ -34,8 +30,6 @@ set( files
     generate_example_config.py
     hook_config.py
     hook_config_tests.py
-    installAbiComplianceChecker.sh
-    installClangTools.sh
     installGcc.sh
     jenkinsfile
     jenkinsSlaveNodeConfig.xml.in
