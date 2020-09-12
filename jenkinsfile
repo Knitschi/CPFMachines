@@ -314,8 +314,8 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                     // Set the install prefix so we can archive the installed files.
                     runPythonCommand("1_Configure.py ${cpfConfig}")
 
-                    runCommand("2_GetDependencies.py ${cpfConfig}")
-
+                    runPythonCommand("2_GetDependencies.py ${cpfConfig}")
+                    
                     // Run a fresh generate
                     runXvfbWrappedPythonCommand( "3_Generate.py ${cpfConfig} --clean" )
 
