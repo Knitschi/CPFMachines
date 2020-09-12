@@ -4,8 +4,8 @@ import getpass
 
 from pathlib import PurePosixPath, PureWindowsPath
 
-from ..CPFMachines import config_data
-from ..CPFMachines.setup import dev_message 
+import config_data
+
 
 KEY_JENKINS_ACCOUNT = 'JenkinsAccount'
 KEY_JENKINS_URL = 'JenkinsUrl'

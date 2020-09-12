@@ -6,7 +6,7 @@ This module contains automated tests for the hook_config module.
 import unittest
 import pprint
 
-from .hook_config import *
+from hook_config import *
 
 class TestHookConfig(unittest.TestCase):
     """

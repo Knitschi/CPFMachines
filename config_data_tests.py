@@ -10,7 +10,6 @@ import pprint
 from config_data import *
 import cpfmachines_version
 
-
 class TestConfigData(unittest.TestCase):
     """
     Fixture class for testing the FakeFileSystemAccess class.
