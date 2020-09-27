@@ -30,6 +30,7 @@ RUN useradd -m -d /home/jenkins -s /bin/sh jenkins &&\
 # - pkg-config If this is missing we get errors in the conan qt clang build.
 #
 RUN apt-get -q update && apt-get -q -y install \
+inetutils-ping \
 build-essential \
 llvm-10 \
 clang \

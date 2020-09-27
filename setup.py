@@ -28,7 +28,7 @@ import getpass
 
 # Add the script path to the python path
 _SCRIPT_DIR = PurePath(os.path.dirname(os.path.realpath(__file__)))
-sys.path.append(_SCRIPT_DIR)
+sys.path.append(str(_SCRIPT_DIR))
 
 import cpfmachines_version
 import config_data
