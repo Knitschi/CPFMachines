@@ -432,6 +432,7 @@ class MachinesController:
         text_files = [
             docker_file,
             'ssh_config',
+            'buildPython.sh'
         ]
         binary_files = [
             'agent.jar',

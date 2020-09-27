@@ -67,6 +67,11 @@ requests \
 sphinx \
 conan
 
+# ----------------- Downgrade Python to 3.6 --------------
+# The unittest module of python 3.8 caused the CPFTests to fail.
+# We use python 3.6 until this gets fixed.
+COPY buildPython.sh buildPython.sh
+RUN /bin/bash buildPython.sh
 
 # ----------------- Configure Git --------------
 USER jenkins
