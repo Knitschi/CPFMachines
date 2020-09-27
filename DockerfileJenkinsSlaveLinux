@@ -28,6 +28,8 @@ RUN useradd -m -d /home/jenkins -s /bin/sh jenkins &&\
 # - libgl1-mesa-dev is a dependency of the conan qt package. If this is not installed, conan will try to apt-get install it itself
 #   which blocks the conan execution due to the sudo password request.
 # - pkg-config If this is missing we get errors in the conan qt clang build.
+# - inetutils-ping enthält ping und wird für CPFTests benötigt.
+# - xorg-dev wird für qt benötigt.
 #
 RUN apt-get -q update && apt-get -q -y install \
 inetutils-ping \
@@ -57,8 +59,21 @@ abi-dumper \
 openjdk-8-jdk \
 libgl1-mesa-dev \
 pkg-config \
-doxygen
-
+doxygen \
+libx11-xcb-dev \
+xorg-dev \
+libx11-xcb-dev \
+libxcb-render0-dev \
+libxcb-render-util0-dev \
+libxcb-xkb-dev \
+libxcb-icccm4-dev \
+libxcb-image0-dev \
+libxcb-keysyms1-dev \
+libxcb-randr0-dev \
+libxcb-shape0-dev \
+libxcb-sync-dev \
+libxcb-xfixes0-dev \
+libxcb-xinerama0-dev
 
 # ----------------- INSTALL PYTHON Modules --------------
 # This should be done in the cmake code of the package-project
