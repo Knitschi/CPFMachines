@@ -18,14 +18,17 @@ libgdbm-dev \
 libc6-dev \
 libbz2-dev
 
+PACKAGE_NAME=Python-$VERSION.tgz
+BUILD_DIR=Python-$VERSION
+
 # get source package
 wget https://www.python.org/ftp/python/$VERSION/$PACKAGE_NAME 
 tar -zxf $PACKAGE_NAME
 
 cd $BUILD_DIR
 
-./configure --enable-optimizations
-make all -j$(nproc)
+./configure #--enable-optimizations
+make -j$(nproc)
 make install
 
 # clean the build dir
