@@ -62,7 +62,6 @@ pkg-config \
 doxygen \
 libx11-xcb-dev \
 xorg-dev \
-libx11-xcb-dev \
 libxcb-render0-dev \
 libxcb-render-util0-dev \
 libxcb-xkb-dev \
@@ -74,6 +73,67 @@ libxcb-shape0-dev \
 libxcb-sync-dev \
 libxcb-xfixes0-dev \
 libxcb-xinerama0-dev
+
+# These are the same tools that are installed on the ubuntu 2004 github runner.
+# One of these tools fixes the qt package build.
+RUN apt-get -q update && apt-get -q -y install \
+bison \
+brotli \
+bzip2 \
+curl \
+dbus \
+dnsutils \
+dpkg \
+fakeroot \
+file \
+flex \
+ftp \
+gnupg2 \
+iproute2 \
+iputils-ping \
+jq \
+lib32z1 \
+libc++-dev \
+libc++abi-dev \
+libcurl4 \
+libgbm-dev \
+libgconf-2-4 \
+libgtk-3-0 \
+libsecret-1-dev \
+libsqlite3-dev \
+libunwind8 \
+libxkbfile-dev \
+libxss1 \
+locales \
+m4 \
+netcat \
+openssh-client \
+parallel \
+patchelf \
+pkg-config \
+python-is-python3 \
+rpm \
+rsync \
+shellcheck \
+sqlite3 \
+ssh \
+sudo \
+telnet \
+texinfo \
+time \
+tk \
+tzdata \
+unzip \
+upx \
+wget \
+xorriso \
+xvfb \
+xz-utils \
+zip \
+zstd \
+zsync
+
+
 
 # ----------------- INSTALL PYTHON Modules --------------
 # This should be done in the cmake code of the package-project
