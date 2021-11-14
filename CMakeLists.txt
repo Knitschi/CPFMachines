@@ -1,10 +1,14 @@
 
-include(cpfInitPackageProject)
-include(cpfAddFilePackage)
+include(cpfPackageProject)
+include(cpfAddFilePackageComponent)
 include(cpfAddRunTestsTarget)
 
 
-cpfInitPackageProject()
+cpfPackageProject(
+    TARGET_NAMESPACE CPFMachines
+    COMPONENTS SINGLE_COMPONENT
+	LANGUAGES NONE
+)
 
 
 set( files
@@ -63,7 +67,7 @@ set( files
     JenkinsConfig/secrets/slave-to-master-security-kill-switch
 )
 
-cpfAddFilePackage(
+cpfAddFilePackageComponent(
     SOURCES ${files}
 )
 
