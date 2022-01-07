@@ -46,7 +46,7 @@ Start the setup script by running
 
 .. code-block:: bash 
 
-  python -m Sources.CPFMachines.setup Sources/MyCPFMachinesConfig.json
+  python -m Sources.CPFMachines.setup MyCPFMachinesConfig.json
 
 
 in the root directory of your project. This may take some time because some of

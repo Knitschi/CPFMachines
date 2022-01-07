@@ -20,7 +20,7 @@ CMAKE_BUILD_DIR=TempCMakeBuild
 git clone https://gitlab.kitware.com/cmake/cmake.git $CMAKE_BUILD_DIR
 
 cd $CMAKE_BUILD_DIR
-git checkout v3.12.2
+git checkout v3.22.1
 
 # hunter needs the --system-curl option to enable downloading with https.
 ./bootstrap --system-curl

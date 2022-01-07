@@ -15,7 +15,6 @@ import os
 import posixpath
 from pathlib import PureWindowsPath, PurePosixPath, PurePath
 import sys
-import distutils.dir_util
 import subprocess
 import shutil
 import io
