@@ -42,11 +42,11 @@ import fileutil
 
 # Constants
 # The version of the jenkins CI server that is installed on the jenkins-master machine.
-_JENKINS_VERSION = '2.190.1'
+_JENKINS_VERSION = '2.303'
 # The sha256 checksum of the jenkins.war package of the given jenkins version.
 # https://repo.jenkins-ci.org/public/org/jenkins-ci/main/jenkins-war/
 # This is currently manually computed with cmake
-_JENKINS_SHA256 = '46fb1d25d9423fc66aadd648dc74b9772863a7fbbd89bfc14c873cd0c3436f05'
+_JENKINS_SHA256 = '4dfe49cd7422ec4317a7c7a7c083f40fa475a58a7747bd94187b2cf222006ac0'
 _JENKINS_BASE_IMAGE = 'jenkins-image-' + _JENKINS_VERSION
 
 # Files
@@ -160,7 +160,7 @@ class MachinesController:
 
         # crate the build-context on the host
         source_dir = _SCRIPT_DIR.joinpath('../JenkinsciDocker')
-        docker_file = 'Dockerfile'
+        docker_file = '17/debian/bullseye/hotspot/Dockerfile'
         files = [
             docker_file,
             'tini_pub.gpg',
@@ -168,8 +168,10 @@ class MachinesController:
             #'init.groovy',
             'jenkins-support',
             'jenkins.sh',
-            'plugins.sh',
+            #'plugins.sh',
             'install-plugins.sh',
+            'git_lfs_pub.gpg',
+            'jenkins-plugin-cli.sh',
         ]
 
         # Create the jenkins base image. This is required to customize the jenkins version.
@@ -178,7 +180,7 @@ class MachinesController:
             _JENKINS_BASE_IMAGE,
             source_dir,
             docker_file,
-            ['JENKINS_VERSION=' + _JENKINS_VERSION, 'JENKINS_SHA=' + _JENKINS_SHA256],
+            ['JENKINS_VERSION=' + _JENKINS_VERSION, 'JENKINS_SHA=' + _JENKINS_SHA256, 'TARGETARCH=amd64'],
             files
         )
 
@@ -431,7 +433,8 @@ class MachinesController:
         text_files = [
             docker_file,
             'ssh_config',
-            'buildPython.sh'
+            'buildPython.sh',
+            'buildCMake.sh'
         ]
         binary_files = [
             'agent.jar',

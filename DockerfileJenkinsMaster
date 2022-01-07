@@ -14,7 +14,8 @@ USER root
 # Install tools that are needed for the build pipeline
 RUN apt-get update && apt-get -y -q install \
 netcat \
-tree
+tree \
+wget
 
 # ------------------- GCC --------------------
 COPY installGcc.sh installGcc.sh
@@ -38,7 +39,7 @@ EXPOSE 22
 # make sure the scripts from the base image are executable
 RUN chmod +x /usr/local/bin/install-plugins.sh
 RUN chmod +x /usr/local/bin/jenkins.sh
-RUN chmod +x /usr/local/bin/plugins.sh
+#RUN chmod +x /usr/local/bin/plugins.sh
 RUN chmod +x /usr/local/bin/jenkins-support
 
 # Make sure the container is run with the jenkins user rights

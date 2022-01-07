@@ -7,7 +7,7 @@ echo -------------- Build CMake ---------------
 
 # install dependencies for cmake build
 apt-get -y update && apt-get install -y \
-libcurl3 \
+libcurl4 \
 curl \
 libcurl4-gnutls-dev \
 zlib1g \

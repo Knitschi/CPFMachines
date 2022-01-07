@@ -132,10 +132,14 @@ zstd \
 zsync
 
 
+# ----------------- CMAKE ---------------
+# cmake needs to be build and installed by hand because the os version often is too old.
+COPY buildCMake.sh buildCMake.sh
+RUN /bin/bash buildCMake.sh
 
 
 # ----------------- Install python and python packages 
-RUN apt-get -q -y install python3 python3-pip
+RUN apt-get -q -y install python3.9 python3-pip
 
 RUN pip3 install \
 paramiko \
@@ -159,11 +163,6 @@ RUN git config --global user.email "not@valid.com" &&\
 
 USER root
     
-# ----------------- CMAKE ---------------
-# cmake needs to be build and installed by hand because the os version often is too old.
-COPY buildCMake.sh buildCMake.sh
-RUN /bin/bash buildCMake.sh
-
 # --------------- PREPARE SSH DEAMON ---------------     
 # prepare running sshd
 RUN sed -i 's|session required pam_loginuid.so|session optional pam_loginuid.so|g' /etc/pam.d/sshd &&\
