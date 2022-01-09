@@ -93,6 +93,31 @@ This parameter is an implementation detail and is not supposed to be changed by 
           <defaultValue>@BUILD_RESULT_REPOSITORY_SUBDIRECTORY@</defaultValue>
         </hudson.model.StringParameterDefinition>
       </parameterDefinitions>
+      <hudson.model.StringParameterDefinition>
+          <name>CPFCMake_DIR</name>
+          <description>
+The path to CPFCMake. This is required when running the 0_CopyScripts script.
+          </description>
+          <defaultValue>@CPFCMake_DIR@</defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+      <hudson.model.StringParameterDefinition>
+          <name>CPFBuildscripts_DIR</name>
+          <description>
+The path to CPFBuildscripts. This is required when running the 0_CopyScripts script.
+          </description>
+          <defaultValue>@CPFBuildscripts_DIR@</defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+      </parameterDefinitions>
+      <hudson.model.StringParameterDefinition>
+          <name>CIBuildConfigurations_DIR</name>
+          <description>
+The path to the CIBuildConfigurations directory. This is required when running the 0_CopyScripts script.
+          </description>
+          <defaultValue>@CIBuildConfigurations_DIR@</defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
     </hudson.model.ParametersDefinitionProperty>
     <org.jenkinsci.plugins.workflow.job.properties.DisableConcurrentBuildsJobProperty/>
     <org.jenkinsci.plugins.workflow.job.properties.DurabilityHintJobProperty>

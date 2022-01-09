@@ -14,6 +14,9 @@ params.target
 params.buildResultRepositoryMaster
 params.buildResultRepositoryWebServer
 params.buildResultRepositorySubdirectory
+params.CPFCMake_DIR
+params.CPFBuildscripts_DIR
+params.CIBuilsConfigurations_DIR
 
 */
 
@@ -50,6 +53,9 @@ cpfCIRepository: ${params.cpfCIRepository}
 buildResultRepositoryMaster: ${params.buildResultRepositoryMaster}
 buildResultRepositoryWebServer: ${params.buildResultRepositoryWebServer}
 buildResultRepositorySubdirectory: ${params.buildResultRepositorySubdirectory}
+CPFCMake_DIR: ${params.CPFCMake_DIR}
+CPFBuildscripts_DIR: ${params.CPFBuildscripts_DIR}
+CIBuilsConfigurations_DIR: ${params.CIBuilsConfigurations_DIR}
 ----------------------------------------------------
 ####################################################
 """)
@@ -86,7 +92,7 @@ else
 
 // Repository update stage
 def projectRepository = prepareRepositoryAddress(params.cpfCIRepository)
-def retlist = addRepositoryOperationsStage(projectRepository, params.branchOrTag, taggingOption, taggedPackage)
+def retlist = addRepositoryOperationsStage(projectRepository, params.branchOrTag, taggingOption, taggedPackage, params.CPFCMake_DIR, params.CPFBuildscripts_DIR, params.CIBuildConfigurations_DIR)
 def configurations = retlist[0]
 def commitID = retlist[1]
 def author = retlist[2]
@@ -100,7 +106,7 @@ This job is run for commit: ${commitID}
 )
 
 // Pipeline stage
-addBuildStage(configurations, projectRepository, commitID, params.target)
+addBuildStage(configurations, projectRepository, commitID, params.target, params.CPFCMake_DIR, params.CPFBuildscripts_DIR, params.CIBuildConfigurations_DIR)
 
 // Only tag and store results if the job ran a full build.
 if(params.target == 'pipeline' && params.cpfConfiguration == '' )
@@ -142,7 +148,7 @@ def prepareRepositoryAddress( repository )
 // Create a temporary branch that contains the the latest revision of the
 // main branch (e.g. master) and merge the revisions into it that were pushed to
 // the developer branch.
-def addRepositoryOperationsStage( projectRepository, branchOrTag, taggingOption, taggedPackage)
+def addRepositoryOperationsStage( projectRepository, branchOrTag, taggingOption, taggedPackage, CPFCMake_DIR, CPFBuildscripts_DIR, CIBuildConfigurations_DIR)
 {
     def usedConfigurations = []
     def commitID = ""
@@ -164,7 +170,7 @@ def addRepositoryOperationsStage( projectRepository, branchOrTag, taggingOption,
 
                     // Update all owned packages if the commit is at the end of a branch.
                     // Otherwise do nothing
-                    sh "cmake -DROOT_DIR=\"\$PWD\" -DGIT_REF=${branchOrTag} -DTAGGING_OPTION=${taggingOption} -DRELEASED_PACKAGE=\"${taggedPackage}\" -DCONFIG=\"${debianConfig}\" -P Sources/${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
+                    sh "cmake -DROOT_DIR=\"\$PWD\" -DGIT_REF=${branchOrTag} -DTAGGING_OPTION=${taggingOption} -DRELEASED_PACKAGE=\"${taggedPackage}\" -DCONFIG=\"${debianConfig}\" -DCPFCMake_DIR=\"${CPFCMake_DIR}\" -DCPFBuildscripts_DIR=\"${CPFBuildscripts_DIR}\" -DCPFCIBuildConfigurations_DIR=\"${CIBuildConfigurations_DIR}\" -P Sources/${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
 
                     // Get the id of HEAD, which will be used in all further steps that do projectRepository check outs.
                     // Using a specific commit instead of a branch makes us invulnerable against changes the may
@@ -270,7 +276,7 @@ def checkoutBranch(projectRepository, branch, subdirectory = CHECKOUT_FOLDER )
     )
 }
 
-def addBuildStage( cpfConfigs, projectRepository, commitId, target)
+def addBuildStage( cpfConfigs, projectRepository, commitId, target, CPFCMake_DIR, CPFBuildscripts_DIR, CIBuildConfigurations_DIR)
 {
     stage('Build Stage')
     {
@@ -284,7 +290,7 @@ def addBuildStage( cpfConfigs, projectRepository, commitId, target)
             echo "Create build node " + config
             def nodeLabel = config.BuildSlaveLabel + '-' + nodeIndex
             echo "Build ${config.ConfigName} under label ${nodeLabel}"
-            def myNode = createBuildNode( nodeLabel, config.ConfigName, projectRepository, commitId, target, config?.CompilerConfig)
+            def myNode = createBuildNode( nodeLabel, config.ConfigName, projectRepository, commitId, target, config?.CompilerConfig, CPFCMake_DIR, CPFBuildscripts_DIR, CIBuildConfigurations_DIR)
             parallelNodes[config.ConfigName] = myNode
             nodeIndex++
         }
@@ -294,7 +300,7 @@ def addBuildStage( cpfConfigs, projectRepository, commitId, target)
     }
 }
 
-def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, compilerConfig)
+def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, compilerConfig, CPFCMake_DIR, CPFBuildscripts_DIR, CIBuildConfigurations_DIR)
 {
     return {
         node(nodeLabel)
@@ -310,7 +316,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                     cleanSubdirectory('install')  // Remove results from the previous build.
 
                     // Make the python scripts available in the root directory
-                    runPythonCommand("Sources/CPFBuildscripts/0_CopyScripts.py")
+                    runPythonCommand("\"${CPFBuildscripts_DIR}/0_CopyScripts.py\" --CPFCMake_DIR \"${CPFCMake_DIR}\" --CIBuildConfigurations_DIR \"${CIBuildConfigurations_DIR}\"")
                     // Set the install prefix so we can archive the installed files.
                     runPythonCommand("1_Configure.py ${cpfConfig}")
 

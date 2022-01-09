@@ -824,6 +824,9 @@ class MachinesController:
             '@BUILD_RESULT_REPOSITORY_MASTER@' : cpf_job_config.result_repository,
             '@BUILD_RESULT_REPOSITORY_SUBDIRECTORY@' : cpf_job_config.result_repository_project_subdirectory,
             '@CPFMACHINES_REPOSITORY@' : _JENKINSJOB_REPOSITORY,
+            '@CPFCMake_DIR@' : cpf_job_config.CPFCMake_DIR,
+            '@CPFBuildscripts_DIR@' : cpf_job_config.CPFBuildscripts_DIR,
+            '@CIBuildConfigurations_DIR@' : cpf_job_config.CIBuildConfigurations_DIR,
         }
 
         # If the job comes with a web-server we add the content repository on the webserver to job-config.

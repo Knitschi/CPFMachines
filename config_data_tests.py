@@ -114,6 +114,9 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].ci_repository, 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject1.git')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].result_repository, 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].result_repository_project_subdirectory, PurePosixPath('projects/MyCPFProject1'))
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].CPFCMake_DIR, PurePosixPath('Sources/CPFCMake'))
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].CPFBuildscripts_DIR, PurePosixPath('Sources/CPFBuildscripts'))
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[0].CIBuildConfigurations_DIR, PurePosixPath('Sources/CIBuildConfigurations'))
 
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.machine_id, 'MyMaster')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[0].webserver_config.container_ssh_port, 25)
@@ -131,6 +134,9 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].ci_repository, 'https://github.com/Fritz/MyCPFProject2.git')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].result_repository, 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].result_repository_project_subdirectory, PurePosixPath('projects/MyCPFProject2'))
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].CPFCMake_DIR, PurePosixPath('C:/CPFCMake'))
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].CPFBuildscripts_DIR, PurePosixPath('C:/CPFBuildscripts'))
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[1].CIBuildConfigurations_DIR, PurePosixPath('C:/CIBuildConfigurations'))
 
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.machine_id, 'MyMaster')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[1].webserver_config.container_ssh_port, 26)
@@ -149,6 +155,9 @@ class TestConfigData(unittest.TestCase):
         self.assertEqual( sut.jenkins_config.cpf_job_configs[2].ci_repository, 'https://github.com/Fritz/MyCPFProject3.git')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[2].result_repository, 'https://github.com/Knitschi/Knitschi.github.io.git')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[2].result_repository_project_subdirectory, PurePosixPath('MyCPFProject3'))
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[2].CPFCMake_DIR, PurePosixPath('Sources/external/CPFCMake'))
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[2].CPFBuildscripts_DIR, PurePosixPath('Sources/external/CPFBuildscripts'))
+        self.assertEqual( sut.jenkins_config.cpf_job_configs[2].CIBuildConfigurations_DIR, PurePosixPath('Sources/external/CIBuildConfigurations'))
 
         self.assertEqual( sut.jenkins_config.cpf_job_configs[2].webserver_config.machine_id, '')
         self.assertEqual( sut.jenkins_config.cpf_job_configs[2].webserver_config.container_ssh_port, None)

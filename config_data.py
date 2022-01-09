@@ -54,6 +54,9 @@ KEY_JENKINSJOB_BASE_NAME = 'JenkinsJobBasename'
 KEY_CI_REPOSITORY = 'CIRepository'
 KEY_BUILD_RESULT_REPOSITORY = 'BuildResultRepository'
 KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY = 'BuildResultRepositoryProjectSubdirectory'
+KEY_CPFCMake_DIR = 'CPFCMake_DIR'
+KEY_CPFBuildscripts_DIR = 'CPFBuildscripts_DIR'
+KEY_CIBuildConfigurations_DIR = 'CIBuildConfigurations_DIR'
 
 KEY_WEBSERVER = 'WebServer'
 
@@ -252,6 +255,10 @@ class ConfigData:
             config.ci_repository = get_checked_value(job_config_dict, KEY_CI_REPOSITORY)
             config.result_repository = get_checked_value(job_config_dict, KEY_BUILD_RESULT_REPOSITORY)
             config.result_repository_project_subdirectory = PurePosixPath(get_checked_value(job_config_dict, KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY))
+            config.CPFCMake_DIR = PurePosixPath(get_checked_value(job_config_dict, KEY_CPFCMake_DIR))
+            config.CPFBuildscripts_DIR = PurePosixPath(get_checked_value(job_config_dict, KEY_CPFBuildscripts_DIR))
+            config.CIBuildConfigurations_DIR = PurePosixPath(get_checked_value(job_config_dict, KEY_CIBuildConfigurations_DIR))
+
 
             # Using a cpf provided webserver is optional
             if KEY_WEBSERVER in job_config_dict:
@@ -545,6 +552,9 @@ class CPFJobConfig:
         self.ci_repository = ''                                         # The repository that contains the CPF ci-project that shall be build.
         self.result_repository = ''                                     # The address of the git repository that provides the content of the hosted pages.
         self.result_repository_project_subdirectory = PurePosixPath()   # The subdirectory in the build_result_repository that shall be published.
+        self.CPFCMake_DIR = PurePosixPath()                             # Absolute or relative path to the directory that holds the CPFCMake module. This is handed to the 0_CopyScripts script.
+        self.CPFBuildscripts_DIR = PurePosixPath()                      # Absolute or relative path to the directory that holds the CPFBuildscripts module. This is handed to the 0_CopyScripts script.                                       
+        self.CIBuildConfigurations_DIR = PurePosixPath()                # Absolute or relative path to the directory that holds the CIBuildConfigurations. This is handed to the 0_CopyScripts script.
         self.webserver_config = WebserverConfig()                       # The configuration of the webserver that is used publish this jobs build results.
 
 class WebserverConfig:
@@ -667,6 +677,9 @@ def get_example_config_dict():
                     KEY_CI_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject1.git',
                     KEY_BUILD_RESULT_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults',
                     KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'projects/MyCPFProject1',
+                    KEY_CPFCMake_DIR : 'Sources/CPFCMake',
+                    KEY_CPFBuildscripts_DIR : 'Sources/CPFBuildscripts',
+                    KEY_CIBuildConfigurations_DIR : 'Sources/CIBuildConfigurations',
                     KEY_WEBSERVER : {
                         KEY_MACHINE_ID : 'MyMaster'
                     }
@@ -676,6 +689,9 @@ def get_example_config_dict():
                     KEY_CI_REPOSITORY : 'https://github.com/Fritz/MyCPFProject2.git',
                     KEY_BUILD_RESULT_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults',
                     KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'projects/MyCPFProject2',
+                    KEY_CPFCMake_DIR : 'C:/CPFCMake',
+                    KEY_CPFBuildscripts_DIR : 'C:/CPFBuildscripts',
+                    KEY_CIBuildConfigurations_DIR : 'C:/CIBuildConfigurations',
                     KEY_WEBSERVER : {
                         KEY_MACHINE_ID : 'MyMaster'
                     }
@@ -684,7 +700,10 @@ def get_example_config_dict():
                     KEY_JENKINSJOB_BASE_NAME : 'MyCPFProject3',
                     KEY_CI_REPOSITORY : 'https://github.com/Fritz/MyCPFProject3.git',
                     KEY_BUILD_RESULT_REPOSITORY : 'https://github.com/Knitschi/Knitschi.github.io.git',
-                    KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'MyCPFProject3'
+                    KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'MyCPFProject3',
+                    KEY_CPFCMake_DIR : 'Sources/external/CPFCMake',
+                    KEY_CPFBuildscripts_DIR : 'Sources/external/CPFBuildscripts',
+                    KEY_CIBuildConfigurations_DIR : 'Sources/external/CIBuildConfigurations'
                 }
             ],
             KEY_JENKINS_ACCOUNT_CONFIG_FILES : {
