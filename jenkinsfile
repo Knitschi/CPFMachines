@@ -31,8 +31,6 @@ class Constants {
     // locations
     static final CHECKOUT_FOLDER = 'C O'    // We checkout to a subdirectory so the folders for the test files that lie parallel to the projectRepository are still within the workspace.
                                             // This needs a space to test if spaced directories work. It also must be short because of path limits on windows
-    static final CPFCMAKE_DIR = 'CPFCMake'
-
     // stash names
     static final INSTALL_STASH = "install"
 
@@ -112,7 +110,7 @@ addBuildStage(configurations, projectRepository, commitID, params.target, params
 if(params.target == 'pipeline' && params.cpfConfiguration == '' )
 {
     // Add a tag for the verified build
-    addTaggingStage(projectRepository, commitID)
+    addTaggingStage(projectRepository, commitID, params.CPFCMake_DIR)
 
     // Store the results and push them to the web-server.
     def buildResultsRepositoryMaster = prepareRepositoryAddress(params.buildResultRepositoryMaster)
@@ -348,7 +346,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
     }
 }
 
-def addTaggingStage(projectRepository, commitID)
+def addTaggingStage(projectRepository, commitID, CPFCMake_DIR)
 {
     stage('Tag verified commit')
     {
@@ -359,7 +357,7 @@ def addTaggingStage(projectRepository, commitID)
                 checkoutBranch(projectRepository, commitID)
                 dir(CHECKOUT_FOLDER)
                 {
-                    sh "cmake -DROOT_DIR=\"\$PWD\" -P Sources/${CPFCMAKE_DIR}/Scripts/addVersionTag.cmake"
+                    sh "cmake -DROOT_DIR=\"\$PWD\" -P ${CPFCMAKE_DIR}/Scripts/addVersionTag.cmake"
                 }
             }
         }
