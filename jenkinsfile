@@ -170,7 +170,7 @@ def addRepositoryOperationsStage( projectRepository, branchOrTag, taggingOption,
 
                     // Update all owned packages if the commit is at the end of a branch.
                     // Otherwise do nothing
-                    sh "cmake -DROOT_DIR=\"\$PWD\" -DGIT_REF=${branchOrTag} -DTAGGING_OPTION=${taggingOption} -DRELEASED_PACKAGE=\"${taggedPackage}\" -DCONFIG=\"${debianConfig}\" -DCPFCMake_DIR=\"${CPFCMake_DIR}\" -DCPFBuildscripts_DIR=\"${CPFBuildscripts_DIR}\" -DCPFCIBuildConfigurations_DIR=\"${CIBuildConfigurations_DIR}\" -P Sources/${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
+                    sh "cmake -DROOT_DIR=\"\$PWD\" -DGIT_REF=${branchOrTag} -DTAGGING_OPTION=${taggingOption} -DRELEASED_PACKAGE=\"${taggedPackage}\" -DCONFIG=\"${debianConfig}\" -DCPFCMake_DIR=\"${CPFCMake_DIR}\" -DCPFBuildscripts_DIR=\"${CPFBuildscripts_DIR}\" -DCIBuildConfigurations_DIR=\"${CIBuildConfigurations_DIR}\" -P Sources/${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
 
                     // Get the id of HEAD, which will be used in all further steps that do projectRepository check outs.
                     // Using a specific commit instead of a branch makes us invulnerable against changes the may
