@@ -409,7 +409,7 @@ def addUpdateBuildResultsRepositoryStage(
                 scriptCommand += "-DWEB_SERVER_BUILD_RESULTS_REPOSITORY=\"${buildResultsRepositoryWebServer}\" "
                 scriptCommand += "-DBUILD_RESULTS_REPOSITORY_PROJECT_SUBDIR=\"${buildResultsRepositorySubDir}\" "
                 scriptCommand += "-DROOT_DIR=\"\$PWD/${projectRepositoryName}\" "
-                scriptCommand += "-P \"\$PWD/${projectRepositoryName}/Sources/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\" "
+                scriptCommand += "-P \"\$PWD/${projectRepositoryName}/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\" "
 
                 sh scriptCommand
             }
