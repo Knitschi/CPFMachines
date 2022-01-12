@@ -362,7 +362,8 @@ def addTaggingStage(projectRepository, commitID, CPFCMake_DIR)
                 checkoutBranch(projectRepository, commitID)
                 dir(CHECKOUT_FOLDER)
                 {
-                    sh "cmake -DROOT_DIR=\"\$PWD\" -P ${CPFCMAKE_DIR}/Scripts/addVersionTag.cmake"
+                    // debug temporarily disabled while fixing push
+                    // sh "cmake -DROOT_DIR=\"\$PWD\" -P ${CPFCMAKE_DIR}/Scripts/addVersionTag.cmake"
                 }
             }
         }
@@ -412,11 +413,15 @@ def addUpdateBuildResultsRepositoryStage(
                 def scriptCommand = 'cmake '
                 scriptCommand += "-DCMAKE_INSTALL_PREFIX=\"\$PWD/install\" "
                 scriptCommand += "-DMASTER_BUILD_RESULTS_REPOSITORY_DIR=\"\$PWD/${buildResultRepositoryName}\" "
-                // scriptCommand += "-DWEB_SERVER_BUILD_RESULTS_REPOSITORY=\"${buildResultsRepositoryWebServer}\" "
-                scriptCommand += "-DWEB_SERVER_BUILD_RESULTS_REPOSITORY=\"https://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@github.com/Knitschi/Knitschi.github.io.git\" "
+                scriptCommand += "-DWEB_SERVER_BUILD_RESULTS_REPOSITORY=\"${buildResultsRepositoryWebServer}\" "
+
                 scriptCommand += "-DBUILD_RESULTS_REPOSITORY_PROJECT_SUBDIR=\"${buildResultsRepositorySubDir}\" "
                 scriptCommand += "-DROOT_DIR=\"\$PWD/${projectRepositoryName}\" "
                 scriptCommand += "-P \"\$PWD/${projectRepositoryName}/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\" "
+
+                withCredentials([usernamePassword(credentialsId: 'ci-github', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+                        sh('git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/knitschi/CCPFTestProject.git')
+                    }
 
                 sh scriptCommand
             }
