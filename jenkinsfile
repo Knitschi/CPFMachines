@@ -362,8 +362,7 @@ def addTaggingStage(projectRepository, commitID, CPFCMake_DIR)
                 checkoutBranch(projectRepository, commitID)
                 dir(CHECKOUT_FOLDER)
                 {
-                    // debug temporarily disabled while fixing push
-                    // sh "cmake -DROOT_DIR=\"\$PWD\" -P ${CPFCMAKE_DIR}/Scripts/addVersionTag.cmake"
+                    sh "cmake -DROOT_DIR=\"\$PWD\" -P ${CPFCMAKE_DIR}/Scripts/addVersionTag.cmake"
                 }
             }
         }
