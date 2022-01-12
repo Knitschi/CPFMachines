@@ -420,6 +420,7 @@ def addUpdateBuildResultsRepositoryStage(
                 scriptCommand += "-P \"\$PWD/${projectRepositoryName}/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\" "
 
                 withCredentials([usernamePassword(credentialsId: 'ci-github', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+                        sh('echo ${GIT_USERNAME}:${GIT_PASSWORD}')
                         sh('git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/knitschi/CCPFTestProject.git')
                     }
 
