@@ -362,9 +362,6 @@ def addTaggingStage(projectRepository, commitID, CPFCMake_DIR)
                 checkoutBranch(projectRepository, commitID)
                 dir(CHECKOUT_FOLDER)
                 {
-                    sh "git remote remove origin"
-                    sh "git remote add origin https://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@github.com/Knitschi/CCPFTestProject.git"
-
                     sh "cmake -DROOT_DIR=\"\$PWD\" -P ${CPFCMAKE_DIR}/Scripts/addVersionTag.cmake"
                 }
             }
@@ -415,7 +412,8 @@ def addUpdateBuildResultsRepositoryStage(
                 def scriptCommand = 'cmake '
                 scriptCommand += "-DCMAKE_INSTALL_PREFIX=\"\$PWD/install\" "
                 scriptCommand += "-DMASTER_BUILD_RESULTS_REPOSITORY_DIR=\"\$PWD/${buildResultRepositoryName}\" "
-                scriptCommand += "-DWEB_SERVER_BUILD_RESULTS_REPOSITORY=\"${buildResultsRepositoryWebServer}\" "
+                // scriptCommand += "-DWEB_SERVER_BUILD_RESULTS_REPOSITORY=\"${buildResultsRepositoryWebServer}\" "
+                scriptCommand += "-DWEB_SERVER_BUILD_RESULTS_REPOSITORY=\"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@https://github.com/Knitschi/Knitschi.github.io.git\" "
                 scriptCommand += "-DBUILD_RESULTS_REPOSITORY_PROJECT_SUBDIR=\"${buildResultsRepositorySubDir}\" "
                 scriptCommand += "-DROOT_DIR=\"\$PWD/${projectRepositoryName}\" "
                 scriptCommand += "-P \"\$PWD/${projectRepositoryName}/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\" "
