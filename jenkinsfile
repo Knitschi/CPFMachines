@@ -413,7 +413,7 @@ def addUpdateBuildResultsRepositoryStage(
                 scriptCommand += "-DCMAKE_INSTALL_PREFIX=\"\$PWD/install\" "
                 scriptCommand += "-DMASTER_BUILD_RESULTS_REPOSITORY_DIR=\"\$PWD/${buildResultRepositoryName}\" "
                 // scriptCommand += "-DWEB_SERVER_BUILD_RESULTS_REPOSITORY=\"${buildResultsRepositoryWebServer}\" "
-                scriptCommand += "-DWEB_SERVER_BUILD_RESULTS_REPOSITORY=\"https://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@github.com/Knitschi/Knitschi.github.io.git\" "
+                scriptCommand += "-DWEB_SERVER_BUILD_RESULTS_REPOSITORY=\"https://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@github.com/Knitschi/Knitschi.github.io.git\" "
                 scriptCommand += "-DBUILD_RESULTS_REPOSITORY_PROJECT_SUBDIR=\"${buildResultsRepositorySubDir}\" "
                 scriptCommand += "-DROOT_DIR=\"\$PWD/${projectRepositoryName}\" "
                 scriptCommand += "-P \"\$PWD/${projectRepositoryName}/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\" "
