@@ -22,6 +22,7 @@ params.CIBuilsConfigurations_DIR
 
 import static Constants.*
 import groovy.json.JsonSlurperClassic
+import System
 
 
 //############################### FUNCTION SECTION ################################
@@ -321,7 +322,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                     // Make the python scripts available in the root directory
                     runPythonCommand("\"${CPFBuildscripts_DIR}/0_CopyScripts.py\" --CPFCMake_DIR \"${CPFCMake_DIR}\" --CIBuildConfigurations_DIR \"${CIBuildConfigurations_DIR}\"")
                     // Set the install prefix so we can archive the installed files.
-                    runPythonCommand("1_Configure.py ${cpfConfig} -DCMAKE_INSTALL_PREFIX=\"\$PWD/install\"")
+                    runPythonCommand("1_Configure.py ${cpfConfig} -DCMAKE_INSTALL_PREFIX=\"${System.getProperty("user.dir");}/install\"")
 
                     // Run a fresh generate
                     runXvfbWrappedPythonCommand( "3_Generate.py ${cpfConfig} --clean" )
