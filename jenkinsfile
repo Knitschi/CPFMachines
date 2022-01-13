@@ -173,7 +173,7 @@ def addRepositoryOperationsStage( projectRepository, branchOrTag, taggingOption,
                 {
                     // Update all owned packages if the commit is at the end of a branch.
                     // Otherwise do nothing
-                    sh "cmake -DROOT_DIR=\"\$PWD\" -DGIT_REF=${branchOrTag} -DTAGGING_OPTION=${taggingOption} -DRELEASED_PACKAGE=\"${taggedPackage}\" -DCONFIG=\"${debianConfig}\" -DCPFCMake_DIR=\"${CPFCMake_DIR}\" -DCPFBuildscripts_DIR=\"${CPFBuildscripts_DIR}\" -DCIBuildConfigurations_DIR=\"${CIBuildConfigurations_DIR}\" -P ${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
+                    sh "cmake -DROOT_DIR=\"${pwd()}\" -DGIT_REF=${branchOrTag} -DTAGGING_OPTION=${taggingOption} -DRELEASED_PACKAGE=\"${taggedPackage}\" -DCONFIG=\"${debianConfig}\" -DCPFCMake_DIR=\"${CPFCMake_DIR}\" -DCPFBuildscripts_DIR=\"${CPFBuildscripts_DIR}\" -DCIBuildConfigurations_DIR=\"${CIBuildConfigurations_DIR}\" -P ${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
 
                     // Get the id of HEAD, which will be used in all further steps that do projectRepository check outs.
                     // Using a specific commit instead of a branch makes us invulnerable against changes the may
@@ -360,7 +360,7 @@ def addTaggingStage(projectRepository, commitID, CPFCMake_DIR)
                 checkoutBranch(projectRepository, commitID)
                 dir(CHECKOUT_FOLDER)
                 {
-                    sh "cmake -DROOT_DIR=\"\$PWD\" -P ${CPFCMAKE_DIR}/Scripts/addVersionTag.cmake"
+                    sh "cmake -DROOT_DIR=\"${pwd()}\" -P ${CPFCMAKE_DIR}/Scripts/addVersionTag.cmake"
                 }
             }
         }
@@ -408,13 +408,13 @@ def addUpdateBuildResultsRepositoryStage(
 
                 // Copy the new build results to the results repository and commit them.
                 def scriptCommand = 'cmake '
-                scriptCommand += "-DCMAKE_INSTALL_PREFIX=\"\$PWD/install\" "
-                scriptCommand += "-DMASTER_BUILD_RESULTS_REPOSITORY_DIR=\"\$PWD/${buildResultRepositoryName}\" "
+                scriptCommand += "-DCMAKE_INSTALL_PREFIX=\"${pwd()}/install\" "
+                scriptCommand += "-DMASTER_BUILD_RESULTS_REPOSITORY_DIR=\"${pwd()}/${buildResultRepositoryName}\" "
                 scriptCommand += "-DWEB_SERVER_BUILD_RESULTS_REPOSITORY=\"${buildResultsRepositoryWebServer}\" "
 
                 scriptCommand += "-DBUILD_RESULTS_REPOSITORY_PROJECT_SUBDIR=\"${buildResultsRepositorySubDir}\" "
-                scriptCommand += "-DROOT_DIR=\"\$PWD/${projectRepositoryName}\" "
-                scriptCommand += "-P \"\$PWD/${projectRepositoryName}/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\" "
+                scriptCommand += "-DROOT_DIR=\"${pwd()}/${projectRepositoryName}\" "
+                scriptCommand += "-P \"${pwd()}/${projectRepositoryName}/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\" "
 
                 sh scriptCommand
             }
