@@ -321,7 +321,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                     // Make the python scripts available in the root directory
                     runPythonCommand("\"${CPFBuildscripts_DIR}/0_CopyScripts.py\" --CPFCMake_DIR \"${CPFCMake_DIR}\" --CIBuildConfigurations_DIR \"${CIBuildConfigurations_DIR}\"")
                     // Set the install prefix so we can archive the installed files.
-                    runPythonCommand("1_Configure.py ${cpfConfig}")
+                    runPythonCommand("1_Configure.py ${cpfConfig} -DCMAKE_INSTALL_PREFIX=\"\$PWD/install\"")
 
                     // Run a fresh generate
                     runXvfbWrappedPythonCommand( "3_Generate.py ${cpfConfig} --clean" )
