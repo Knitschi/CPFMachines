@@ -152,8 +152,12 @@ conan
 USER jenkins
 
 # ----------------- Configure Conan --------------
-# Add the additional bincrafters package repository 
+# Add additional package repsitories. 
 RUN conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan
+RUN conan remote add bincrafters https://knitschi.jfrog.io/ui/packages
+
+# Add my standard profiles.
+RUN conan config install https://github.com/Knitschi/ConanConfig.git
 
 # ----------------- Configure Git --------------
 RUN git config --global user.email "not@valid.com" &&\
