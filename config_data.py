@@ -54,6 +54,7 @@ KEY_JENKINSJOB_BASE_NAME = 'JenkinsJobBasename'
 KEY_CI_REPOSITORY = 'CIRepository'
 KEY_BUILD_RESULT_REPOSITORY = 'BuildResultRepository'
 KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY = 'BuildResultRepositoryProjectSubdirectory'
+KEY_PACKAGE_MANAGER = 'PackageManager'
 KEY_CPFCMake_DIR = 'CPFCMake_DIR'
 KEY_CPFBuildscripts_DIR = 'CPFBuildscripts_DIR'
 KEY_CIBuildConfigurations_DIR = 'CIBuildConfigurations_DIR'
@@ -249,23 +250,31 @@ class ConfigData:
         Reads a list of cpf jenkins job configurations from the config file dictionary. 
         """
         job_config_dict_list = get_checked_value(jenkins_config_dict, KEY_CPF_JOBS)
+        
         for job_config_dict in job_config_dict_list:
+
             config = CPFJobConfig()
-            config.base_job_name = get_checked_value(job_config_dict, KEY_JENKINSJOB_BASE_NAME)
-            config.ci_repository = get_checked_value(job_config_dict, KEY_CI_REPOSITORY)
-            config.result_repository = get_checked_value(job_config_dict, KEY_BUILD_RESULT_REPOSITORY)
-            config.result_repository_project_subdirectory = PurePosixPath(get_checked_value(job_config_dict, KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY))
-            config.CPFCMake_DIR = PurePosixPath(get_checked_value(job_config_dict, KEY_CPFCMake_DIR))
-            config.CPFBuildscripts_DIR = PurePosixPath(get_checked_value(job_config_dict, KEY_CPFBuildscripts_DIR))
-            config.CIBuildConfigurations_DIR = PurePosixPath(get_checked_value(job_config_dict, KEY_CIBuildConfigurations_DIR))
+            try:
+                config.base_job_name = get_checked_value(job_config_dict, KEY_JENKINSJOB_BASE_NAME)
+                config.ci_repository = get_checked_value(job_config_dict, KEY_CI_REPOSITORY)
+                config.package_manager = get_checked_optional_value(job_config_dict, KEY_PACKAGE_MANAGER)
+                config.result_repository = get_checked_value(job_config_dict, KEY_BUILD_RESULT_REPOSITORY)
+                config.result_repository_project_subdirectory = PurePosixPath(get_checked_value(job_config_dict, KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY))
+                config.CPFCMake_DIR = PurePosixPath(get_checked_value(job_config_dict, KEY_CPFCMake_DIR))
+                config.CPFBuildscripts_DIR = PurePosixPath(get_checked_value(job_config_dict, KEY_CPFBuildscripts_DIR))
+                config.CIBuildConfigurations_DIR = PurePosixPath(get_checked_value(job_config_dict, KEY_CIBuildConfigurations_DIR))
 
+                # Using a cpf provided webserver is optional
+                if KEY_WEBSERVER in job_config_dict:
+                    webserver_config_dict = get_checked_value(job_config_dict, KEY_WEBSERVER)
+                    config.webserver_config.machine_id = get_checked_value(webserver_config_dict, KEY_MACHINE_ID)
 
-            # Using a cpf provided webserver is optional
-            if KEY_WEBSERVER in job_config_dict:
-                webserver_config_dict = get_checked_value(job_config_dict, KEY_WEBSERVER)
-                config.webserver_config.machine_id = get_checked_value(webserver_config_dict, KEY_MACHINE_ID)
+                self.jenkins_config.cpf_job_configs.append(config)
 
-            self.jenkins_config.cpf_job_configs.append(config)
+            except Exception as e:
+                if len(e.args) >= 1:
+                    e.args = (e.args[0] + " in the configuration section of buildjob {0}".format(config.base_job_name),) + e.args[1:]
+                raise
 
 
     def _check_data_validity(self):
@@ -552,6 +561,7 @@ class CPFJobConfig:
         self.ci_repository = ''                                         # The repository that contains the CPF ci-project that shall be build.
         self.result_repository = ''                                     # The address of the git repository that provides the content of the hosted pages.
         self.result_repository_project_subdirectory = PurePosixPath()   # The subdirectory in the build_result_repository that shall be published.
+        self.package_manager = ''
         self.CPFCMake_DIR = PurePosixPath()                             # Absolute or relative path to the directory that holds the CPFCMake module. This is handed to the 0_CopyScripts script.
         self.CPFBuildscripts_DIR = PurePosixPath()                      # Absolute or relative path to the directory that holds the CPFBuildscripts module. This is handed to the 0_CopyScripts script.                                       
         self.CIBuildConfigurations_DIR = PurePosixPath()                # Absolute or relative path to the directory that holds the CIBuildConfigurations. This is handed to the 0_CopyScripts script.
@@ -677,6 +687,7 @@ def get_example_config_dict():
                     KEY_CI_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject1.git',
                     KEY_BUILD_RESULT_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults',
                     KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'projects/MyCPFProject1',
+                    KEY_PACKAGE_MANAGER : '',
                     KEY_CPFCMake_DIR : 'Sources/CPFCMake',
                     KEY_CPFBuildscripts_DIR : 'Sources/CPFBuildscripts',
                     KEY_CIBuildConfigurations_DIR : 'Sources/CIBuildConfigurations',
@@ -689,6 +700,7 @@ def get_example_config_dict():
                     KEY_CI_REPOSITORY : 'https://github.com/Fritz/MyCPFProject2.git',
                     KEY_BUILD_RESULT_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults',
                     KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'projects/MyCPFProject2',
+                    KEY_PACKAGE_MANAGER : '',
                     KEY_CPFCMake_DIR : 'C:/CPFCMake',
                     KEY_CPFBuildscripts_DIR : 'C:/CPFBuildscripts',
                     KEY_CIBuildConfigurations_DIR : 'C:/CIBuildConfigurations',
@@ -701,6 +713,7 @@ def get_example_config_dict():
                     KEY_CI_REPOSITORY : 'https://github.com/Fritz/MyCPFProject3.git',
                     KEY_BUILD_RESULT_REPOSITORY : 'https://github.com/Knitschi/Knitschi.github.io.git',
                     KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'MyCPFProject3',
+                    KEY_PACKAGE_MANAGER : 'conan',
                     KEY_CPFCMake_DIR : 'Sources/external/CPFCMake',
                     KEY_CPFBuildscripts_DIR : 'Sources/external/CPFBuildscripts',
                     KEY_CIBuildConfigurations_DIR : 'Sources/external/CIBuildConfigurations'
@@ -739,14 +752,19 @@ def get_checked_value(dictionary, key):
     Checks that the given key exists in the dictionary and that
     it has a non empty value.
     """
+    value = get_checked_optional_value(dictionary, key)
+    value_string = str(value)
+    if value_string: # we check the string to prevent problems when the value is False
+        return value
+    else:
+        raise Exception("The config file is missing a value for key {0}".format(key))
+
+def get_checked_optional_value(dictionary, key):
+    """
+    Checks that the given key exists in the dictionary and returns it possibly empty value
+    """
     if key in dictionary:
         value = dictionary[key]
-        value_string = str(value)
-        if value_string: # we check the string to prevent problems when the value is False
-            return value
-        else:
-            raise Exception("The config file is missing a value for key {0}".format(key))
+        return value
 
     raise Exception("The config file is missing an entry with key {0}".format(key))
-
-

@@ -820,6 +820,7 @@ class MachinesController:
         jobConfigVariableMap = {
             '@JOB_NAME@' : get_job_name(cpf_job_config.base_job_name),
             '@JENKINSFILE_TAG_OR_BRANCH@' : tag_or_branch,
+            '@PACKAGE_MANAGER@' : cpf_job_config.package_manager,
             '@CI_REPOSITORY@' : cpf_job_config.ci_repository,
             '@BUILD_RESULT_REPOSITORY_MASTER@' : cpf_job_config.result_repository,
             '@BUILD_RESULT_REPOSITORY_SUBDIRECTORY@' : cpf_job_config.result_repository_project_subdirectory,

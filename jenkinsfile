@@ -11,6 +11,7 @@ params.taggingOption
 params.packages
 params.cpfConfiguration
 params.target
+params.packageManager
 params.buildResultRepositoryMaster
 params.buildResultRepositoryWebServer
 params.buildResultRepositorySubdirectory
@@ -47,6 +48,7 @@ taggingOption: ${params.taggingOption}
 branchOrTag: ${params.branchOrTag}
 cpfConfiguration: ${params.cpfConfiguration}
 target: ${params.target}
+packageManager: ${params.packageManager}
 cpfCIRepository: ${params.cpfCIRepository}
 buildResultRepositoryMaster: ${params.buildResultRepositoryMaster}
 buildResultRepositoryWebServer: ${params.buildResultRepositoryWebServer}

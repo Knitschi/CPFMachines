@@ -60,6 +60,15 @@ This parameter is intended for reducing build times during debugging.
           <defaultValue>pipeline</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
+          <name>packageManager</name>
+          <description>
+The package manager used by the build. Currently this can be '' or 'conan'
+This parameter is an implementation detail and must only be changed if the built project changes
+the package manager.
+          </description>
+          <defaultValue>@PACKAGE_MANAGER@</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
           <name>cpfCIRepository</name>
           <description>The address of the CPF project repository that is build by this job.
 This parameter is an implementation detail and is not supposed to be changed by the user.
