@@ -175,7 +175,7 @@ def addRepositoryOperationsStage( projectRepository, branchOrTag, taggingOption,
                 {
                     // Update all owned packages if the commit is at the end of a branch.
                     // Otherwise do nothing
-                    sh "cmake -DROOT_DIR=\"${pwd()}\" -DGIT_REF=${branchOrTag} -DTAGGING_OPTION=${taggingOption} -DRELEASED_PACKAGE=\"${taggedPackage}\" -DCONFIG=\"${debianConfig}\" -DCPFCMake_DIR=\"${CPFCMake_DIR}\" -DCPFBuildscripts_DIR=\"${CPFBuildscripts_DIR}\" -DCIBuildConfigurations_DIR=\"${CIBuildConfigurations_DIR}\" -P ${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
+                    sh "cmake -DROOT_DIR=\"${pwd()}\" -DGIT_REF=${branchOrTag} -DTAGGING_OPTION=${taggingOption} -DRELEASED_PACKAGE=\"${taggedPackage}\" -DCONFIG=\"${debianConfig}\" -DPACKAGE_MANAGER=\"${params.packageManager}\" -DCPFCMake_DIR=\"${CPFCMake_DIR}\" -DCPFBuildscripts_DIR=\"${CPFBuildscripts_DIR}\" -DCIBuildConfigurations_DIR=\"${CIBuildConfigurations_DIR}\" -P ${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
 
                     // Get the id of HEAD, which will be used in all further steps that do projectRepository check outs.
                     // Using a specific commit instead of a branch makes us invulnerable against changes the may
@@ -320,28 +320,54 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                     // Clean directories
                     cleanSubdirectory('install')  // Remove results from the previous build.
 
-                    // Make the python scripts available in the root directory
-                    runPythonCommand("\"${CPFBuildscripts_DIR}/0_CopyScripts.py\" --CPFCMake_DIR \"${CPFCMake_DIR}\" --CIBuildConfigurations_DIR \"${CIBuildConfigurations_DIR}\"")
-                    // Set the install prefix so we can archive the installed files.
-                    runPythonCommand("1_Configure.py ${cpfConfig} -DCMAKE_INSTALL_PREFIX=\"${pwd()}/install\"")
-
-                    // Run a fresh generate
-                    runXvfbWrappedPythonCommand( "3_Generate.py ${cpfConfig} --clean" )
-
-                    // build the pipeline target or a user specified target.
-                    def configOption = ''
-                    if(compilerConfig) // The build config option is only needed for multi-config generators.
+                    if(params.packageManager == 'conan')
                     {
-                        configOption = "--config ${compilerConfig}"
+                        // When using conan the buildscripts are run by conan.
+                        channel = "development" // release for releases from cmake script.
+                        version = "0.0.7";  // from cmake script.
+                        package = "MyLib";  // from cmake script.
+                        conanRemote = "knitschi-conan";
+
+                        // Build the package
+                        runXvfbWrappedCommand("conan create . ${package}/${version}@jenkins/${channel} -pr ${cpfConfig}")
+
+                        if( target == 'pipeline' )
+                        {
+                            // Test the consumability of the created package
+                            runXvfbWrappedCommand("conan test Sources/test_package ${package}/${version}@knitschi/${channel} --build=missing -pr ${cpfConfig}")
+                            // Upload the package
+                            runCommand("conan upload "${package}" --all -r ${conanRemote}")
+                        }
                     }
-                    runXvfbWrappedPythonCommand( "4_Make.py ${cpfConfig} --target ${target} ${configOption}" )
+                    else()
+                    {
+                        // No package manager
+                        // We execute the normal CPF workflow.
+
+                        // Make the python scripts available in the root directory
+                        runPythonCommand("\"${CPFBuildscripts_DIR}/0_CopyScripts.py\" --CPFCMake_DIR \"${CPFCMake_DIR}\" --CIBuildConfigurations_DIR \"${CIBuildConfigurations_DIR}\"")
+                    
+                        // Set the install prefix so we can archive the installed files.
+                        runPythonCommand("1_Configure.py ${cpfConfig} -DCMAKE_INSTALL_PREFIX=\"${pwd()}/install\"")
+
+                        // Run a fresh generate
+                        runXvfbWrappedPythonCommand( "3_Generate.py ${cpfConfig} --clean" )
+
+                        // build the pipeline target or a user specified target.
+                        def configOption = ''
+                        if(compilerConfig) // The build config option is only needed for multi-config generators.
+                        {
+                            configOption = "--config ${compilerConfig}"
+                        }
+                        runXvfbWrappedPythonCommand( "4_Make.py ${cpfConfig} --target ${target} ${configOption}" )
+                    }
 
                     // Install and stash files in case of a pipeline build.
                     if( target == 'pipeline' )
                     {
                         runXvfbWrappedPythonCommand( "4_Make.py ${cpfConfig} --target install_all ${configOption}" )
                         def installStash = "${INSTALL_STASH}${cpfConfig}"
-                        stash includes: 'install/**', name: installStash
+                        stash includes: 'install/doc/**', name: installStash
                     }
 
                     echo "----- Successfully built target ${target} in ${cpfConfig} configuration. -----"
@@ -486,6 +512,22 @@ def runXvfbWrappedPythonCommand(command)
     else
     {
         runPythonCommand(command)
+    }
+}
+
+def runXvfbWrappedCommand(command)
+{
+    if(isUnix())
+    {
+        // On linux we need the jenkins Xvfb plugin to simulate an x11 server or qt will give us errors that it can not connect to the x11 server.
+        wrap([$class: 'Xvfb', parallelBuild: true, displayNameOffset: 1, autoDisplayName: true, assignedLables: 'linux'])
+        {
+            runCommand(command)
+        }
+    }
+    else
+    {
+        runCommand(command)
     }
 }
 
