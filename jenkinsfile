@@ -342,7 +342,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                             runCommand("conan upload ${cpfPackage} --all -r ${conanRemote}")
                         }
                     }
-                    else()
+                    else
                     {
                         // No package manager
                         // We execute the normal CPF workflow.
