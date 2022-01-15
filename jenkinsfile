@@ -339,7 +339,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                             // Test the consumability of the created package
                             runXvfbWrappedCommand("conan test Sources/test_package ${cpfPackage}/${version}@knitschi/${channel} --build=missing -pr ${cpfConfig}")
                             // Upload the package
-                            runCommand("conan upload "${cpfPackage}" --all -r ${conanRemote}")
+                            runCommand("conan upload ${cpfPackage} --all -r ${conanRemote}")
                         }
                     }
                     else()
