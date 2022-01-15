@@ -326,7 +326,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                         // release for releases from cmake script.
                         def channel = "development";
                         // from cmake script.
-                        def version = "0.0.7";
+                        def version = commitId;
                         // from cmake script.
                         def cpfPackage = "MyLib";
                         def conanRemote = "knitschi-conan";
