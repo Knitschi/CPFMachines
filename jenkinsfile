@@ -324,9 +324,9 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                     {
                         // When using conan the buildscripts are run by conan.
                         def channel = "development" // release for releases from cmake script.
-                        def version = "0.0.7";  // from cmake script.
-                        def package = "MyLib";  // from cmake script.
-                        def conanRemote = "knitschi-conan";
+                        def version = "0.0.7"  // from cmake script.
+                        def package = "MyLib" // from cmake script.
+                        def conanRemote = "knitschi-conan"
 
                         // Build the package
                         runXvfbWrappedCommand("conan create . ${package}/${version}@jenkins/${channel} -pr ${cpfConfig}")
