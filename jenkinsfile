@@ -323,9 +323,9 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                     if(params.packageManager == 'conan')
                     {
                         // When using conan the buildscripts are run by conan.
-                        def channel = "development" // release for releases from cmake script.
-                        def version = "0.0.7"  // from cmake script.
-                        def package = "MyLib" // from cmake script.
+                        def channel = "development"     // release for releases from cmake script.
+                        def version = "0.0.7"           // from cmake script.
+                        def package = "MyLib"           // from cmake script.
                         def conanRemote = "knitschi-conan"
 
                         // Build the package
