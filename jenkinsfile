@@ -328,18 +328,18 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                         // from cmake script.
                         def version = "0.0.7";
                         // from cmake script.
-                        def package = "MyLib";
+                        def cpfPackage = "MyLib";
                         def conanRemote = "knitschi-conan";
 
                         // Build the package
-                        runXvfbWrappedCommand("conan create . ${package}/${version}@jenkins/${channel} -pr ${cpfConfig}")
+                        runXvfbWrappedCommand("conan create . ${cpfPackage}/${version}@jenkins/${channel} -pr ${cpfConfig}")
 
                         if( target == 'pipeline' )
                         {
                             // Test the consumability of the created package
-                            runXvfbWrappedCommand("conan test Sources/test_package ${package}/${version}@knitschi/${channel} --build=missing -pr ${cpfConfig}")
+                            runXvfbWrappedCommand("conan test Sources/test_package ${cpfPackage}/${version}@knitschi/${channel} --build=missing -pr ${cpfConfig}")
                             // Upload the package
-                            runCommand("conan upload "${package}" --all -r ${conanRemote}")
+                            runCommand("conan upload "${cpfPackage}" --all -r ${conanRemote}")
                         }
                     }
                     else()
