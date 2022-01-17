@@ -152,8 +152,8 @@ conan
 USER jenkins
 
 # ----------------- Configure Conan --------------
-# Add my standard profiles.
-RUN conan config install https://github.com/Knitschi/ConanConfig.git
+# Configuration.
+RUN conan config set general.revisions_enabled=True
 
 # Add additional package repsitories. 
 RUN conan remote add knitschi-conan https://knitschi.jfrog.io/artifactory/api/conan/knitschi-conan
