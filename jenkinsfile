@@ -332,7 +332,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                         def conanRemote = "knitschi-conan";
 
                         // Build the package
-                        runXvfbWrappedCommand("conan create . ${cpfPackage}/${version}@jenkins/${channel} -pr \"${CIBuildConfigurations_DIR}/${cpfConfig}\"")
+                        runXvfbWrappedCommand("conan create . ${cpfPackage}/${version}@jenkins/${channel} -pr \"${CIBuildConfigurations_DIR}/${cpfConfig}\" --build=missing")
 
                         if( target == 'pipeline' )
                         {
