@@ -337,7 +337,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                         if( target == 'pipeline' )
                         {
                             // Test the consumability of the created package
-                            runXvfbWrappedCommand("conan test Sources/test_package ${cpfPackage}/${version}@knitschi/${channel} --build=missing -pr \"${CIBuildConfigurations_DIR}/${cpfConfig}\"")
+                            runXvfbWrappedCommand("conan test Sources/test_package ${cpfPackage}/${version}@jenkins/${channel} -pr \"${CIBuildConfigurations_DIR}/${cpfConfig}\" --build=missing")
                             // Upload the package
                             runCommand("conan upload ${cpfPackage} --all -r ${conanRemote}")
                         }
