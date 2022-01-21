@@ -320,6 +320,12 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                     // Clean directories
                     cleanSubdirectory('install')  // Remove results from the previous build.
 
+                    def configOption = ''
+                    if(compilerConfig) // The build config option is only needed for multi-config generators.
+                    {
+                        configOption = "--config ${compilerConfig}"
+                    }
+
                     if(params.packageManager == 'conan')
                     {
                         // When using conan the buildscripts are run by conan.
@@ -358,11 +364,6 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                         runXvfbWrappedPythonCommand( "3_Generate.py ${cpfConfig} --clean" )
 
                         // build the pipeline target or a user specified target.
-                        def configOption = ''
-                        if(compilerConfig) // The build config option is only needed for multi-config generators.
-                        {
-                            configOption = "--config ${compilerConfig}"
-                        }
                         runXvfbWrappedPythonCommand( "4_Make.py ${cpfConfig} --target ${target} ${configOption}" )
                     }
 
