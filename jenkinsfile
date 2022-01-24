@@ -30,7 +30,7 @@ class Constants {
     static final CPF_JENKINSJOB_VERSION = '0.0.0' // how can we get this from a generated file?
     
     // locations
-    static final CHECKOUT_FOLDER = 'C O'    // We checkout to a subdirectory so the folders for the test files that lie parallel to the projectRepository are still within the workspace.
+    static final CHECKOUT_FOLDER = 'CO'    // We checkout to a subdirectory so the folders for the test files that lie parallel to the projectRepository are still within the workspace.
                                             // This needs a space to test if spaced directories work. It also must be short because of path limits on windows
     // stash names
     static final INSTALL_STASH = "install"
@@ -419,7 +419,7 @@ def addUpdateBuildResultsRepositoryStage(
             {
                 if(params.packageManager == 'conan')
                 {
-                    
+
                 }
                 else
                 {
