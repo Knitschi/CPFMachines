@@ -336,29 +336,32 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                         // from cmake script.
                         def cpfPackage = "MyLib";
                         def conanRemote = "knitschi-conan";
+                        def profileArg = "\"${CIBuildConfigurations_DIR}/${cpfConfig}\""
+                        def packageRef = "${cpfPackage}/${version}@jenkins/${channel}"
 
-                        // Build the package
-                        runXvfbWrappedCommand("conan create . ${cpfPackage}/${version}@jenkins/${channel} -pr \"${CIBuildConfigurations_DIR}/${cpfConfig}\" --build=missing")
+                        // Get dependencies and configure
+                        runCommand("conan install . --profile ${profileArg} -if Configuration/${cpfConfig} --build=missing")
+                        // Generate and Build 
+                        runXvfbWrappedCommand("conan build . --build -if Configuration/${cpfConfig}")
+                        // Run install step and copy results to conan cache.
+                        runCommand("conan export-pkg . ${packageRef} -if Configuration/${cpfConfig}")
+                        // Test the consumability of the created package.
+                        // This should use the previously created package without rebuilding it. (so no --build=missing here)
+                        runXvfbWrappedCommand("conan test Sources/test_package ${packageRef} -pr ${profileArg}")
 
+                        // Upload fully featured release builds.
+                        def isRelease = true
+                        if( target == 'pipeline' && isRelease )
+                        {
+                            def packageHash = getPackageId(cpfPackage, version, channel, "${CIBuildConfigurations_DIR}/${cpfConfig}");
+                            runCommand("conan upload ${packageRef}:${packageHash} --all --confirm -r ${conanRemote}")
+                        }
+
+                        // Install and stash documentation files in case of a pipeline build.
                         if( target == 'pipeline' )
                         {
-                            // Test the consumability of the created package
-                            runXvfbWrappedCommand("conan test Sources/test_package ${cpfPackage}/${version}@jenkins/${channel} -pr \"${CIBuildConfigurations_DIR}/${cpfConfig}\" --build=missing")
-                            // Upload the package for the built profile
-                            // if release:
-                            // Create json file with package info.
-                            //def infoFile = "packageInfo.json";
-
-
-                            //def packageInfo = new JsonSlurperClassic().parseText("${CHECKOUT_FOLDER}/${infoFile}")
-                            //if(configurations.isEmpty())
-                            //{
-                            //    echo "Error! Failed to read package info file.";
-                            //    throw new Exception('No package info file created.');
-                            //}
-
-                            def packageHash = getPackageId(cpfPackage, version, channel, "${CIBuildConfigurations_DIR}/${cpfConfig}");
-                            runCommand("conan upload ${cpfPackage}/${version}@jenkins/${channel}:${packageHash} --all --confirm -r ${conanRemote}")
+                            def installStash = "${INSTALL_STASH}${cpfConfig}"
+                            stash includes: 'install/doc/**', name: installStash
                         }
                     }
                     else
@@ -378,7 +381,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                         // build the pipeline target or a user specified target.
                         runXvfbWrappedPythonCommand( "4_Make.py ${cpfConfig} --target ${target} ${configOption}" )
 
-                        // Install and stash files in case of a pipeline build.
+                        // Install and stash documentation files in case of a pipeline build.
                         if( target == 'pipeline' )
                         {
                             runXvfbWrappedPythonCommand( "4_Make.py ${cpfConfig} --target install_all ${configOption}" )
@@ -437,39 +440,32 @@ def addUpdateBuildResultsRepositoryStage(
             def projectRepositoryName = getRepositoryName(projectRepository)
             ws(projectRepositoryName + '-archive-stage')
             {
-                if(params.packageManager == 'conan')
+                // Get the build results repository.
+                def buildResultRepositoryName = getRepositoryName(buildResultsRepositoryMaster)
+                checkoutBranch(buildResultsRepositoryMaster, 'master', buildResultRepositoryName) // get the build results
+
+                // Checkout the project repository, get the archived build results and commit them to the result repository.
+                checkoutBranch(projectRepository, commitID, projectRepositoryName) // Get the updateBuildResultsRepository.cmake script. We should only check-out CPFCMake in the future here.
+                
+                // Accumulate all installed files from all configurations.
+                // This fills the install directory.
+                cleanSubdirectory('install')    // Remove the results from the previous build.
+                for(cpfConfig in cpfConfigs)
                 {
-
+                    unstashFiles(INSTALL_STASH, cpfConfig.ConfigName)
                 }
-                else
-                {
-                    // Get the build results repository.
-                    def buildResultRepositoryName = getRepositoryName(buildResultsRepositoryMaster)
-                    checkoutBranch(buildResultsRepositoryMaster, 'master', buildResultRepositoryName) // get the build results
 
-                    // Checkout the project repository, get the archived build results and commit them to the result repository.
-                    checkoutBranch(projectRepository, commitID, projectRepositoryName) // Get the updateBuildResultsRepository.cmake script. We should only check-out CPFCMake in the future here.
-                    
-                    // Accumulate all installed files from all configurations.
-                    // This fills the install directory.
-                    cleanSubdirectory('install')    // Remove the results from the previous build.
-                    for(cpfConfig in cpfConfigs)
-                    {
-                        unstashFiles(INSTALL_STASH, cpfConfig.ConfigName)
-                    }
+                // Copy the new build results to the results repository and commit them.
+                def scriptCommand = 'cmake '
+                scriptCommand += "-DCMAKE_INSTALL_PREFIX=\"${pwd()}/install\" "
+                scriptCommand += "-DMASTER_BUILD_RESULTS_REPOSITORY_DIR=\"${pwd()}/${buildResultRepositoryName}\" "
+                scriptCommand += "-DWEB_SERVER_BUILD_RESULTS_REPOSITORY=\"${buildResultsRepositoryWebServer}\" "
 
-                    // Copy the new build results to the results repository and commit them.
-                    def scriptCommand = 'cmake '
-                    scriptCommand += "-DCMAKE_INSTALL_PREFIX=\"${pwd()}/install\" "
-                    scriptCommand += "-DMASTER_BUILD_RESULTS_REPOSITORY_DIR=\"${pwd()}/${buildResultRepositoryName}\" "
-                    scriptCommand += "-DWEB_SERVER_BUILD_RESULTS_REPOSITORY=\"${buildResultsRepositoryWebServer}\" "
+                scriptCommand += "-DBUILD_RESULTS_REPOSITORY_PROJECT_SUBDIR=\"${buildResultsRepositorySubDir}\" "
+                scriptCommand += "-DROOT_DIR=\"${pwd()}/${projectRepositoryName}\" "
+                scriptCommand += "-P \"${pwd()}/${projectRepositoryName}/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\" "
 
-                    scriptCommand += "-DBUILD_RESULTS_REPOSITORY_PROJECT_SUBDIR=\"${buildResultsRepositorySubDir}\" "
-                    scriptCommand += "-DROOT_DIR=\"${pwd()}/${projectRepositoryName}\" "
-                    scriptCommand += "-P \"${pwd()}/${projectRepositoryName}/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\" "
-
-                    sh scriptCommand
-                }
+                sh scriptCommand
             }
 
 			echo '----- The build results were stored successfully. -----'
