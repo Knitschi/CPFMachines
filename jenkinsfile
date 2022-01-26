@@ -344,9 +344,21 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                         {
                             // Test the consumability of the created package
                             runXvfbWrappedCommand("conan test Sources/test_package ${cpfPackage}/${version}@jenkins/${channel} -pr \"${CIBuildConfigurations_DIR}/${cpfConfig}\" --build=missing")
-                            // Upload the package
+                            // Upload the package for the built profile
                             // if release:
-                            runCommand("conan upload ${cpfPackage}/${version} --all --confirm -r ${conanRemote}")
+                            // Create json file with package info.
+                            def infoFile = "packageInfo.json"
+                            runCommand("conan info ${cpfPackage}/${version}@jenkins/${channel} --profile \"${CIBuildConfigurations_DIR}/${cpfConfig}\" --json ${infoFile}")
+
+                            def packageInfo = new JsonSlurperClassic().parseText(infoFile)
+                            if(configurations.isEmpty())
+                            {
+                                echo "Error! Failed to read package info file."
+                                throw new Exception('No package info file created.')
+                            }
+
+                            def packageHash = packageInfo.id
+                            runCommand("conan upload ${cpfPackage}/${version}@jenkins/${channel}:${packageHash} --all --confirm -r ${conanRemote}")
                         }
                     }
                     else
