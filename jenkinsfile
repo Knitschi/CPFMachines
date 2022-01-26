@@ -394,9 +394,9 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
     }
 }
 
-def getPackageId(package, version, channel, profilePath)
+def getPackageId(cpfPackage, version, channel, profilePath)
 {
-    def infoOutput = runCommand("conan info ${package}/${version}@jenkins/${channel} --profile \"${profilePath}\" --only id")
+    def infoOutput = runCommand("conan info ${cpfPackage}/${version}@jenkins/${channel} --profile \"${profilePath}\" --only id")
     def outputLines = infoOutput.split('\n')
     def idLine = outputLines[1].trim() // The information is in the second line.
     return idLine.substring(4) // Remove the leading "ID: "
