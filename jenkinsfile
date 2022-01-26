@@ -344,7 +344,8 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                         // Generate and Build 
                         runXvfbWrappedCommand("conan build . --build -if Configuration/${cpfConfig}")
                         // Run install step and copy results to conan cache.
-                        runCommand("conan export-pkg . ${packageRef} -if Configuration/${cpfConfig}")
+                        // The --force option is used to make sure the build-job does not fail when run twice for one version.
+                        runCommand("conan export-pkg . ${packageRef} -if Configuration/${cpfConfig} --force")
                         // Test the consumability of the created package.
                         // This should use the previously created package without rebuilding it. (so no --build=missing here)
                         runXvfbWrappedCommand("conan test Sources/test_package ${packageRef} -pr ${profileArg}")
