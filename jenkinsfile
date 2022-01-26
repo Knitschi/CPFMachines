@@ -347,17 +347,17 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                             // Upload the package for the built profile
                             // if release:
                             // Create json file with package info.
-                            def infoFile = "packageInfo.json";
-                            runCommand("conan info ${cpfPackage}/${version}@jenkins/${channel} --profile \"${CIBuildConfigurations_DIR}/${cpfConfig}\" --json ${infoFile}")
+                            //def infoFile = "packageInfo.json";
 
-                            def packageInfo = new JsonSlurperClassic().parseText("${CHECKOUT_FOLDER}/${infoFile}")
-                            if(configurations.isEmpty())
-                            {
-                                echo "Error! Failed to read package info file.";
-                                throw new Exception('No package info file created.');
-                            }
 
-                            def packageHash = packageInfo.id;
+                            //def packageInfo = new JsonSlurperClassic().parseText("${CHECKOUT_FOLDER}/${infoFile}")
+                            //if(configurations.isEmpty())
+                            //{
+                            //    echo "Error! Failed to read package info file.";
+                            //    throw new Exception('No package info file created.');
+                            //}
+
+                            def packageHash = getPackageId(cpfPackage, version, channel, "${CIBuildConfigurations_DIR}/${cpfConfig}");
                             runCommand("conan upload ${cpfPackage}/${version}@jenkins/${channel}:${packageHash} --all --confirm -r ${conanRemote}")
                         }
                     }
@@ -392,6 +392,14 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
             }
         }
     }
+}
+
+def getPackageId(package, version, channel, profilePath)
+{
+    def infoOutput = runCommand("conan info ${package}/${version}@jenkins/${channel} --profile \"${profilePath}\" --only id")
+    def outputLines = infoOutput.split('\n')
+    def idLine = outputLines[1].trim() // The information is in the second line.
+    return idLine.substring(4) // Remove the leading "ID: "
 }
 
 def addTaggingStage(projectRepository, commitID, CPFCMake_DIR)
@@ -507,12 +515,12 @@ def runCommand(command)
 {
     if(isUnix())
     {
-        //return sh(returnStdout: true, script: command).trim()
-        sh(script: command)
+        return sh(returnStdout: true, script: command).trim()
+        //sh(script: command)
     }
     else
     {
-        bat(script: command)
+        return bat(returnStdout: true, script: command).trim()
     }
 }
 
