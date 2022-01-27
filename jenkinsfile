@@ -328,41 +328,50 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
 
                     if(params.packageManager == 'conan')
                     {
-                        // When using conan the buildscripts are run by conan.
-                        // release for releases from cmake script.
-                        def channel = "development";
-                        // from cmake script.
-                        def version = commitId;
-                        // from cmake script.
-                        def cpfPackage = "MyLib";
-                        def conanRemote = "knitschi-conan";
-                        def profileArg = "\"${CIBuildConfigurations_DIR}/${cpfConfig}\""
-                        def packageRef = "${cpfPackage}/${version}@jenkins/${channel}"
-
-                        // Get dependencies and configure
-                        runCommand("conan install . --profile ${profileArg} -if Configuration/${cpfConfig} --build=missing")
-                        // Generate and Build 
-                        runXvfbWrappedCommand("conan build . --build -if Configuration/${cpfConfig}")
-                        // Run install step and copy results to conan cache.
-                        // The --force option is used to make sure the build-job does not fail when run twice for one version.
-                        runCommand("conan export-pkg . ${packageRef} -if Configuration/${cpfConfig} --force")
-                        // Test the consumability of the created package.
-                        // This should use the previously created package without rebuilding it. (so no --build=missing here)
-                        runXvfbWrappedCommand("conan test Sources/test_package ${packageRef} -pr ${profileArg}")
-
-                        // Upload fully featured release builds.
-                        def isRelease = true
-                        if( target == 'pipeline' && isRelease )
+                        // Create one conan package for each package in the CPF project.
+                        def packageVersions = getPackageVersions()
+                        for(pair in packageVersions)
                         {
-                            def packageHash = getPackageId(cpfPackage, version, channel, "${CIBuildConfigurations_DIR}/${cpfConfig}");
-                            runCommand("conan upload ${packageRef}:${packageHash} --all --confirm -r ${conanRemote}")
-                        }
+                            def conanRemote = "knitschi-conan";
+                            def profileArg = "\"${CIBuildConfigurations_DIR}/${cpfConfig}\""
+                            def channel = "release";
 
-                        // Install and stash documentation files in case of a pipeline build.
-                        if( target == 'pipeline' )
-                        {
-                            def installStash = "${INSTALL_STASH}${cpfConfig}"
-                            stash includes: 'install/documentation/**', name: installStash
+                            def version = pair.value;
+                            def cpfPackage = pair.key;
+
+                            def packageRef = "${cpfPackage}/${version}@jenkins/${channel}"
+                            def packageConfig = "${cpfConfig}-${cpfPackage}"
+                            def targetOptions = "-o build_target=${cpfPackage} -o install_target=install_${cpfPackage}"
+
+                            // Get dependencies and configure
+                            runCommand("conan install . --profile ${profileArg} ${targetOptions} -if Configuration/${packageConfig} --build=missing")
+                            // Generate and Build 
+                            runXvfbWrappedCommand("conan build . --build -if Configuration/${packageConfig}")
+                            // Run install step and copy results to conan cache.
+                            // The --force option is used to make sure the build-job does not fail when run twice for one version.
+                            runCommand("conan export-pkg . ${packageRef} -if Configuration/${packageConfig} --force")
+                            // Test the consumability of the created package.
+                            // This should use the previously created package without rebuilding it. (so no --build=missing here)
+                            runXvfbWrappedCommand("conan test Sources/test_package_${cpfPackage} ${packageRef} -pr ${profileArg} ${targetOptions}")
+
+                            // Upload fully featured release builds.
+                            def packageHash = getConanPackageId(cpfPackage, version, channel, "${CIBuildConfigurations_DIR}/${cpfConfig}");
+                            if( target == 'pipeline' && isReleaseVersion(version) )
+                            {
+                                runCommand("conan upload ${packageRef}:${packageHash} --all --confirm -r ${conanRemote}")
+                            }
+                            else
+                            {
+                                // Delete the package. This build was just used to verify the pipeline or test a limited scope of the build.
+                                runCommand("conan remove ${packageRef} -p ${packageHash} --force -r ${conanRemote}")
+                            }
+
+                            // Install and stash documentation files in case of a pipeline build.
+                            if( target == 'pipeline' )
+                            {
+                                def installStash = "${INSTALL_STASH}${cpfConfig}"
+                                stash includes: 'install/documentation/**', name: installStash
+                            }
                         }
                     }
                     else
@@ -398,12 +407,32 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
     }
 }
 
-def getPackageId(cpfPackage, version, channel, profilePath)
+def getConanPackageId(cpfPackage, version, channel, profilePath)
 {
     def infoOutput = runCommand("conan info ${cpfPackage}/${version}@jenkins/${channel} --profile \"${profilePath}\" --only id")
     def outputLines = infoOutput.split('\n')
     def idLine = outputLines[1].trim() // The information is in the second line.
     return idLine.substring(4) // Remove the leading "ID: "
+}
+
+def getPackageVersions()
+{   
+    def packageVersionList = runCommand("cmake -DCPF_ROOT_DIR=\"${pwd()}\" -P ${CPFCMAKE_DIR}/Scripts/getPackages.cmake")
+    def outputLines = packageVersionList.split('\n')
+
+    def packageVersions = [:]
+    for(line in outputLines)
+    {
+        def lineElements = line.split('@')
+        packageVersion[lineElements[0]] = lineElements[1]
+    }
+
+    return packageVersions
+}
+
+def isReleaseVersion(version)
+{
+    return version.split('.').size() == 3
 }
 
 def addTaggingStage(projectRepository, commitID, CPFCMake_DIR)
