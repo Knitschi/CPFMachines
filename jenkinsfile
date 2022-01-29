@@ -418,13 +418,12 @@ def getConanPackageId(cpfPackage, version, channel, profilePath)
 def getPackageVersions()
 {   
     def packageVersionList = runCommand("cmake -DCPF_ROOT_DIR=\"${pwd()}\" -P ${CPFCMAKE_DIR}/Scripts/getPackages.cmake")
-    def outputLines = packageVersionList.split('\n')
-
-    echo '----- called script -----'
-
+    def outputLines = packageVersionList.trim().split('\n')
+    
     def packageVersions = [:]
     for(line in outputLines)
     {
+        echo line
         def lineElements = line.split('@')
         packageVersions[lineElements[0]] = lineElements[1]
     }
