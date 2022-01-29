@@ -424,7 +424,7 @@ def getPackageVersions()
     for(line in outputLines)
     {
         def lineElements = line.split('@')
-        packageVersion[lineElements[0]] = lineElements[1]
+        packageVersions[lineElements[0]] = lineElements[1]
     }
 
     return packageVersions
