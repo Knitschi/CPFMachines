@@ -317,8 +317,6 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
 
                 dir(CHECKOUT_FOLDER)
                 {
-                    // Clean directories
-                    cleanSubdirectory('install')  // Remove results from the previous build.
 
                     def configOption = ''
                     if(compilerConfig) // The build config option is only needed for multi-config generators.
@@ -344,6 +342,9 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                             def packageRef = "${cpfPackage}/${version}@jenkins/${channel}"
                             def packageConfig = "${cpfConfig}-${cpfPackage}"
                             def targetOptions = "-o build_target=${cpfPackage} -o install_target=install_${cpfPackage}"
+
+                            // Clean directories
+                            cleanSubdirectory('install')  // Remove results from the previous build.
 
                             // Get dependencies and configure
                             runCommand("conan install . --profile ${profileArg} ${targetOptions} -if Configuration/${packageConfig} --build=missing")
