@@ -419,7 +419,7 @@ def getPackageVersions()
 {   
     def packageVersionList = runCommand("cmake -DCPF_ROOT_DIR=\"${pwd()}\" -P ${CPFCMAKE_DIR}/Scripts/getPackages.cmake")
     
-    echo packageVersionList
+    echo "--- ${packageVersionList}"
 
     def outputLines = packageVersionList.trim().split('\n')
     
