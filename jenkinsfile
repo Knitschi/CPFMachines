@@ -326,11 +326,19 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
 
                     if(params.packageManager == 'conan')
                     {
+                        def isFullPipelineBuild = target == 'pipeline'
+
                         // Create one conan package for each package in the CPF project.
                         def packageVersions = getPackageVersions()
+                        if(!isFullPipelineBuild)
+                        {
+                            packageVersions = [:]
+                            packageVersions["${target}"] = "0.0.0"
+                        }
                         for(pair in packageVersions)
                         {
                             def version = pair.value;
+                            def version = "0.0.8";
                             def cpfPackage = pair.key;
 
                             echo "Build package ${cpfPackage} at version ${version}."
@@ -342,6 +350,10 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                             def packageRef = "${cpfPackage}/${version}@jenkins/${channel}"
                             def packageConfig = "${cpfConfig}-${cpfPackage}"
                             def targetOptions = "-o build_target=pipeline_${cpfPackage} -o install_target=install_${cpfPackage}"
+                            if(!isFullPipelineBuild)
+                            {
+                                targetOptions = "-o build_target=${target}"
+                            }
 
                             // Clean directories
                             cleanSubdirectory('install')  // Remove results from the previous build.
@@ -350,34 +362,35 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                             runCommand("conan install . --profile ${profileArg} ${targetOptions} -if Configuration/${packageConfig} --build=missing")
                             // Generate and Build 
                             runXvfbWrappedCommand("conan build . --build -if Configuration/${packageConfig}")
-                            // Run install step and copy results to conan cache.
-                            // The --force option is used to make sure the build-job does not fail when run twice for one version.
-                            runCommand("conan export-pkg . ${packageRef} -if Configuration/${packageConfig} --force")
 
-                            def hasTestPackage = fileExists "Sources/test_package_${cpfPackage}"
-                            if(hasTestPackage)
+                            if(isFullPipelineBuild) // Only upload packages when the full pipeline is built.
                             {
-                                // Test the consumability of the created package.
-                                // This should use the previously created package without rebuilding it. (so no --build=missing here)
-                                runXvfbWrappedCommand("conan test Sources/test_package_${cpfPackage} ${packageRef} -pr ${profileArg} ${targetOptions}")
-                            }
+                                // Run install step and copy results to conan cache.
+                                // The --force option is used to make sure the build-job does not fail when run twice for one version.
+                                runCommand("conan export-pkg . ${packageRef} -if Configuration/${packageConfig} --force")
 
-                            // Upload fully featured release builds.
-                            def packageHash = getConanPackageId(cpfPackage, version, channel, "${CIBuildConfigurations_DIR}/${cpfConfig}");
-                            def isRelease = isReleaseVersion(version) 
-                            if( target == 'pipeline' && isRelease)
-                            {
-                                runCommand("conan upload ${packageRef}:${packageHash} --all --confirm -r ${conanRemote}")
-                            }
-                            else
-                            {
-                                // Delete the package. This build was just used to verify the pipeline or test a limited scope of the build.
-                                runCommand("conan remove ${packageRef} -p ${packageHash} --force -r ${conanRemote}")
-                            }
+                                def hasTestPackage = fileExists "Sources/test_package_${cpfPackage}"
+                                if(hasTestPackage)
+                                {
+                                    // Test the consumability of the created package.
+                                    // This should use the previously created package without rebuilding it. (so no --build=missing here)
+                                    runXvfbWrappedCommand("conan test Sources/test_package_${cpfPackage} ${packageRef} -pr ${profileArg} ${targetOptions}")
+                                }
 
-                            // Install and stash documentation files in case of a pipeline build.
-                            if( target == 'pipeline' )
-                            {
+                                // Upload fully featured release builds.
+                                def packageHash = getConanPackageId(cpfPackage, version, channel, "${CIBuildConfigurations_DIR}/${cpfConfig}");
+                                def isRelease = isReleaseVersion(version) 
+                                if(isRelease)
+                                {
+                                    runCommand("conan upload ${packageRef}:${packageHash} --all --confirm -r ${conanRemote}")
+                                }
+                                else
+                                {
+                                    // Delete the package. This build was just used to verify the pipeline or test a limited scope of the build.
+                                    runCommand("conan remove ${packageRef} -p ${packageHash} --force -r ${conanRemote}")
+                                }
+
+                                // Install and stash documentation files in case of a pipeline build.
                                 def exists = fileExists 'install/documentation'
                                 if(exists)
                                 {
@@ -448,6 +461,8 @@ def getPackageVersions()
 
 def isReleaseVersion(version)
 {
+    echo version
+    echo "${version.split('.').size()}"
     return version.split('.').size() == 3
 }
 
