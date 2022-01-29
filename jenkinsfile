@@ -372,10 +372,15 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                             // Install and stash documentation files in case of a pipeline build.
                             if( target == 'pipeline' )
                             {
-                                def installStash = "${INSTALL_STASH}${cpfConfig}"
-                                stash includes: 'install/documentation/**', name: installStash
+                                def exists = fileExists 'install/documentation'
+                                if(exists)
+                                {
+                                    def installStash = "${INSTALL_STASH}${cpfConfig}"
+                                    stash includes: 'install/documentation/**', name: installStash
+                                }
                             }
                         }
+
                     }
                     else
                     {
