@@ -352,9 +352,14 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                             // Run install step and copy results to conan cache.
                             // The --force option is used to make sure the build-job does not fail when run twice for one version.
                             runCommand("conan export-pkg . ${packageRef} -if Configuration/${packageConfig} --force")
-                            // Test the consumability of the created package.
-                            // This should use the previously created package without rebuilding it. (so no --build=missing here)
-                            runXvfbWrappedCommand("conan test Sources/test_package_${cpfPackage} ${packageRef} -pr ${profileArg} ${targetOptions}")
+
+                            def hasTestPackage = fileExists "Sources/test_package_${cpfPackage}"
+                            if(hasTestPackage)
+                            {
+                                // Test the consumability of the created package.
+                                // This should use the previously created package without rebuilding it. (so no --build=missing here)
+                                runXvfbWrappedCommand("conan test Sources/test_package_${cpfPackage} ${packageRef} -pr ${profileArg} ${targetOptions}")
+                            }
 
                             // Upload fully featured release builds.
                             def packageHash = getConanPackageId(cpfPackage, version, channel, "${CIBuildConfigurations_DIR}/${cpfConfig}");
