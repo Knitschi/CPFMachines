@@ -461,12 +461,7 @@ def getPackageVersions()
 
 def isReleaseVersion(version)
 {
-    echo version
-    def list1 = version.split('.')
-    def list2 = version.split('.')
-    echo "${list1.size()}"
-    echo "${list1}"
-    return version.split('.').size() == 3
+    return version.split('\\.').size() == 3
 }
 
 def addTaggingStage(projectRepository, commitID, CPFCMake_DIR)
