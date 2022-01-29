@@ -341,7 +341,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
 
                             def packageRef = "${cpfPackage}/${version}@jenkins/${channel}"
                             def packageConfig = "${cpfConfig}-${cpfPackage}"
-                            def targetOptions = "-o build_target=${cpfPackage} -o install_target=install_${cpfPackage}"
+                            def targetOptions = "-o build_target=pipeline_${cpfPackage} -o install_target=install_${cpfPackage}"
 
                             // Clean directories
                             cleanSubdirectory('install')  // Remove results from the previous build.
