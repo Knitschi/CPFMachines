@@ -462,7 +462,10 @@ def getPackageVersions()
 def isReleaseVersion(version)
 {
     echo version
-    echo "${version.split('.').size()}"
+    def list1 = version.split('.')
+    def list2 = version.split('.')
+    echo "${list1.size()}"
+    echo "${list1}"
     return version.split('.').size() == 3
 }
 
