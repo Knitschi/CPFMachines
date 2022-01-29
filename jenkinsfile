@@ -337,8 +337,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                         }
                         for(pair in packageVersions)
                         {
-                            //def version = pair.value;
-                            def version = "0.0.8";
+                            def version = pair.value;
                             def cpfPackage = pair.key;
 
                             echo "Build package ${cpfPackage} at version ${version}."
