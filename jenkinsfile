@@ -557,7 +557,8 @@ def runCommand(command)
     }
     else
     {
-        return bat(returnStdout: true, script: command).trim()
+        // Without the @ the command itself is returned in the output as well.
+        return bat(returnStdout: true, script: '@' + command).trim()
     }
 }
 
