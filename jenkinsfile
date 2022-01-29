@@ -428,6 +428,7 @@ def getPackageVersions()
     def packageVersions = [:]
     for(line in outputLines)
     {
+        line = line.substring(3) // Remove the leading "-- " from the output.
         echo line
         def lineElements = line.split('@')
         packageVersions[lineElements[0]] = lineElements[1]
