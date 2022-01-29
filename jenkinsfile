@@ -432,7 +432,6 @@ def getConanPackageId(cpfPackage, version, channel, profilePath)
 def getPackageVersions()
 {   
     def packageVersionList = runCommand("cmake -DCPF_ROOT_DIR=\"${pwd()}\" -P ${CPFCMAKE_DIR}/Scripts/getPackages.cmake")
-    echo "${packageVersionList}"
 
     def outputLines = packageVersionList.trim().split('\n')
 
@@ -556,16 +555,19 @@ def getPythonCommand()
 
 def runCommand(command)
 {
+    def output = ""
     if(isUnix())
     {
-        return sh(returnStdout: true, script: command).trim()
-        //sh(script: command)
+        output = sh(returnStdout: true, script: command).trim()
     }
     else
     {
         // Without the @ the command itself is returned in the output as well.
-        return bat(returnStdout: true, script: '@' + command).trim()
+        output = bat(returnStdout: true, script: '@' + command).trim()
     }
+
+    echo output
+    return output
 }
 
 def runXvfbWrappedPythonCommand(command)
