@@ -390,11 +390,11 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                                 }
 
                                 // Install and stash documentation files in case of a pipeline build.
-                                def exists = fileExists 'install/documentation'
+                                def exists = fileExists 'install/doc'
                                 if(exists)
                                 {
                                     def installStash = "${INSTALL_STASH}${cpfConfig}"
-                                    stash includes: 'install/documentation/**', name: installStash
+                                    stash includes: 'install/doc/**', name: installStash
                                 }
                             }
                         }
@@ -422,7 +422,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                         {
                             runXvfbWrappedPythonCommand( "4_Make.py ${cpfConfig} --target install_all ${configOption}" )
                             def installStash = "${INSTALL_STASH}${cpfConfig}"
-                            stash includes: 'install/documentation/**', name: installStash
+                            stash includes: 'install/doc/**', name: installStash
                         }
                     }
 
