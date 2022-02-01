@@ -39,8 +39,6 @@ class Constants {
     static final TAGGING_OPTIONS = ['internal'] + RELEASE_TAGGING_OPTIONS
 }
 
-def HAS_DOC_STASH = false
-
 //############################### SCRIPT SECTION ################################
 println( """
 ####################################################
@@ -118,6 +116,7 @@ if(params.target == 'pipeline' && params.cpfConfiguration == '' )
     // Store the results and push them to the web-server.
     def buildResultsRepositoryMaster = prepareRepositoryAddress(params.buildResultRepositoryMaster)
     def buildResultsRepositoryWebServer = params.buildResultRepositoryWebServer
+
     addUpdateBuildResultsRepositoryStage(
         projectRepository,
         buildResultsRepositoryMaster,
@@ -391,13 +390,8 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                                 }
 
                                 // Install and stash documentation files in case of a pipeline build.
-                                def exists = fileExists 'install/doc'
-                                if(exists)
-                                {
-                                    def installStash = "${INSTALL_STASH}${cpfConfig}"
-                                    stash includes: 'install/doc/**', name: installStash
-                                    HAS_DOC_STASH = true
-                                }
+                                def installStash = "${INSTALL_STASH}${cpfConfig}"
+                                stash includes: 'install/doc/**', name: installStash, allowEmpty: true
                             }
                         }
 
@@ -423,13 +417,8 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                         if( target == 'pipeline' )
                         {
                             runXvfbWrappedPythonCommand( "4_Make.py ${cpfConfig} --target install_all ${configOption}" )
-                            def exists = fileExists 'install/doc'
-                            if(exists)
-                            {
-                                def installStash = "${INSTALL_STASH}${cpfConfig}"
-                                stash includes: 'install/doc/**', name: installStash
-                                HAS_DOC_STASH = true
-                            }
+                            def installStash = "${INSTALL_STASH}${cpfConfig}"
+                            stash includes: 'install/doc/**', name: installStash, allowEmpty: true
                         }
                     }
 
@@ -523,17 +512,21 @@ def addUpdateBuildResultsRepositoryStage(
                         unstashFiles(INSTALL_STASH, cpfConfig.ConfigName)
                     }
 
-                    // Copy the new build results to the results repository and commit them.
-                    def scriptCommand = 'cmake '
-                    scriptCommand += "-DCMAKE_INSTALL_PREFIX=\"${pwd()}/install\" "
-                    scriptCommand += "-DMASTER_BUILD_RESULTS_REPOSITORY_DIR=\"${pwd()}/${buildResultRepositoryName}\" "
-                    scriptCommand += "-DWEB_SERVER_BUILD_RESULTS_REPOSITORY=\"${buildResultsRepositoryWebServer}\" "
+                    def exists = fileExists 'install/doc'
+                    if(exists)
+                    {
+                        // Copy the new build results to the results repository and commit them.
+                        def scriptCommand = 'cmake '
+                        scriptCommand += "-DCMAKE_INSTALL_PREFIX=\"${pwd()}/install\" "
+                        scriptCommand += "-DMASTER_BUILD_RESULTS_REPOSITORY_DIR=\"${pwd()}/${buildResultRepositoryName}\" "
+                        scriptCommand += "-DWEB_SERVER_BUILD_RESULTS_REPOSITORY=\"${buildResultsRepositoryWebServer}\" "
 
-                    scriptCommand += "-DBUILD_RESULTS_REPOSITORY_PROJECT_SUBDIR=\"${buildResultsRepositorySubDir}\" "
-                    scriptCommand += "-DROOT_DIR=\"${pwd()}/${projectRepositoryName}\" "
-                    scriptCommand += "-P \"${pwd()}/${projectRepositoryName}/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\" "
+                        scriptCommand += "-DBUILD_RESULTS_REPOSITORY_PROJECT_SUBDIR=\"${buildResultsRepositorySubDir}\" "
+                        scriptCommand += "-DROOT_DIR=\"${pwd()}/${projectRepositoryName}\" "
+                        scriptCommand += "-P \"${pwd()}/${projectRepositoryName}/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\" "
 
-                    sh scriptCommand
+                        sh scriptCommand
+                    }
                 }
 
                 echo '----- The build results were stored successfully. -----'
