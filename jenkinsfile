@@ -540,6 +540,8 @@ def addUpdateBuildResultsRepositoryStage(
                 {
                     echo '----- No doc build results available. Skipped Archiving results. -----'
                 }
+
+                echo '----- debug. -----'
             }
         }
     }
