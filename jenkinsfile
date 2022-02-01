@@ -39,7 +39,7 @@ class Constants {
     static final TAGGING_OPTIONS = ['internal'] + RELEASE_TAGGING_OPTIONS
 }
 
-def HAS_DOC_STASH = false;
+def HAS_DOC_STASH = false
 
 //############################### SCRIPT SECTION ################################
 println( """
@@ -396,7 +396,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                                 {
                                     def installStash = "${INSTALL_STASH}${cpfConfig}"
                                     stash includes: 'install/doc/**', name: installStash
-                                    HAS_DOC_STASH = true;
+                                    HAS_DOC_STASH = true
                                 }
                             }
                         }
@@ -428,6 +428,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                             {
                                 def installStash = "${INSTALL_STASH}${cpfConfig}"
                                 stash includes: 'install/doc/**', name: installStash
+                                HAS_DOC_STASH = true
                             }
                         }
                     }
@@ -504,19 +505,18 @@ def addUpdateBuildResultsRepositoryStage(
             def projectRepositoryName = getRepositoryName(projectRepository)
             ws(projectRepositoryName + '-archive-stage')
             {
+                // Get the build results repository.
+                def buildResultRepositoryName = getRepositoryName(buildResultsRepositoryMaster)
+                checkoutBranch(buildResultsRepositoryMaster, 'master', buildResultRepositoryName) // get the build results
+
+                // Checkout the project repository, get the archived build results and commit them to the result repository.
+                checkoutBranch(projectRepository, commitID, projectRepositoryName) // Get the updateBuildResultsRepository.cmake script. We should only check-out CPFCMake in the future here.
+                
+                // Accumulate all installed files from all configurations.
+                // This fills the install directory.
+                cleanSubdirectory('install')    // Remove the results from the previous build.
                 if(HAS_DOC_STASH)
                 {
-
-                    // Get the build results repository.
-                    def buildResultRepositoryName = getRepositoryName(buildResultsRepositoryMaster)
-                    checkoutBranch(buildResultsRepositoryMaster, 'master', buildResultRepositoryName) // get the build results
-
-                    // Checkout the project repository, get the archived build results and commit them to the result repository.
-                    checkoutBranch(projectRepository, commitID, projectRepositoryName) // Get the updateBuildResultsRepository.cmake script. We should only check-out CPFCMake in the future here.
-                    
-                    // Accumulate all installed files from all configurations.
-                    // This fills the install directory.
-                    cleanSubdirectory('install')    // Remove the results from the previous build.
                     for(cpfConfig in cpfConfigs)
                     {
                         unstashFiles(INSTALL_STASH, cpfConfig.ConfigName)
@@ -533,17 +533,10 @@ def addUpdateBuildResultsRepositoryStage(
                     scriptCommand += "-P \"${pwd()}/${projectRepositoryName}/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\" "
 
                     sh scriptCommand
-                    
-                    echo '----- The build results were stored successfully. -----'
                 }
-                else
-                {
-                    sh 'echo dummy step'
-                    echo '----- No doc build results available. Skipped Archiving results. -----'
-                }
-
-                echo '----- debug. -----'
             }
+
+			echo '----- The build results were stored successfully. -----'
         }
     }
 }
