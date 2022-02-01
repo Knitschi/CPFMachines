@@ -524,10 +524,14 @@ def addUpdateBuildResultsRepositoryStage(
                     scriptCommand += "-P \"${pwd()}/${projectRepositoryName}/${CPFCMAKE_DIR}/Scripts/updateBuildResultsRepository.cmake\" "
 
                     sh scriptCommand
+
+                    echo '----- The build results were stored successfully. -----'
+                }
+                else
+                {
+                    echo '----- No doc files available to be uploaded to the result repository. -----'
                 }
             }
-
-            echo '----- The build results were stored successfully. -----'
         }
     }
 }
