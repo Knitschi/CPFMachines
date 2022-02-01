@@ -538,6 +538,7 @@ def addUpdateBuildResultsRepositoryStage(
                 }
                 else
                 {
+                    sh 'echo dummy step'
                     echo '----- No doc build results available. Skipped Archiving results. -----'
                 }
 
