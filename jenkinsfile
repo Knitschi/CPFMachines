@@ -421,8 +421,12 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
                         if( target == 'pipeline' )
                         {
                             runXvfbWrappedPythonCommand( "4_Make.py ${cpfConfig} --target install_all ${configOption}" )
-                            def installStash = "${INSTALL_STASH}${cpfConfig}"
-                            stash includes: 'install/doc/**', name: installStash
+                            def exists = fileExists 'install/doc'
+                            if(exists)
+                            {
+                                def installStash = "${INSTALL_STASH}${cpfConfig}"
+                                stash includes: 'install/doc/**', name: installStash
+                            }
                         }
                     }
 
