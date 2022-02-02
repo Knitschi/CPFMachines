@@ -279,6 +279,7 @@ def checkoutBranch(projectRepository, branch, subdirectory = CHECKOUT_FOLDER )
             submoduleCfg: []
         ]
     )
+    runCommand("git submodule foreach --recursive 'git fetch --tags'")
 }
 
 def addBuildStage( cpfConfigs, projectRepository, commitId, target, CPFCMake_DIR, CPFBuildscripts_DIR, CIBuildConfigurations_DIR)
