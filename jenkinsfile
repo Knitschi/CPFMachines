@@ -173,7 +173,7 @@ def addRepositoryOperationsStage( projectRepository, branchOrTag, taggingOption,
 
                 dir(CHECKOUT_FOLDER)
                 {
-                    runCommand("git submodule foreach --recursive 'git fetch --tags'")
+                    getFetchSubmoduleTags()
 
                     // Update all owned packages if the commit is at the end of a branch.
                     // Otherwise do nothing
@@ -319,7 +319,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
 
                 dir(CHECKOUT_FOLDER)
                 {
-                    runCommand("git submodule foreach --recursive 'git fetch --tags'")
+                    getFetchSubmoduleTags()
 
                     def configOption = ''
                     if(compilerConfig) // The build config option is only needed for multi-config generators.
@@ -645,4 +645,9 @@ def showTree()
 def devMessage(message)
 {
     println '------------------------ ' + message
+}
+
+def getFetchSubmoduleTags()
+{
+    runCommand("git submodule foreach --recursive 'git fetch --tags'")
 }
