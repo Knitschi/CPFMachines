@@ -173,6 +173,8 @@ def addRepositoryOperationsStage( projectRepository, branchOrTag, taggingOption,
 
                 dir(CHECKOUT_FOLDER)
                 {
+                    runCommand("git submodule foreach --recursive 'git fetch --tags'")
+
                     // Update all owned packages if the commit is at the end of a branch.
                     // Otherwise do nothing
                     sh "cmake -DROOT_DIR=\"${pwd()}\" -DGIT_REF=${branchOrTag} -DTAGGING_OPTION=${taggingOption} -DRELEASED_PACKAGE=\"${taggedPackage}\" -DCONFIG=\"${debianConfig}\" -DPACKAGE_MANAGER=\"${params.packageManager}\" -DCPFCMake_DIR=\"${CPFCMake_DIR}\" -DCPFBuildscripts_DIR=\"${CPFBuildscripts_DIR}\" -DCIBuildConfigurations_DIR=\"${CIBuildConfigurations_DIR}\" -P ${CPFCMAKE_DIR}/Scripts/prepareCIRepoForBuild.cmake"
@@ -279,7 +281,6 @@ def checkoutBranch(projectRepository, branch, subdirectory = CHECKOUT_FOLDER )
             submoduleCfg: []
         ]
     )
-    runCommand("git submodule foreach --recursive 'git fetch --tags'")
 }
 
 def addBuildStage( cpfConfigs, projectRepository, commitId, target, CPFCMake_DIR, CPFBuildscripts_DIR, CIBuildConfigurations_DIR)
@@ -318,6 +319,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
 
                 dir(CHECKOUT_FOLDER)
                 {
+                    runCommand("git submodule foreach --recursive 'git fetch --tags'")
 
                     def configOption = ''
                     if(compilerConfig) // The build config option is only needed for multi-config generators.
