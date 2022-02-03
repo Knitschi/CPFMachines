@@ -649,5 +649,6 @@ def devMessage(message)
 
 def getFetchSubmoduleTags()
 {
-    runCommand("git submodule foreach --recursive 'git fetch --tags'")
+    runCommand("git status")
+    runCommand("git submodule foreach --recursive \"git fetch --tags\"")
 }
