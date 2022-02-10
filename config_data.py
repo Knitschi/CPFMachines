@@ -706,6 +706,7 @@ def get_example_config_dict():
                 {
                     KEY_JENKINSJOB_BASE_NAME : 'MyCPFProject2',
                     KEY_CI_REPOSITORY : 'https://github.com/Fritz/MyCPFProject2.git',
+                    KEY_DEFAULT_BRANCH : 'master',
                     KEY_BUILD_RESULT_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults',
                     KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'projects/MyCPFProject2',
                     KEY_PACKAGE_MANAGER : '',
@@ -720,6 +721,7 @@ def get_example_config_dict():
                 {
                     KEY_JENKINSJOB_BASE_NAME : 'MyCPFProject3',
                     KEY_CI_REPOSITORY : 'https://github.com/Fritz/MyCPFProject3.git',
+                    KEY_DEFAULT_BRANCH : 'main',
                     KEY_BUILD_RESULT_REPOSITORY : 'https://github.com/Knitschi/Knitschi.github.io.git',
                     KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'MyCPFProject3',
                     KEY_PACKAGE_MANAGER : 'conan',
