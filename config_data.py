@@ -52,9 +52,11 @@ KEY_JENKINS_APPROVED_SCRIPT_SIGNATURES = 'JenkinsApprovedScriptSignatures'
 KEY_CPF_JOBS = 'CPFJobs'
 KEY_JENKINSJOB_BASE_NAME = 'JenkinsJobBasename'
 KEY_CI_REPOSITORY = 'CIRepository'
+KEY_DEFAULT_BRANCH = 'DefaultBranch'
 KEY_BUILD_RESULT_REPOSITORY = 'BuildResultRepository'
 KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY = 'BuildResultRepositoryProjectSubdirectory'
 KEY_PACKAGE_MANAGER = 'PackageManager'
+KEY_CONAN_REMOTE = 'ConanRemote'
 KEY_CPFCMake_DIR = 'CPFCMake_DIR'
 KEY_CPFBuildscripts_DIR = 'CPFBuildscripts_DIR'
 KEY_CIBuildConfigurations_DIR = 'CIBuildConfigurations_DIR'
@@ -257,7 +259,9 @@ class ConfigData:
             try:
                 config.base_job_name = get_checked_value(job_config_dict, KEY_JENKINSJOB_BASE_NAME)
                 config.ci_repository = get_checked_value(job_config_dict, KEY_CI_REPOSITORY)
+                config.default_branch = get_checked_value(job_config_dict, KEY_DEFAULT_BRANCH)
                 config.package_manager = get_checked_optional_value(job_config_dict, KEY_PACKAGE_MANAGER)
+                config.conan_remote = get_checked_optional_value(job_config_dict, KEY_CONAN_REMOTE)
                 config.result_repository = get_checked_value(job_config_dict, KEY_BUILD_RESULT_REPOSITORY)
                 config.result_repository_project_subdirectory = PurePosixPath(get_checked_value(job_config_dict, KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY))
                 config.CPFCMake_DIR = PurePosixPath(get_checked_value(job_config_dict, KEY_CPFCMake_DIR))
@@ -559,9 +563,11 @@ class CPFJobConfig:
     def __init__(self):
         self.base_job_name = ''                                         # The name of the buildjob
         self.ci_repository = ''                                         # The repository that contains the CPF ci-project that shall be build.
+        self.default_branch = ''                                        # The branch that is build by default.
         self.result_repository = ''                                     # The address of the git repository that provides the content of the hosted pages.
         self.result_repository_project_subdirectory = PurePosixPath()   # The subdirectory in the build_result_repository that shall be published.
-        self.package_manager = ''
+        self.package_manager = ''                                       # Switch between running a conan based pipeline and one that uses CPFBuildscripts directly.
+        self.conan_remote = ''                                          # The name of the conan remote to which built packages ar uploaded.
         self.CPFCMake_DIR = PurePosixPath()                             # Absolute or relative path to the directory that holds the CPFCMake module. This is handed to the 0_CopyScripts script.
         self.CPFBuildscripts_DIR = PurePosixPath()                      # Absolute or relative path to the directory that holds the CPFBuildscripts module. This is handed to the 0_CopyScripts script.                                       
         self.CIBuildConfigurations_DIR = PurePosixPath()                # Absolute or relative path to the directory that holds the CIBuildConfigurations. This is handed to the 0_CopyScripts script.
@@ -685,9 +691,11 @@ def get_example_config_dict():
                 {
                     KEY_JENKINSJOB_BASE_NAME : 'MyCPFProject1',
                     KEY_CI_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/MyCPFProject1.git',
+                    KEY_DEFAULT_BRANCH : 'master',
                     KEY_BUILD_RESULT_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults',
                     KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'projects/MyCPFProject1',
                     KEY_PACKAGE_MANAGER : '',
+                    KEY_CONAN_REMOTE : '',
                     KEY_CPFCMake_DIR : 'Sources/CPFCMake',
                     KEY_CPFBuildscripts_DIR : 'Sources/CPFBuildscripts',
                     KEY_CIBuildConfigurations_DIR : 'Sources/CIBuildConfigurations',
@@ -701,6 +709,7 @@ def get_example_config_dict():
                     KEY_BUILD_RESULT_REPOSITORY : 'ssh://fritz@mastermachine:/home/fritz/repositories/buildresults',
                     KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'projects/MyCPFProject2',
                     KEY_PACKAGE_MANAGER : '',
+                    KEY_CONAN_REMOTE : '',
                     KEY_CPFCMake_DIR : 'C:/CPFCMake',
                     KEY_CPFBuildscripts_DIR : 'C:/CPFBuildscripts',
                     KEY_CIBuildConfigurations_DIR : 'C:/CIBuildConfigurations',
@@ -714,6 +723,7 @@ def get_example_config_dict():
                     KEY_BUILD_RESULT_REPOSITORY : 'https://github.com/Knitschi/Knitschi.github.io.git',
                     KEY_BUILD_RESULT_REPOSITORY_PROJECT_SUBDIRECTORY : 'MyCPFProject3',
                     KEY_PACKAGE_MANAGER : 'conan',
+                    KEY_CONAN_REMOTE : 'knitschi-conan',
                     KEY_CPFCMake_DIR : 'Sources/external/CPFCMake',
                     KEY_CPFBuildscripts_DIR : 'Sources/external/CPFBuildscripts',
                     KEY_CIBuildConfigurations_DIR : 'Sources/external/CIBuildConfigurations'

@@ -48,6 +48,7 @@ branchOrTag: ${params.branchOrTag}
 cpfConfiguration: ${params.cpfConfiguration}
 target: ${params.target}
 packageManager: ${params.packageManager}
+conanRemote: ${params.conanRemote}
 cpfCIRepository: ${params.cpfCIRepository}
 buildResultRepositoryMaster: ${params.buildResultRepositoryMaster}
 buildResultRepositoryWebServer: ${params.buildResultRepositoryWebServer}
@@ -345,7 +346,7 @@ def createBuildNode( nodeLabel, cpfConfig, projectRepository, commitId, target, 
 
                             echo "Build package ${cpfPackage} at version ${version}."
 
-                            def conanRemote = "knitschi-conan";
+                            def conanRemote = params.conanRemote;
                             def profileArg = "\"${CIBuildConfigurations_DIR}/${cpfConfig}\""
                             def channel = "release";
 
