@@ -73,3 +73,5 @@ cpfAddFilePackageComponent(
 
 # Add a runAllTests target to run the unit tests.
 cpfAddRunPython3TestTarget( run_tests.py "" "${files}" "" "" )
+
+cpfFinalizePackageProject()
